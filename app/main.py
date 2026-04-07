@@ -6,6 +6,7 @@ from pydantic import BaseModel, EmailStr
 
 from fdd_tracker.db import ensure_db
 from fdd_tracker.models import Filing
+from fdd_tracker.services.ingest import run_ingestion
 from fdd_tracker.services.store import (
     delete_watchlist,
     get_recent_changes,
@@ -33,6 +34,10 @@ class FilingIn(BaseModel):
     filed_on: date | None = None
     document_url: str
     document_hash: str | None = None
+
+
+class IngestRequest(BaseModel):
+    states: list[str] | None = None
 
 
 @app.on_event("startup")
@@ -80,3 +85,9 @@ def changes(franchise_slug: str, limit: int = Query(default=20, ge=1, le=200)) -
         "franchise_slug": franchise_slug,
         "changes": get_recent_changes(franchise_slug=franchise_slug, limit=limit),
     }
+
+
+@app.post("/ingest/run")
+def ingest_run(payload: IngestRequest | None = None) -> dict:
+    states = payload.states if payload else None
+    return run_ingestion(states=states)

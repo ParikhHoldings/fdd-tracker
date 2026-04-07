@@ -73,3 +73,22 @@ def test_delete_watchlist_endpoint():
     r2 = client.request("DELETE", "/watchlists", json=payload)
     assert r2.status_code == 200
     assert r2.json()["deleted"] == 0
+
+
+def test_ingest_run_returns_summary_keys():
+    r = client.post("/ingest/run", json={})
+    assert r.status_code == 200
+    data = r.json()
+    assert "total_seen" in data
+    assert "inserted_or_updated" in data
+    assert "sources_breakdown" in data
+    assert "ftc" in data["sources_breakdown"]
+    assert "state" in data["sources_breakdown"]
+
+
+def test_ingest_run_with_states_filter():
+    r = client.post("/ingest/run", json={"states": ["CA", "NY"]})
+    assert r.status_code == 200
+    data = r.json()
+    assert "total_seen" in data
+    assert "sources_breakdown" in data

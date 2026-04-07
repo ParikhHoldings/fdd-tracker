@@ -31,3 +31,18 @@ pip install -e '.[dev]'
 uvicorn app.main:app --reload
 pytest
 ```
+
+## Ingestion pipeline
+The scanner includes a runnable ingestion pipeline that loads filings from JSON adapters.
+
+**Trigger ingestion:**
+```bash
+curl -X POST http://localhost:8000/ingest/run -H "Content-Type: application/json" -d '{"states": ["CA", "NY"]}'
+```
+
+**Source file paths (JSON arrays):**
+- FTC filings: `data/sources/ftc_filings.json`
+- State portal filings: `data/sources/state_filings.json`
+
+Each FTC record: `{franchise_name, filing_url, filed_on}`
+Each state record: `{state, franchise_name, filing_url, filed_on}`
