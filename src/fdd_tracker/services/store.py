@@ -83,3 +83,79 @@ def seed_change_summary(franchise_slug: str, categories: list[str], risk_level: 
         risk_level=risk_level,
     )
     return insert_change_summary(summary, db_path=db_path)
+
+
+def upsert_watchlist(email: str, franchise_slug: str, db_path: str | None = None) -> dict:
+    with get_conn(db_path) as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO watchlists(email, franchise_slug)
+            VALUES (?, ?)
+            ON CONFLICT(email, franchise_slug) DO NOTHING
+            """,
+            (email, franchise_slug),
+        )
+        conn.commit()
+        created = cur.rowcount > 0
+
+        row = conn.execute(
+            """
+            SELECT id, email, franchise_slug, created_at
+            FROM watchlists
+            WHERE email = ? AND franchise_slug = ?
+            """,
+            (email, franchise_slug),
+        ).fetchone()
+
+    return {
+        "created": created,
+        "id": row["id"],
+        "email": row["email"],
+        "franchise_slug": row["franchise_slug"],
+        "created_at": row["created_at"],
+    }
+
+
+def get_watchlists(email: str | None = None, db_path: str | None = None) -> list[dict]:
+    with get_conn(db_path) as conn:
+        if email:
+            rows = conn.execute(
+                """
+                SELECT id, email, franchise_slug, created_at
+                FROM watchlists
+                WHERE email = ?
+                ORDER BY created_at DESC
+                """,
+                (email,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT id, email, franchise_slug, created_at
+                FROM watchlists
+                ORDER BY created_at DESC
+                """
+            ).fetchall()
+
+    return [
+        {
+            "id": row["id"],
+            "email": row["email"],
+            "franchise_slug": row["franchise_slug"],
+            "created_at": row["created_at"],
+        }
+        for row in rows
+    ]
+
+
+def delete_watchlist(email: str, franchise_slug: str, db_path: str | None = None) -> int:
+    with get_conn(db_path) as conn:
+        cur = conn.execute(
+            """
+            DELETE FROM watchlists
+            WHERE email = ? AND franchise_slug = ?
+            """,
+            (email, franchise_slug),
+        )
+        conn.commit()
+        return cur.rowcount

@@ -6,7 +6,13 @@ from pydantic import BaseModel, EmailStr
 
 from fdd_tracker.db import ensure_db
 from fdd_tracker.models import Filing
-from fdd_tracker.services.store import get_recent_changes, upsert_filing
+from fdd_tracker.services.store import (
+    delete_watchlist,
+    get_recent_changes,
+    get_watchlists,
+    upsert_filing,
+    upsert_watchlist,
+)
 
 app = FastAPI(title="FDD Tracker API", version="0.2.0")
 
@@ -14,7 +20,6 @@ FRANCHISES = [
     {"slug": "chick-fil-a", "name": "Chick-fil-A", "category": "QSR"},
     {"slug": "orangetheory", "name": "Orangetheory", "category": "Fitness"},
 ]
-WATCHLISTS: list[dict] = []
 
 
 class WatchlistIn(BaseModel):
@@ -47,9 +52,20 @@ def franchises() -> list[dict]:
 
 @app.post("/watchlists")
 def create_watchlist(payload: WatchlistIn) -> dict:
-    item = payload.model_dump()
-    WATCHLISTS.append(item)
-    return {"created": True, "count": len(WATCHLISTS), "item": item}
+    result = upsert_watchlist(email=payload.email, franchise_slug=payload.franchise_slug)
+    created = result.pop("created")
+    return {"created": created, "item": result}
+
+
+@app.get("/watchlists")
+def list_watchlists(email: str | None = Query(default=None)) -> list[dict]:
+    return get_watchlists(email=email)
+
+
+@app.delete("/watchlists")
+def remove_watchlist(payload: WatchlistIn) -> dict:
+    deleted = delete_watchlist(email=payload.email, franchise_slug=payload.franchise_slug)
+    return {"deleted": deleted}
 
 
 @app.post("/filings")

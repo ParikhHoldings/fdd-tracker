@@ -36,6 +36,17 @@ def ensure_db(path: str | None = None) -> str:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS watchlists (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT NOT NULL,
+                franchise_slug TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+                UNIQUE(email, franchise_slug)
+            )
+            """
+        )
         conn.commit()
     return str(db_path)
 
