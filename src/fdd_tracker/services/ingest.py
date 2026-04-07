@@ -1,10 +1,17 @@
 from __future__ import annotations
 
+import json
 import re
+from dataclasses import asdict
 from datetime import date
+from pathlib import Path
 
 from fdd_tracker.ingestion.ftc import FTCFilingRecord, fetch_ftc_filings
-from fdd_tracker.ingestion.state_portals import StatePortalRecord, fetch_state_filings
+from fdd_tracker.ingestion.state_portals import (
+    StatePortalRecord,
+    fetch_live_state_filings,
+    fetch_state_filings,
+)
 from fdd_tracker.models import Filing
 from fdd_tracker.services.store import upsert_filing
 
@@ -92,3 +99,54 @@ def _state_to_filing(record: StatePortalRecord) -> Filing:
         document_url=record.filing_url,
         document_hash=None,
     )
+
+
+# ---------------------------------------------------------------------------
+# State source cache refresh
+# ---------------------------------------------------------------------------
+
+_DEFAULT_CACHE_PATH = "data/sources/state_filings.json"
+
+
+def refresh_state_source_cache(
+    states: list[str] | None = None,
+    output_path: str | None = None,
+    ca_text: str | None = None,
+    il_text: str | None = None,
+) -> dict:
+    """Fetch live state filings and write to JSON cache file.
+
+    Args:
+        states: List of state codes to fetch. Defaults to CA and IL.
+        output_path: Output JSON file path. Defaults to data/sources/state_filings.json.
+        ca_text: If provided, use this text for CA parsing (for tests).
+        il_text: If provided, use this text for IL parsing (for tests).
+
+    Returns:
+        Summary dict with keys: written (bool), output_path, records (count).
+    """
+    if output_path is None:
+        repo_root = Path(__file__).resolve().parents[3]
+        output_path = str(repo_root / _DEFAULT_CACHE_PATH)
+
+    records = fetch_live_state_filings(
+        states=states,
+        ca_text=ca_text,
+        il_text=il_text,
+    )
+
+    # Convert dataclass records to dicts for JSON serialization
+    records_dicts = [asdict(r) for r in records]
+
+    # Ensure output directory exists
+    output_file = Path(output_path)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(output_file, "w", encoding="utf-8") as f:
+        json.dump(records_dicts, f, indent=2)
+
+    return {
+        "written": True,
+        "output_path": output_path,
+        "records": len(records),
+    }

@@ -3,7 +3,13 @@ import tempfile
 from pathlib import Path
 
 from fdd_tracker.ingestion.ftc import fetch_ftc_filings
-from fdd_tracker.ingestion.state_portals import fetch_state_filings
+from fdd_tracker.ingestion.state_portals import (
+    StatePortalRecord,
+    dedupe_records,
+    fetch_state_filings,
+    parse_ca_filings,
+    parse_il_filings,
+)
 
 
 class TestFTCLoader:
@@ -75,3 +81,50 @@ class TestStatePortalLoader:
             assert states == {"CA", "IL"}
         finally:
             Path(temp_path).unlink()
+
+
+class TestLiveStateParsers:
+    def test_parse_ca_filings(self):
+        feed = """
+        <rss><channel>
+          <item>
+            <title>Alpha Franchise LLC</title>
+            <link>https://ca.example.gov/f/alpha.pdf</link>
+            <filed_on>2026-03-12</filed_on>
+          </item>
+        </channel></rss>
+        """
+        rows = parse_ca_filings(feed)
+        assert len(rows) == 1
+        assert rows[0].state == "CA"
+        assert rows[0].franchise_name == "Alpha Franchise LLC"
+        assert rows[0].filing_url == "https://ca.example.gov/f/alpha.pdf"
+        assert rows[0].filed_on == "2026-03-12"
+
+    def test_parse_il_filings(self):
+        feed = """
+        <feed>
+          <entry>
+            <company>Beta Holdings Inc</company>
+            <link href=\"https://il.example.gov/f/beta.pdf\" />
+            <effective_date>03/20/2026</effective_date>
+          </entry>
+        </feed>
+        """
+        rows = parse_il_filings(feed)
+        assert len(rows) == 1
+        assert rows[0].state == "IL"
+        assert rows[0].franchise_name == "Beta Holdings Inc"
+        assert rows[0].filing_url == "https://il.example.gov/f/beta.pdf"
+        assert rows[0].filed_on == "2026-03-20"
+
+    def test_dedupe_records_by_state_and_url(self):
+        rows = [
+            StatePortalRecord("CA", "A", "https://x/1.pdf", "2026-01-01"),
+            StatePortalRecord("CA", "A2", "https://x/1.pdf", "2026-01-02"),
+            StatePortalRecord("IL", "A", "https://x/1.pdf", "2026-01-03"),
+        ]
+        deduped = dedupe_records(rows)
+        assert len(deduped) == 2
+        assert deduped[0].state == "CA"
+        assert deduped[1].state == "IL"

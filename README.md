@@ -46,3 +46,9 @@ curl -X POST http://localhost:8000/ingest/run -H "Content-Type: application/json
 
 Each FTC record: `{franchise_name, filing_url, filed_on}`
 Each state record: `{state, franchise_name, filing_url, filed_on}`
+
+**Refresh state source cache (CA + IL live adapters):**
+```bash
+curl -X POST http://localhost:8000/ingest/refresh-state-sources -H "Content-Type: application/json" -d '{"states": ["CA", "IL"]}'
+```
+This updates `data/sources/state_filings.json` with the latest parsed records.

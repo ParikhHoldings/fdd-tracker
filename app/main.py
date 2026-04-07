@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr
 
 from fdd_tracker.db import ensure_db
 from fdd_tracker.models import Filing
-from fdd_tracker.services.ingest import run_ingestion
+from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestion
 from fdd_tracker.services.store import (
     delete_watchlist,
     get_recent_changes,
@@ -91,3 +91,14 @@ def changes(franchise_slug: str, limit: int = Query(default=20, ge=1, le=200)) -
 def ingest_run(payload: IngestRequest | None = None) -> dict:
     states = payload.states if payload else None
     return run_ingestion(states=states)
+
+
+class RefreshStateSourcesRequest(BaseModel):
+    states: list[str] | None = None
+
+
+@app.post("/ingest/refresh-state-sources")
+def refresh_state_sources(payload: RefreshStateSourcesRequest | None = None) -> dict:
+    """Refresh state filings from live portal sources and update JSON cache."""
+    states = payload.states if payload else None
+    return refresh_state_source_cache(states=states)

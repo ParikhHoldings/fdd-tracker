@@ -92,3 +92,12 @@ def test_ingest_run_with_states_filter():
     data = r.json()
     assert "total_seen" in data
     assert "sources_breakdown" in data
+
+
+def test_refresh_state_sources_summary_shape():
+    r = client.post("/ingest/refresh-state-sources", json={"states": ["CA", "IL"]})
+    assert r.status_code == 200
+    data = r.json()
+    assert "written" in data
+    assert "output_path" in data
+    assert "records" in data
