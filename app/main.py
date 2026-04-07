@@ -9,6 +9,7 @@ from fdd_tracker.models import Filing
 from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestion
 from fdd_tracker.services.store import (
     delete_watchlist,
+    get_alert_feed,
     get_recent_changes,
     get_watchlists,
     upsert_filing,
@@ -102,3 +103,8 @@ def refresh_state_sources(payload: RefreshStateSourcesRequest | None = None) -> 
     """Refresh state filings from live portal sources and update JSON cache."""
     states = payload.states if payload else None
     return refresh_state_source_cache(states=states)
+
+
+@app.get("/alerts")
+def alerts(email: EmailStr, limit: int = Query(default=50, ge=1, le=200)) -> dict:
+    return {"email": email, "alerts": get_alert_feed(email=str(email), limit=limit)}

@@ -185,3 +185,37 @@ def delete_watchlist(email: str, franchise_slug: str, db_path: str | None = None
         )
         conn.commit()
         return cur.rowcount
+
+
+def get_alert_feed(email: str, limit: int = 50, db_path: str | None = None) -> list[dict]:
+    """Return alert feed entries by joining a user's watchlist to recent change summaries."""
+    with get_conn(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                w.email,
+                w.franchise_slug,
+                c.generated_at,
+                c.categories,
+                c.highlights,
+                c.risk_level
+            FROM watchlists w
+            JOIN change_summaries c ON c.franchise_slug = w.franchise_slug
+            WHERE w.email = ?
+            ORDER BY c.generated_at DESC
+            LIMIT ?
+            """,
+            (email, limit),
+        ).fetchall()
+
+    return [
+        {
+            "email": row["email"],
+            "franchise_slug": row["franchise_slug"],
+            "generated_at": row["generated_at"],
+            "categories": json.loads(row["categories"]),
+            "highlights": json.loads(row["highlights"]),
+            "risk_level": row["risk_level"],
+        }
+        for row in rows
+    ]

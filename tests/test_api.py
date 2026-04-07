@@ -102,3 +102,17 @@ def test_refresh_state_sources_summary_shape():
     assert "written" in data
     assert "output_path" in data
     assert "records" in data
+
+
+def test_alerts_endpoint_returns_watchlist_alerts():
+    email = f"alerts-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+
+    r = client.get(f"/alerts?email={email}&limit=10")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["email"] == email
+    assert isinstance(data["alerts"], list)
+    assert len(data["alerts"]) >= 1
+    assert all(item["franchise_slug"] == "chick-fil-a" for item in data["alerts"])

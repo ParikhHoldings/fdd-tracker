@@ -3,6 +3,7 @@ from datetime import date
 from fdd_tracker.models import Filing
 from fdd_tracker.services.store import (
     delete_watchlist,
+    get_alert_feed,
     get_latest_filings,
     get_recent_changes,
     get_watchlists,
@@ -115,3 +116,16 @@ def test_get_latest_filings_limit(tmp_path):
 
     result = get_latest_filings("test-franchise", limit=2, db_path=db)
     assert len(result) == 2
+
+
+def test_get_alert_feed_for_watchlist(tmp_path):
+    db = str(tmp_path / "test.db")
+    upsert_watchlist("alerts@example.com", "chick-fil-a", db_path=db)
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high", db_path=db)
+    seed_change_summary("orangetheory", ["litigation"], risk_level="medium", db_path=db)
+
+    alerts = get_alert_feed("alerts@example.com", db_path=db)
+    assert len(alerts) == 1
+    assert alerts[0]["franchise_slug"] == "chick-fil-a"
+    assert alerts[0]["risk_level"] == "high"
+    assert alerts[0]["categories"] == ["fees"]

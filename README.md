@@ -52,3 +52,9 @@ Each state record: `{state, franchise_name, filing_url, filed_on}`
 curl -X POST http://localhost:8000/ingest/refresh-state-sources -H "Content-Type: application/json" -d '{"states": ["CA", "IL"]}'
 ```
 This updates `data/sources/state_filings.json` with the latest parsed records.
+
+**Watchlist alerts feed:**
+```bash
+curl "http://localhost:8000/alerts?email=you@example.com&limit=25"
+```
+Returns recent change summaries for franchises on that watchlist.
