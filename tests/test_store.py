@@ -3,6 +3,7 @@ from datetime import date
 from fdd_tracker.models import Filing
 from fdd_tracker.services.store import (
     delete_watchlist,
+    get_latest_filings,
     get_recent_changes,
     get_watchlists,
     seed_change_summary,
@@ -75,3 +76,42 @@ def test_delete_watchlist(tmp_path):
 
     items = get_watchlists(email="user@example.com", db_path=db)
     assert len(items) == 0
+
+
+def test_get_latest_filings_ordering(tmp_path):
+    """Test that get_latest_filings returns filings ordered by filed_on desc nulls last, then id desc."""
+    db = str(tmp_path / "test.db")
+
+    # Insert filings in mixed order - some with dates, one without
+    filings = [
+        Filing(franchise_slug="acme", source="ftc", filed_on=date(2026, 1, 1), document_url="https://example.com/old.pdf"),
+        Filing(franchise_slug="acme", source="state-ca", filed_on=date(2026, 3, 15), document_url="https://example.com/newest.pdf"),
+        Filing(franchise_slug="acme", source="state-il", filed_on=date(2026, 2, 10), document_url="https://example.com/middle.pdf"),
+        Filing(franchise_slug="acme", source="ftc", filed_on=None, document_url="https://example.com/no-date.pdf"),
+    ]
+    for f in filings:
+        upsert_filing(f, db_path=db)
+
+    result = get_latest_filings("acme", limit=4, db_path=db)
+
+    # Should be ordered: 2026-03-15, 2026-02-10, 2026-01-01, None
+    assert len(result) == 4
+    assert result[0]["document_url"] == "https://example.com/newest.pdf"
+    assert result[1]["document_url"] == "https://example.com/middle.pdf"
+    assert result[2]["document_url"] == "https://example.com/old.pdf"
+    assert result[3]["document_url"] == "https://example.com/no-date.pdf"
+    assert result[3]["filed_on"] is None
+
+
+def test_get_latest_filings_limit(tmp_path):
+    """Test that get_latest_filings respects limit parameter."""
+    db = str(tmp_path / "test.db")
+
+    for i in range(5):
+        upsert_filing(
+            Filing(franchise_slug="test-franchise", source="ftc", filed_on=date(2026, 1, i + 1), document_url=f"https://example.com/doc{i}.pdf"),
+            db_path=db,
+        )
+
+    result = get_latest_filings("test-franchise", limit=2, db_path=db)
+    assert len(result) == 2

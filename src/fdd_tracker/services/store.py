@@ -28,6 +28,32 @@ def upsert_filing(filing: Filing, db_path: str | None = None) -> int:
         return cur.rowcount
 
 
+def get_latest_filings(franchise_slug: str, limit: int = 2, db_path: str | None = None) -> list[dict]:
+    """Get latest filings for a franchise, ordered by filed_on desc nulls last, then id desc."""
+    with get_conn(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT id, franchise_slug, source, filed_on, document_url, document_hash
+            FROM filings
+            WHERE franchise_slug = ?
+            ORDER BY filed_on IS NULL, filed_on DESC, id DESC
+            LIMIT ?
+            """,
+            (franchise_slug, limit),
+        ).fetchall()
+    return [
+        {
+            "id": row["id"],
+            "franchise_slug": row["franchise_slug"],
+            "source": row["source"],
+            "filed_on": row["filed_on"],
+            "document_url": row["document_url"],
+            "document_hash": row["document_hash"],
+        }
+        for row in rows
+    ]
+
+
 def insert_change_summary(summary: ChangeSummary, db_path: str | None = None) -> int:
     with get_conn(db_path) as conn:
         cur = conn.execute(

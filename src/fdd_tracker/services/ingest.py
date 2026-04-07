@@ -12,8 +12,9 @@ from fdd_tracker.ingestion.state_portals import (
     fetch_live_state_filings,
     fetch_state_filings,
 )
-from fdd_tracker.models import Filing
-from fdd_tracker.services.store import upsert_filing
+from fdd_tracker.models import ChangeSummary, Filing
+from fdd_tracker.services.diff_engine import categorize_changes, change_ratio
+from fdd_tracker.services.store import get_latest_filings, insert_change_summary, upsert_filing
 
 
 def slugify(name: str) -> str:
@@ -34,6 +35,66 @@ def _parse_date(date_str: str | None) -> date | None:
     return date.fromisoformat(date_str)
 
 
+def _filing_to_text(filing: dict) -> str:
+    """Build deterministic text representation from filing fields for diff comparison."""
+    return f"source:{filing['source']}|filed_on:{filing['filed_on']}|url:{filing['document_url']}|hash:{filing['document_hash']}"
+
+
+def _ratio_to_risk_level(ratio: float) -> str:
+    """Map change ratio to risk level."""
+    if ratio >= 0.6:
+        return "critical"
+    if ratio >= 0.35:
+        return "high"
+    if ratio >= 0.15:
+        return "medium"
+    return "low"
+
+
+def _maybe_generate_change_summary(
+    franchise_slug: str,
+    db_path: str | None,
+    processed_slugs: set[str],
+) -> bool:
+    """Attempt to generate a change summary if at least 2 filings exist.
+
+    Returns True if a summary was created, False otherwise.
+    """
+    if franchise_slug in processed_slugs:
+        return False
+
+    filings = get_latest_filings(franchise_slug, limit=2, db_path=db_path)
+    if len(filings) < 2:
+        return False
+
+    newest, previous = filings[0], filings[1]
+    new_text = _filing_to_text(newest)
+    old_text = _filing_to_text(previous)
+
+    categories = categorize_changes(old_text, new_text)
+    if not categories:
+        categories = ["filing_update"]
+
+    ratio = change_ratio(old_text, new_text)
+    risk_level = _ratio_to_risk_level(ratio)
+
+    highlights = [
+        f"previous_url:{previous['document_url']}",
+        f"new_url:{newest['document_url']}",
+        f"change_ratio:{ratio:.2f}",
+    ]
+
+    summary = ChangeSummary(
+        franchise_slug=franchise_slug,
+        categories=categories,
+        highlights=highlights,
+        risk_level=risk_level,
+    )
+    insert_change_summary(summary, db_path=db_path)
+    processed_slugs.add(franchise_slug)
+    return True
+
+
 def run_ingestion(
     states: list[str] | None = None,
     ftc_path: str | None = None,
@@ -49,7 +110,7 @@ def run_ingestion(
         db_path: Optional database path for testing.
 
     Returns:
-        Summary dict with counts: total_seen, inserted_or_updated, sources_breakdown.
+        Summary dict with counts: total_seen, inserted_or_updated, sources_breakdown, change_summaries_created.
     """
     ftc_records = list(fetch_ftc_filings(path=ftc_path))
     state_records = list(fetch_state_filings(states=states, path=state_path))
@@ -57,6 +118,8 @@ def run_ingestion(
     total_seen = len(ftc_records) + len(state_records)
     inserted_or_updated = 0
     sources_breakdown = {"ftc": 0, "state": 0}
+    change_summaries_created = 0
+    processed_slugs: set[str] = set()
 
     for record in ftc_records:
         filing = _ftc_to_filing(record)
@@ -64,6 +127,8 @@ def run_ingestion(
         if changed > 0:
             inserted_or_updated += 1
             sources_breakdown["ftc"] += 1
+            if _maybe_generate_change_summary(filing.franchise_slug, db_path, processed_slugs):
+                change_summaries_created += 1
 
     for record in state_records:
         filing = _state_to_filing(record)
@@ -71,11 +136,14 @@ def run_ingestion(
         if changed > 0:
             inserted_or_updated += 1
             sources_breakdown["state"] += 1
+            if _maybe_generate_change_summary(filing.franchise_slug, db_path, processed_slugs):
+                change_summaries_created += 1
 
     return {
         "total_seen": total_seen,
         "inserted_or_updated": inserted_or_updated,
         "sources_breakdown": sources_breakdown,
+        "change_summaries_created": change_summaries_created,
     }
 
 

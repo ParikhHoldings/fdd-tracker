@@ -84,6 +84,7 @@ def test_ingest_run_returns_summary_keys():
     assert "sources_breakdown" in data
     assert "ftc" in data["sources_breakdown"]
     assert "state" in data["sources_breakdown"]
+    assert "change_summaries_created" in data
 
 
 def test_ingest_run_with_states_filter():
