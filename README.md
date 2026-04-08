@@ -57,4 +57,11 @@ This updates `data/sources/state_filings.json` with the latest parsed records.
 ```bash
 curl "http://localhost:8000/alerts?email=you@example.com&limit=25"
 ```
-Returns recent change summaries for franchises on that watchlist.
+Returns recent change summaries for franchises on that watchlist (includes `read` state).
+
+**Mark an alert as read:**
+```bash
+curl -X POST http://localhost:8000/alerts/read \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","franchise_slug":"chick-fil-a","generated_at":"2026-04-08T00:00:00"}'
+```

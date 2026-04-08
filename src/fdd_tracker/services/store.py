@@ -198,9 +198,14 @@ def get_alert_feed(email: str, limit: int = 50, db_path: str | None = None) -> l
                 c.generated_at,
                 c.categories,
                 c.highlights,
-                c.risk_level
+                c.risk_level,
+                ar.read_at
             FROM watchlists w
             JOIN change_summaries c ON c.franchise_slug = w.franchise_slug
+            LEFT JOIN alert_reads ar
+              ON ar.email = w.email
+             AND ar.franchise_slug = c.franchise_slug
+             AND ar.generated_at = c.generated_at
             WHERE w.email = ?
             ORDER BY c.generated_at DESC
             LIMIT ?
@@ -216,6 +221,22 @@ def get_alert_feed(email: str, limit: int = 50, db_path: str | None = None) -> l
             "categories": json.loads(row["categories"]),
             "highlights": json.loads(row["highlights"]),
             "risk_level": row["risk_level"],
+            "read": row["read_at"] is not None,
+            "read_at": row["read_at"],
         }
         for row in rows
     ]
+
+
+def mark_alert_read(email: str, franchise_slug: str, generated_at: str, db_path: str | None = None) -> int:
+    with get_conn(db_path) as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO alert_reads(email, franchise_slug, generated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(email, franchise_slug, generated_at) DO NOTHING
+            """,
+            (email, franchise_slug, generated_at),
+        )
+        conn.commit()
+        return cur.rowcount

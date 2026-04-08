@@ -7,6 +7,7 @@ from fdd_tracker.services.store import (
     get_latest_filings,
     get_recent_changes,
     get_watchlists,
+    mark_alert_read,
     seed_change_summary,
     upsert_filing,
     upsert_watchlist,
@@ -129,3 +130,25 @@ def test_get_alert_feed_for_watchlist(tmp_path):
     assert alerts[0]["franchise_slug"] == "chick-fil-a"
     assert alerts[0]["risk_level"] == "high"
     assert alerts[0]["categories"] == ["fees"]
+    assert alerts[0]["read"] is False
+
+
+def test_mark_alert_read_and_reflect_in_feed(tmp_path):
+    db = str(tmp_path / "test.db")
+    upsert_watchlist("alerts@example.com", "chick-fil-a", db_path=db)
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high", db_path=db)
+
+    alerts = get_alert_feed("alerts@example.com", db_path=db)
+    assert len(alerts) == 1
+    generated_at = alerts[0]["generated_at"]
+
+    created = mark_alert_read("alerts@example.com", "chick-fil-a", generated_at, db_path=db)
+    assert created == 1
+
+    # idempotent mark
+    created_again = mark_alert_read("alerts@example.com", "chick-fil-a", generated_at, db_path=db)
+    assert created_again == 0
+
+    refreshed = get_alert_feed("alerts@example.com", db_path=db)
+    assert refreshed[0]["read"] is True
+    assert refreshed[0]["read_at"] is not None

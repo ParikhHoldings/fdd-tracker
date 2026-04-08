@@ -116,3 +116,23 @@ def test_alerts_endpoint_returns_watchlist_alerts():
     assert isinstance(data["alerts"], list)
     assert len(data["alerts"]) >= 1
     assert all(item["franchise_slug"] == "chick-fil-a" for item in data["alerts"])
+    assert "read" in data["alerts"][0]
+
+
+def test_alerts_read_endpoint_marks_alert():
+    email = f"alertsread-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+
+    feed = client.get(f"/alerts?email={email}&limit=1")
+    generated_at = feed.json()["alerts"][0]["generated_at"]
+
+    mark = client.post(
+        "/alerts/read",
+        json={"email": email, "franchise_slug": "chick-fil-a", "generated_at": generated_at},
+    )
+    assert mark.status_code == 200
+    assert mark.json()["marked"] is True
+
+    feed2 = client.get(f"/alerts?email={email}&limit=1")
+    assert feed2.json()["alerts"][0]["read"] is True

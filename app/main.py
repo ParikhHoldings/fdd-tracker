@@ -12,6 +12,7 @@ from fdd_tracker.services.store import (
     get_alert_feed,
     get_recent_changes,
     get_watchlists,
+    mark_alert_read,
     upsert_filing,
     upsert_watchlist,
 )
@@ -98,6 +99,12 @@ class RefreshStateSourcesRequest(BaseModel):
     states: list[str] | None = None
 
 
+class AlertReadIn(BaseModel):
+    email: EmailStr
+    franchise_slug: str
+    generated_at: str
+
+
 @app.post("/ingest/refresh-state-sources")
 def refresh_state_sources(payload: RefreshStateSourcesRequest | None = None) -> dict:
     """Refresh state filings from live portal sources and update JSON cache."""
@@ -108,3 +115,13 @@ def refresh_state_sources(payload: RefreshStateSourcesRequest | None = None) -> 
 @app.get("/alerts")
 def alerts(email: EmailStr, limit: int = Query(default=50, ge=1, le=200)) -> dict:
     return {"email": email, "alerts": get_alert_feed(email=str(email), limit=limit)}
+
+
+@app.post("/alerts/read")
+def alerts_read(payload: AlertReadIn) -> dict:
+    marked = mark_alert_read(
+        email=str(payload.email),
+        franchise_slug=payload.franchise_slug,
+        generated_at=payload.generated_at,
+    )
+    return {"marked": bool(marked), "created": marked}
