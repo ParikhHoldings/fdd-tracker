@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from fdd_tracker.services.alerts import dispatch_outbox, list_outbox, retry_failed_outbox, run_digest_for_all_emails, run_digest_for_email
@@ -17,6 +18,7 @@ def test_run_digest_for_email_writes_outbox_and_optionally_marks_read(tmp_path):
         mark_read=True,
         db_path=db,
         outbox_path=str(outbox),
+        run_id="run-123",
     )
 
     assert result["sent"] is True
@@ -77,7 +79,30 @@ def test_dispatch_outbox_failure_bucket_and_retry(tmp_path):
 
     retry = retry_failed_outbox(limit=10, failed_path=str(failed), outbox_path=str(outbox))
     assert retry["retried"] == 1
+    retried_row = json.loads(outbox.read_text(encoding="utf-8").strip().splitlines()[-1])
+    assert retried_row["retry_count"] >= 1
+    assert "retried_at" in retried_row
 
     dispatch2 = dispatch_outbox(limit=10, outbox_path=str(outbox), sent_path=str(sent), failed_path=str(failed))
     assert dispatch2["dispatched"] == 1
     assert dispatch2["failed"] == 0
+
+
+
+def test_digest_records_include_run_metadata(tmp_path):
+    db = str(tmp_path / "test.db")
+    outbox = tmp_path / "alert_outbox.jsonl"
+    sent = tmp_path / "alert_outbox_sent.jsonl"
+
+    upsert_watchlist("meta@example.com", "chick-fil-a", db_path=db)
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high", db_path=db)
+
+    run_digest_for_email("meta@example.com", db_path=db, outbox_path=str(outbox), run_id="meta-run")
+    queued = list_outbox(limit=10, outbox_path=str(outbox))
+    assert queued[-1]["run_id"] == "meta-run"
+    assert "queued_at" in queued[-1]
+
+    dispatch_outbox(limit=10, outbox_path=str(outbox), sent_path=str(sent), failed_path=str(tmp_path / "failed.jsonl"))
+    sent_rows = [json.loads(line) for line in sent.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert sent_rows[-1]["run_id"] == "meta-run"
+    assert "dispatched_at" in sent_rows[-1]

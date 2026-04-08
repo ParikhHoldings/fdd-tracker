@@ -36,6 +36,10 @@ def _default_data_path(filename: str) -> Path:
     return Path(__file__).resolve().parents[3] / "data" / filename
 
 
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
 def _build_digest_body(email: str, alerts: list[dict]) -> str:
     lines = [f"FDD Tracker digest for {email}", "", f"Unread alerts: {len(alerts)}", ""]
     for idx, alert in enumerate(alerts, start=1):
@@ -53,7 +57,7 @@ def build_digest_payload(email: str, max_alerts: int = 25, db_path: str | None =
     if not alerts:
         return None
 
-    generated_at = datetime.now(timezone.utc).isoformat()
+    generated_at = _now_iso()
     return DigestPayload(
         email=email,
         unread_count=len(alerts),
@@ -63,7 +67,7 @@ def build_digest_payload(email: str, max_alerts: int = 25, db_path: str | None =
     )
 
 
-def write_digest_outbox(payload: DigestPayload, outbox_path: str | None = None) -> str:
+def write_digest_outbox(payload: DigestPayload, outbox_path: str | None = None, run_id: str | None = None) -> str:
     path = Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl")
     path.parent.mkdir(parents=True, exist_ok=True)
     row = {
@@ -72,6 +76,8 @@ def write_digest_outbox(payload: DigestPayload, outbox_path: str | None = None) 
         "subject": payload.subject,
         "body": payload.body,
         "generated_at": payload.generated_at,
+        "queued_at": _now_iso(),
+        "run_id": run_id,
     }
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(row) + "\n")
@@ -113,9 +119,11 @@ def dispatch_outbox(
         row = json.loads(line)
         if row.get("force_fail"):
             row["failure_reason"] = row.get("failure_reason", "forced failure")
+            row["failed_at"] = _now_iso()
             failed_lines.append(json.dumps(row) + "\n")
         else:
-            dispatched_lines.append(line)
+            row["dispatched_at"] = _now_iso()
+            dispatched_lines.append(json.dumps(row) + "\n")
 
     if dispatched_lines:
         sent.parent.mkdir(parents=True, exist_ok=True)
@@ -146,13 +154,14 @@ def run_digest_for_email(
     mark_read: bool = False,
     db_path: str | None = None,
     outbox_path: str | None = None,
+    run_id: str | None = None,
 ) -> dict:
     unread_alerts = get_alert_feed(email=email, limit=max_alerts, unread_only=True, db_path=db_path)
     payload = build_digest_payload(email=email, max_alerts=max_alerts, db_path=db_path)
     if payload is None:
         return {"email": email, "sent": False, "unread_count": 0, "outbox_path": None, "marked_read": 0}
 
-    outbox_path = write_digest_outbox(payload, outbox_path=outbox_path)
+    outbox_path = write_digest_outbox(payload, outbox_path=outbox_path, run_id=run_id)
 
     marked_read = 0
     if mark_read:
@@ -170,6 +179,7 @@ def run_digest_for_email(
         "unread_count": payload.unread_count,
         "outbox_path": outbox_path,
         "marked_read": marked_read,
+        "run_id": run_id,
     }
 
 
@@ -178,7 +188,9 @@ def run_digest_for_all_emails(
     mark_read: bool = False,
     db_path: str | None = None,
     outbox_path: str | None = None,
+    run_id: str | None = None,
 ) -> dict:
+    run_id = run_id or f"digest-run-{int(datetime.now(timezone.utc).timestamp())}"
     emails = get_watchlist_emails(db_path=db_path)
     results = [
         run_digest_for_email(
@@ -187,11 +199,12 @@ def run_digest_for_all_emails(
             mark_read=mark_read,
             db_path=db_path,
             outbox_path=outbox_path,
+            run_id=run_id,
         )
         for email in emails
     ]
     sent_count = sum(1 for item in results if item["sent"])
-    return {"emails_scanned": len(emails), "digests_sent": sent_count, "results": results}
+    return {"run_id": run_id, "emails_scanned": len(emails), "digests_sent": sent_count, "results": results}
 
 
 
@@ -213,6 +226,9 @@ def retry_failed_outbox(limit: int = 100, failed_path: str | None = None, outbox
         row = json.loads(line)
         row.pop("force_fail", None)
         row.pop("failure_reason", None)
+        row.pop("failed_at", None)
+        row["retry_count"] = int(row.get("retry_count", 0)) + 1
+        row["retried_at"] = _now_iso()
         cleaned.append(json.dumps(row) + "\n")
 
     if cleaned:

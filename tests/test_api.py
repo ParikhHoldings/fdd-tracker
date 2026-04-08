@@ -219,12 +219,13 @@ def test_alerts_digest_run_for_email():
     client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
     seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
 
-    r = client.post("/alerts/digest/run", json={"email": email, "max_alerts": 10, "mark_read": True})
+    r = client.post("/alerts/digest/run", json={"email": email, "max_alerts": 10, "mark_read": True, "run_id": "api-run-1"})
     assert r.status_code == 200
     data = r.json()
     assert data["email"] == email
     assert data["sent"] is True
     assert data["marked_read"] >= 1
+    assert data["run_id"] == "api-run-1"
 
 
 def test_alerts_digest_run_for_all_watchlist_emails():
@@ -240,6 +241,7 @@ def test_alerts_digest_run_for_all_watchlist_emails():
     data = r.json()
     assert data["emails_scanned"] >= 2
     assert data["digests_sent"] >= 2
+    assert "run_id" in data
     assert isinstance(data["results"], list)
 
 

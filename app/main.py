@@ -113,6 +113,7 @@ class AlertDigestRunIn(BaseModel):
     email: EmailStr | None = None
     max_alerts: int = 25
     mark_read: bool = False
+    run_id: str | None = None
 
 
 class AlertOutboxDispatchIn(BaseModel):
@@ -185,8 +186,9 @@ def alerts_digest_run(payload: AlertDigestRunIn) -> dict:
             email=str(payload.email),
             max_alerts=max_alerts,
             mark_read=payload.mark_read,
+            run_id=payload.run_id,
         )
-    return run_digest_for_all_emails(max_alerts=max_alerts, mark_read=payload.mark_read)
+    return run_digest_for_all_emails(max_alerts=max_alerts, mark_read=payload.mark_read, run_id=payload.run_id)
 
 
 @app.get("/alerts/outbox")

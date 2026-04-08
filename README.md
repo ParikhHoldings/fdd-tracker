@@ -96,7 +96,7 @@ curl -X POST http://localhost:8000/alerts/outbox/dispatch   -H "Content-Type: ap
 # Single email
 curl -X POST http://localhost:8000/alerts/digest/run \
   -H "Content-Type: application/json" \
-  -d '{"email":"you@example.com","max_alerts":25,"mark_read":false}'
+  -d '{"email":"you@example.com","max_alerts":25,"mark_read":false,"run_id":"nightly-2026-04-08"}'
 
 # All watchlist emails
 curl -X POST http://localhost:8000/alerts/digest/run \
@@ -104,3 +104,5 @@ curl -X POST http://localhost:8000/alerts/digest/run \
   -d '{"max_alerts":25,"mark_read":false}'
 ```
 
+
+Outbox/sent/failed records now include run metadata fields (`run_id`, `queued_at`, `dispatched_at`, `failed_at`, `retry_count`, `retried_at`) for cron auditability.
