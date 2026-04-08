@@ -32,6 +32,10 @@ def enqueue_alert(alert: WatchlistAlert) -> None:
     _ = alert
 
 
+def _default_data_path(filename: str) -> Path:
+    return Path(__file__).resolve().parents[3] / "data" / filename
+
+
 def _build_digest_body(email: str, alerts: list[dict]) -> str:
     lines = [f"FDD Tracker digest for {email}", "", f"Unread alerts: {len(alerts)}", ""]
     for idx, alert in enumerate(alerts, start=1):
@@ -60,7 +64,7 @@ def build_digest_payload(email: str, max_alerts: int = 25, db_path: str | None =
 
 
 def write_digest_outbox(payload: DigestPayload, outbox_path: str | None = None) -> str:
-    path = Path(outbox_path) if outbox_path else Path(__file__).resolve().parents[3] / "data" / "alert_outbox.jsonl"
+    path = Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl")
     path.parent.mkdir(parents=True, exist_ok=True)
     row = {
         "email": payload.email,
@@ -74,13 +78,58 @@ def write_digest_outbox(payload: DigestPayload, outbox_path: str | None = None) 
     return str(path)
 
 
-def run_digest_for_email(email: str, max_alerts: int = 25, mark_read: bool = False, db_path: str | None = None) -> dict:
+def list_outbox(limit: int = 100, outbox_path: str | None = None) -> list[dict]:
+    path = Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl")
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8") as f:
+        lines = [line.strip() for line in f if line.strip()]
+    rows = [json.loads(line) for line in lines]
+    return rows[-limit:]
+
+
+def dispatch_outbox(limit: int = 100, outbox_path: str | None = None, sent_path: str | None = None) -> dict:
+    outbox = Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl")
+    sent = Path(sent_path) if sent_path else _default_data_path("alert_outbox_sent.jsonl")
+
+    if not outbox.exists():
+        return {"dispatched": 0, "remaining": 0, "sent_path": str(sent), "outbox_path": str(outbox)}
+
+    with outbox.open("r", encoding="utf-8") as f:
+        lines = [line for line in f if line.strip()]
+
+    to_dispatch = lines[:limit]
+    remaining = lines[limit:]
+
+    if to_dispatch:
+        sent.parent.mkdir(parents=True, exist_ok=True)
+        with sent.open("a", encoding="utf-8") as sf:
+            sf.writelines(to_dispatch)
+
+    with outbox.open("w", encoding="utf-8") as of:
+        of.writelines(remaining)
+
+    return {
+        "dispatched": len(to_dispatch),
+        "remaining": len(remaining),
+        "sent_path": str(sent),
+        "outbox_path": str(outbox),
+    }
+
+
+def run_digest_for_email(
+    email: str,
+    max_alerts: int = 25,
+    mark_read: bool = False,
+    db_path: str | None = None,
+    outbox_path: str | None = None,
+) -> dict:
     unread_alerts = get_alert_feed(email=email, limit=max_alerts, unread_only=True, db_path=db_path)
     payload = build_digest_payload(email=email, max_alerts=max_alerts, db_path=db_path)
     if payload is None:
         return {"email": email, "sent": False, "unread_count": 0, "outbox_path": None, "marked_read": 0}
 
-    outbox_path = write_digest_outbox(payload)
+    outbox_path = write_digest_outbox(payload, outbox_path=outbox_path)
 
     marked_read = 0
     if mark_read:
@@ -101,8 +150,22 @@ def run_digest_for_email(email: str, max_alerts: int = 25, mark_read: bool = Fal
     }
 
 
-def run_digest_for_all_emails(max_alerts: int = 25, mark_read: bool = False, db_path: str | None = None) -> dict:
+def run_digest_for_all_emails(
+    max_alerts: int = 25,
+    mark_read: bool = False,
+    db_path: str | None = None,
+    outbox_path: str | None = None,
+) -> dict:
     emails = get_watchlist_emails(db_path=db_path)
-    results = [run_digest_for_email(email, max_alerts=max_alerts, mark_read=mark_read, db_path=db_path) for email in emails]
+    results = [
+        run_digest_for_email(
+            email,
+            max_alerts=max_alerts,
+            mark_read=mark_read,
+            db_path=db_path,
+            outbox_path=outbox_path,
+        )
+        for email in emails
+    ]
     sent_count = sum(1 for item in results if item["sent"])
     return {"emails_scanned": len(emails), "digests_sent": sent_count, "results": results}

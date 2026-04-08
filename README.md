@@ -84,6 +84,12 @@ curl "http://localhost:8000/alerts/summary?email=you@example.com"
 ```
 Returns total/unread counts, risk-level breakdown, and top unread franchises.
 
+**Inspect and dispatch outbox queue:**
+```bash
+curl "http://localhost:8000/alerts/outbox?limit=25"
+curl -X POST http://localhost:8000/alerts/outbox/dispatch   -H "Content-Type: application/json"   -d '{"limit":25}'
+```
+
 
 **Generate alert digests (writes to outbox JSONL):**
 ```bash

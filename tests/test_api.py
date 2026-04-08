@@ -241,3 +241,23 @@ def test_alerts_digest_run_for_all_watchlist_emails():
     assert data["emails_scanned"] >= 2
     assert data["digests_sent"] >= 2
     assert isinstance(data["results"], list)
+
+
+
+def test_alerts_outbox_endpoints():
+    email = f"outbox-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+
+    run = client.post("/alerts/digest/run", json={"email": email, "max_alerts": 10, "mark_read": False})
+    assert run.status_code == 200
+    assert run.json()["sent"] is True
+
+    outbox = client.get("/alerts/outbox?limit=10")
+    assert outbox.status_code == 200
+    assert isinstance(outbox.json()["items"], list)
+
+    dispatched = client.post("/alerts/outbox/dispatch", json={"limit": 10})
+    assert dispatched.status_code == 200
+    assert "dispatched" in dispatched.json()
+    assert "remaining" in dispatched.json()
