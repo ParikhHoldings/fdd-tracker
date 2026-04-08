@@ -88,12 +88,18 @@ def list_outbox(limit: int = 100, outbox_path: str | None = None) -> list[dict]:
     return rows[-limit:]
 
 
-def dispatch_outbox(limit: int = 100, outbox_path: str | None = None, sent_path: str | None = None) -> dict:
+def dispatch_outbox(
+    limit: int = 100,
+    outbox_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
+) -> dict:
     outbox = Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl")
     sent = Path(sent_path) if sent_path else _default_data_path("alert_outbox_sent.jsonl")
+    failed = Path(failed_path) if failed_path else _default_data_path("alert_outbox_failed.jsonl")
 
     if not outbox.exists():
-        return {"dispatched": 0, "remaining": 0, "sent_path": str(sent), "outbox_path": str(outbox)}
+        return {"dispatched": 0, "failed": 0, "remaining": 0, "sent_path": str(sent), "failed_path": str(failed), "outbox_path": str(outbox)}
 
     with outbox.open("r", encoding="utf-8") as f:
         lines = [line for line in f if line.strip()]
@@ -101,18 +107,35 @@ def dispatch_outbox(limit: int = 100, outbox_path: str | None = None, sent_path:
     to_dispatch = lines[:limit]
     remaining = lines[limit:]
 
-    if to_dispatch:
+    dispatched_lines: list[str] = []
+    failed_lines: list[str] = []
+    for line in to_dispatch:
+        row = json.loads(line)
+        if row.get("force_fail"):
+            row["failure_reason"] = row.get("failure_reason", "forced failure")
+            failed_lines.append(json.dumps(row) + "\n")
+        else:
+            dispatched_lines.append(line)
+
+    if dispatched_lines:
         sent.parent.mkdir(parents=True, exist_ok=True)
         with sent.open("a", encoding="utf-8") as sf:
-            sf.writelines(to_dispatch)
+            sf.writelines(dispatched_lines)
+
+    if failed_lines:
+        failed.parent.mkdir(parents=True, exist_ok=True)
+        with failed.open("a", encoding="utf-8") as ff:
+            ff.writelines(failed_lines)
 
     with outbox.open("w", encoding="utf-8") as of:
         of.writelines(remaining)
 
     return {
-        "dispatched": len(to_dispatch),
+        "dispatched": len(dispatched_lines),
+        "failed": len(failed_lines),
         "remaining": len(remaining),
         "sent_path": str(sent),
+        "failed_path": str(failed),
         "outbox_path": str(outbox),
     }
 
@@ -169,3 +192,35 @@ def run_digest_for_all_emails(
     ]
     sent_count = sum(1 for item in results if item["sent"])
     return {"emails_scanned": len(emails), "digests_sent": sent_count, "results": results}
+
+
+
+def retry_failed_outbox(limit: int = 100, failed_path: str | None = None, outbox_path: str | None = None) -> dict:
+    failed = Path(failed_path) if failed_path else _default_data_path("alert_outbox_failed.jsonl")
+    outbox = Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl")
+
+    if not failed.exists():
+        return {"retried": 0, "remaining_failed": 0, "failed_path": str(failed), "outbox_path": str(outbox)}
+
+    with failed.open("r", encoding="utf-8") as f:
+        lines = [line for line in f if line.strip()]
+
+    to_retry = lines[:limit]
+    remaining = lines[limit:]
+
+    cleaned = []
+    for line in to_retry:
+        row = json.loads(line)
+        row.pop("force_fail", None)
+        row.pop("failure_reason", None)
+        cleaned.append(json.dumps(row) + "\n")
+
+    if cleaned:
+        outbox.parent.mkdir(parents=True, exist_ok=True)
+        with outbox.open("a", encoding="utf-8") as of:
+            of.writelines(cleaned)
+
+    with failed.open("w", encoding="utf-8") as ff:
+        ff.writelines(remaining)
+
+    return {"retried": len(cleaned), "remaining_failed": len(remaining), "failed_path": str(failed), "outbox_path": str(outbox)}

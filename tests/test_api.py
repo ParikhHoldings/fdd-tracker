@@ -261,3 +261,12 @@ def test_alerts_outbox_endpoints():
     assert dispatched.status_code == 200
     assert "dispatched" in dispatched.json()
     assert "remaining" in dispatched.json()
+
+
+
+def test_alerts_outbox_retry_failed_endpoint():
+    r = client.post("/alerts/outbox/retry-failed", json={"limit": 10})
+    assert r.status_code == 200
+    data = r.json()
+    assert "retried" in data
+    assert "remaining_failed" in data

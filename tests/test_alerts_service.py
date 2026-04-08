@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fdd_tracker.services.alerts import dispatch_outbox, list_outbox, run_digest_for_all_emails, run_digest_for_email
+from fdd_tracker.services.alerts import dispatch_outbox, list_outbox, retry_failed_outbox, run_digest_for_all_emails, run_digest_for_email
 from fdd_tracker.services.store import get_alert_feed, seed_change_summary, upsert_watchlist
 
 
@@ -57,3 +57,27 @@ def test_outbox_list_and_dispatch(tmp_path):
 
     result = dispatch_outbox(limit=1, outbox_path=str(outbox), sent_path=str(sent))
     assert result["dispatched"] >= 1
+
+
+
+def test_dispatch_outbox_failure_bucket_and_retry(tmp_path):
+    outbox = tmp_path / "alert_outbox.jsonl"
+    sent = tmp_path / "alert_outbox_sent.jsonl"
+    failed = tmp_path / "alert_outbox_failed.jsonl"
+
+    rows = [
+        {"email": "ok@example.com", "subject": "ok", "body": "ok", "generated_at": "2026-01-01T00:00:00Z"},
+        {"email": "fail@example.com", "subject": "fail", "body": "fail", "generated_at": "2026-01-01T00:00:00Z", "force_fail": True},
+    ]
+    outbox.write_text("\n".join(__import__("json").dumps(r) for r in rows) + "\n", encoding="utf-8")
+
+    dispatch = dispatch_outbox(limit=10, outbox_path=str(outbox), sent_path=str(sent), failed_path=str(failed))
+    assert dispatch["dispatched"] == 1
+    assert dispatch["failed"] == 1
+
+    retry = retry_failed_outbox(limit=10, failed_path=str(failed), outbox_path=str(outbox))
+    assert retry["retried"] == 1
+
+    dispatch2 = dispatch_outbox(limit=10, outbox_path=str(outbox), sent_path=str(sent), failed_path=str(failed))
+    assert dispatch2["dispatched"] == 1
+    assert dispatch2["failed"] == 0

@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr
 
 from fdd_tracker.db import ensure_db
 from fdd_tracker.models import Filing
-from fdd_tracker.services.alerts import dispatch_outbox, list_outbox, run_digest_for_all_emails, run_digest_for_email
+from fdd_tracker.services.alerts import dispatch_outbox, list_outbox, retry_failed_outbox, run_digest_for_all_emails, run_digest_for_email
 from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestion
 from fdd_tracker.services.store import (
     delete_watchlist,
@@ -119,6 +119,10 @@ class AlertOutboxDispatchIn(BaseModel):
     limit: int = 100
 
 
+class AlertOutboxRetryIn(BaseModel):
+    limit: int = 100
+
+
 @app.post("/ingest/refresh-state-sources")
 def refresh_state_sources(payload: RefreshStateSourcesRequest | None = None) -> dict:
     """Refresh state filings from live portal sources and update JSON cache."""
@@ -194,3 +198,9 @@ def alerts_outbox(limit: int = Query(default=100, ge=1, le=500)) -> dict:
 def alerts_outbox_dispatch(payload: AlertOutboxDispatchIn) -> dict:
     limit = max(1, min(payload.limit, 500))
     return dispatch_outbox(limit=limit)
+
+
+@app.post("/alerts/outbox/retry-failed")
+def alerts_outbox_retry_failed(payload: AlertOutboxRetryIn) -> dict:
+    limit = max(1, min(payload.limit, 500))
+    return retry_failed_outbox(limit=limit)
