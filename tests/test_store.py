@@ -4,6 +4,7 @@ from fdd_tracker.models import Filing
 from fdd_tracker.services.store import (
     delete_watchlist,
     get_alert_feed,
+    get_alert_summary,
     get_latest_filings,
     get_recent_changes,
     get_unread_alert_count,
@@ -169,3 +170,36 @@ def test_unread_count_and_bulk_mark_for_franchise(tmp_path):
     marked = mark_alerts_read_for_franchise("alerts@example.com", "chick-fil-a", db_path=db)
     assert marked == 2
     assert get_unread_alert_count("alerts@example.com", db_path=db) == 1
+
+
+
+def test_alert_feed_filters_and_summary(tmp_path):
+    db = str(tmp_path / "test.db")
+    upsert_watchlist("alerts@example.com", "chick-fil-a", db_path=db)
+    upsert_watchlist("alerts@example.com", "orangetheory", db_path=db)
+
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high", db_path=db)
+    seed_change_summary("chick-fil-a", ["litigation"], risk_level="medium", db_path=db)
+    seed_change_summary("orangetheory", ["financials"], risk_level="low", db_path=db)
+
+    # mark one alert read to validate unread filter
+    first = get_alert_feed("alerts@example.com", limit=10, db_path=db)[0]
+    mark_alert_read("alerts@example.com", first["franchise_slug"], first["generated_at"], db_path=db)
+
+    filtered = get_alert_feed(
+        "alerts@example.com",
+        limit=10,
+        risk_levels=["high", "medium"],
+        unread_only=True,
+        franchise_slug="chick-fil-a",
+        db_path=db,
+    )
+    assert all(item["franchise_slug"] == "chick-fil-a" for item in filtered)
+    assert all(item["risk_level"] in {"high", "medium"} for item in filtered)
+    assert all(item["read"] is False for item in filtered)
+
+    summary = get_alert_summary("alerts@example.com", db_path=db)
+    assert summary["total_alerts"] == 3
+    assert summary["unread_alerts"] == 2
+    assert summary["by_risk"] == {"low": 1, "medium": 1, "high": 1}
+    assert len(summary["top_unread_franchises"]) >= 1

@@ -71,3 +71,15 @@ curl -X POST http://localhost:8000/alerts/read \
 curl "http://localhost:8000/alerts/unread-count?email=you@example.com"
 curl -X POST "http://localhost:8000/alerts/read/franchise?email=you@example.com&franchise_slug=chick-fil-a"
 ```
+
+
+**Filter alerts (risk + unread + franchise):**
+```bash
+curl "http://localhost:8000/alerts?email=you@example.com&risk_level=high,medium&unread_only=true&franchise_slug=chick-fil-a&limit=25"
+```
+
+**Alert summary for dashboards:**
+```bash
+curl "http://localhost:8000/alerts/summary?email=you@example.com"
+```
+Returns total/unread counts, risk-level breakdown, and top unread franchises.

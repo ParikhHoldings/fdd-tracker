@@ -187,11 +187,16 @@ def delete_watchlist(email: str, franchise_slug: str, db_path: str | None = None
         return cur.rowcount
 
 
-def get_alert_feed(email: str, limit: int = 50, db_path: str | None = None) -> list[dict]:
+def get_alert_feed(
+    email: str,
+    limit: int = 50,
+    risk_levels: list[str] | None = None,
+    unread_only: bool = False,
+    franchise_slug: str | None = None,
+    db_path: str | None = None,
+) -> list[dict]:
     """Return alert feed entries by joining a user's watchlist to recent change summaries."""
-    with get_conn(db_path) as conn:
-        rows = conn.execute(
-            """
+    query = """
             SELECT
                 w.email,
                 w.franchise_slug,
@@ -207,11 +212,26 @@ def get_alert_feed(email: str, limit: int = 50, db_path: str | None = None) -> l
              AND ar.franchise_slug = c.franchise_slug
              AND ar.generated_at = c.generated_at
             WHERE w.email = ?
-            ORDER BY c.generated_at DESC
-            LIMIT ?
-            """,
-            (email, limit),
-        ).fetchall()
+    """
+    params: list = [email]
+
+    if risk_levels:
+        placeholders = ",".join("?" for _ in risk_levels)
+        query += f" AND c.risk_level IN ({placeholders})"
+        params.extend(risk_levels)
+
+    if unread_only:
+        query += " AND ar.id IS NULL"
+
+    if franchise_slug:
+        query += " AND w.franchise_slug = ?"
+        params.append(franchise_slug)
+
+    query += " ORDER BY c.generated_at DESC LIMIT ?"
+    params.append(limit)
+
+    with get_conn(db_path) as conn:
+        rows = conn.execute(query, tuple(params)).fetchall()
 
     return [
         {
@@ -294,3 +314,67 @@ def get_unread_alert_count(email: str, db_path: str | None = None) -> int:
             (email,),
         ).fetchone()
     return int(row["unread_count"])
+
+
+
+def get_alert_summary(email: str, db_path: str | None = None) -> dict:
+    with get_conn(db_path) as conn:
+        totals = conn.execute(
+            """
+            SELECT
+              COUNT(*) AS total_alerts,
+              SUM(CASE WHEN ar.id IS NULL THEN 1 ELSE 0 END) AS unread_alerts
+            FROM watchlists w
+            JOIN change_summaries c ON c.franchise_slug = w.franchise_slug
+            LEFT JOIN alert_reads ar
+              ON ar.email = w.email
+             AND ar.franchise_slug = c.franchise_slug
+             AND ar.generated_at = c.generated_at
+            WHERE w.email = ?
+            """,
+            (email,),
+        ).fetchone()
+
+        risk_rows = conn.execute(
+            """
+            SELECT c.risk_level, COUNT(*) AS cnt
+            FROM watchlists w
+            JOIN change_summaries c ON c.franchise_slug = w.franchise_slug
+            WHERE w.email = ?
+            GROUP BY c.risk_level
+            """,
+            (email,),
+        ).fetchall()
+
+        top_unread = conn.execute(
+            """
+            SELECT c.franchise_slug, COUNT(*) AS unread_count
+            FROM watchlists w
+            JOIN change_summaries c ON c.franchise_slug = w.franchise_slug
+            LEFT JOIN alert_reads ar
+              ON ar.email = w.email
+             AND ar.franchise_slug = c.franchise_slug
+             AND ar.generated_at = c.generated_at
+            WHERE w.email = ?
+              AND ar.id IS NULL
+            GROUP BY c.franchise_slug
+            ORDER BY unread_count DESC, c.franchise_slug ASC
+            LIMIT 5
+            """,
+            (email,),
+        ).fetchall()
+
+    by_risk = {"low": 0, "medium": 0, "high": 0}
+    for row in risk_rows:
+        level = row["risk_level"]
+        if level in by_risk:
+            by_risk[level] = int(row["cnt"])
+
+    return {
+        "total_alerts": int(totals["total_alerts"] or 0),
+        "unread_alerts": int(totals["unread_alerts"] or 0),
+        "by_risk": by_risk,
+        "top_unread_franchises": [
+            {"franchise_slug": row["franchise_slug"], "unread_count": int(row["unread_count"])} for row in top_unread
+        ],
+    }

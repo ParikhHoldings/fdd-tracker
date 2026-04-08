@@ -10,6 +10,7 @@ from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestio
 from fdd_tracker.services.store import (
     delete_watchlist,
     get_alert_feed,
+    get_alert_summary,
     get_recent_changes,
     get_unread_alert_count,
     get_watchlists,
@@ -115,8 +116,24 @@ def refresh_state_sources(payload: RefreshStateSourcesRequest | None = None) -> 
 
 
 @app.get("/alerts")
-def alerts(email: EmailStr, limit: int = Query(default=50, ge=1, le=200)) -> dict:
-    return {"email": email, "alerts": get_alert_feed(email=str(email), limit=limit)}
+def alerts(
+    email: EmailStr,
+    limit: int = Query(default=50, ge=1, le=200),
+    risk_level: str | None = Query(default=None, description="Comma-separated: low,medium,high"),
+    unread_only: bool = Query(default=False),
+    franchise_slug: str | None = Query(default=None),
+) -> dict:
+    risk_levels = [item.strip().lower() for item in risk_level.split(",") if item.strip()] if risk_level else None
+    return {
+        "email": email,
+        "alerts": get_alert_feed(
+            email=str(email),
+            limit=limit,
+            risk_levels=risk_levels,
+            unread_only=unread_only,
+            franchise_slug=franchise_slug,
+        ),
+    }
 
 
 @app.post("/alerts/read")
@@ -138,3 +155,8 @@ def alerts_read_franchise(email: EmailStr, franchise_slug: str) -> dict:
 @app.get("/alerts/unread-count")
 def alerts_unread_count(email: EmailStr) -> dict:
     return {"email": email, "unread_count": get_unread_alert_count(email=str(email))}
+
+
+@app.get("/alerts/summary")
+def alerts_summary(email: EmailStr) -> dict:
+    return {"email": email, **get_alert_summary(email=str(email))}

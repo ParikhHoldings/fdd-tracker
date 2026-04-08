@@ -157,3 +157,57 @@ def test_alerts_unread_count_and_bulk_mark_endpoints():
     count_after = client.get(f"/alerts/unread-count?email={email}")
     assert count_after.status_code == 200
     assert count_after.json()["unread_count"] <= count_before.json()["unread_count"] - 2
+
+
+
+def test_alerts_endpoint_filters():
+    email = f"alertsfilter-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    client.post("/watchlists", json={"email": email, "franchise_slug": "orangetheory"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+    seed_change_summary("chick-fil-a", ["litigation"], risk_level="medium")
+    seed_change_summary("orangetheory", ["financials"], risk_level="low")
+
+    # mark one as read, then request unread high/medium only for chick-fil-a
+    base_feed = client.get(f"/alerts?email={email}&limit=10").json()["alerts"]
+    first = base_feed[0]
+    client.post(
+        "/alerts/read",
+        json={"email": email, "franchise_slug": first["franchise_slug"], "generated_at": first["generated_at"]},
+    )
+
+    r = client.get(
+        f"/alerts?email={email}&limit=10&risk_level=high,medium&unread_only=true&franchise_slug=chick-fil-a"
+    )
+    assert r.status_code == 200
+    alerts = r.json()["alerts"]
+    assert all(a["franchise_slug"] == "chick-fil-a" for a in alerts)
+    assert all(a["risk_level"] in {"high", "medium"} for a in alerts)
+    assert all(a["read"] is False for a in alerts)
+
+
+def test_alerts_summary_endpoint():
+    email = f"alertssummary-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    client.post("/watchlists", json={"email": email, "franchise_slug": "orangetheory"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+    seed_change_summary("chick-fil-a", ["litigation"], risk_level="medium")
+    seed_change_summary("orangetheory", ["financials"], risk_level="low")
+
+    # Mark one read so unread math is non-trivial
+    base_feed = client.get(f"/alerts?email={email}&limit=10").json()["alerts"]
+    first = base_feed[0]
+    client.post(
+        "/alerts/read",
+        json={"email": email, "franchise_slug": first["franchise_slug"], "generated_at": first["generated_at"]},
+    )
+
+    r = client.get(f"/alerts/summary?email={email}")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["total_alerts"] >= 3
+    assert data["unread_alerts"] >= 2
+    assert data["by_risk"]["low"] >= 1
+    assert data["by_risk"]["medium"] >= 1
+    assert data["by_risk"]["high"] >= 1
+    assert isinstance(data["top_unread_franchises"], list)
