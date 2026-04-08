@@ -240,3 +240,57 @@ def mark_alert_read(email: str, franchise_slug: str, generated_at: str, db_path:
         )
         conn.commit()
         return cur.rowcount
+
+
+def mark_alerts_read_for_franchise(email: str, franchise_slug: str, db_path: str | None = None) -> int:
+    """Mark all currently unread alerts as read for a user+franchise."""
+    with get_conn(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT c.generated_at
+            FROM change_summaries c
+            JOIN watchlists w ON w.franchise_slug = c.franchise_slug
+            LEFT JOIN alert_reads ar
+              ON ar.email = w.email
+             AND ar.franchise_slug = c.franchise_slug
+             AND ar.generated_at = c.generated_at
+            WHERE w.email = ?
+              AND w.franchise_slug = ?
+              AND ar.id IS NULL
+            """,
+            (email, franchise_slug),
+        ).fetchall()
+
+        inserted = 0
+        for row in rows:
+            cur = conn.execute(
+                """
+                INSERT INTO alert_reads(email, franchise_slug, generated_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(email, franchise_slug, generated_at) DO NOTHING
+                """,
+                (email, franchise_slug, row["generated_at"]),
+            )
+            inserted += cur.rowcount
+
+        conn.commit()
+        return inserted
+
+
+def get_unread_alert_count(email: str, db_path: str | None = None) -> int:
+    with get_conn(db_path) as conn:
+        row = conn.execute(
+            """
+            SELECT COUNT(*) AS unread_count
+            FROM watchlists w
+            JOIN change_summaries c ON c.franchise_slug = w.franchise_slug
+            LEFT JOIN alert_reads ar
+              ON ar.email = w.email
+             AND ar.franchise_slug = c.franchise_slug
+             AND ar.generated_at = c.generated_at
+            WHERE w.email = ?
+              AND ar.id IS NULL
+            """,
+            (email,),
+        ).fetchone()
+    return int(row["unread_count"])

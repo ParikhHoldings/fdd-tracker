@@ -6,8 +6,10 @@ from fdd_tracker.services.store import (
     get_alert_feed,
     get_latest_filings,
     get_recent_changes,
+    get_unread_alert_count,
     get_watchlists,
     mark_alert_read,
+    mark_alerts_read_for_franchise,
     seed_change_summary,
     upsert_filing,
     upsert_watchlist,
@@ -152,3 +154,18 @@ def test_mark_alert_read_and_reflect_in_feed(tmp_path):
     refreshed = get_alert_feed("alerts@example.com", db_path=db)
     assert refreshed[0]["read"] is True
     assert refreshed[0]["read_at"] is not None
+
+
+def test_unread_count_and_bulk_mark_for_franchise(tmp_path):
+    db = str(tmp_path / "test.db")
+    upsert_watchlist("alerts@example.com", "chick-fil-a", db_path=db)
+    upsert_watchlist("alerts@example.com", "orangetheory", db_path=db)
+    seed_change_summary("chick-fil-a", ["fees"], db_path=db)
+    seed_change_summary("chick-fil-a", ["litigation"], db_path=db)
+    seed_change_summary("orangetheory", ["financials"], db_path=db)
+
+    assert get_unread_alert_count("alerts@example.com", db_path=db) == 3
+
+    marked = mark_alerts_read_for_franchise("alerts@example.com", "chick-fil-a", db_path=db)
+    assert marked == 2
+    assert get_unread_alert_count("alerts@example.com", db_path=db) == 1

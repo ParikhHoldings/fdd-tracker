@@ -65,3 +65,9 @@ curl -X POST http://localhost:8000/alerts/read \
   -H "Content-Type: application/json" \
   -d '{"email":"you@example.com","franchise_slug":"chick-fil-a","generated_at":"2026-04-08T00:00:00"}'
 ```
+
+**Unread count + bulk mark by franchise:**
+```bash
+curl "http://localhost:8000/alerts/unread-count?email=you@example.com"
+curl -X POST "http://localhost:8000/alerts/read/franchise?email=you@example.com&franchise_slug=chick-fil-a"
+```

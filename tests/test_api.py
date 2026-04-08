@@ -136,3 +136,24 @@ def test_alerts_read_endpoint_marks_alert():
 
     feed2 = client.get(f"/alerts?email={email}&limit=1")
     assert feed2.json()["alerts"][0]["read"] is True
+
+
+def test_alerts_unread_count_and_bulk_mark_endpoints():
+    email = f"alertscount-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    client.post("/watchlists", json={"email": email, "franchise_slug": "orangetheory"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+    seed_change_summary("chick-fil-a", ["litigation"], risk_level="medium")
+    seed_change_summary("orangetheory", ["financials"], risk_level="low")
+
+    count_before = client.get(f"/alerts/unread-count?email={email}")
+    assert count_before.status_code == 200
+    assert count_before.json()["unread_count"] >= 3
+
+    bulk = client.post(f"/alerts/read/franchise?email={email}&franchise_slug=chick-fil-a")
+    assert bulk.status_code == 200
+    assert bulk.json()["marked"] >= 2
+
+    count_after = client.get(f"/alerts/unread-count?email={email}")
+    assert count_after.status_code == 200
+    assert count_after.json()["unread_count"] <= count_before.json()["unread_count"] - 2

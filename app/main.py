@@ -11,8 +11,10 @@ from fdd_tracker.services.store import (
     delete_watchlist,
     get_alert_feed,
     get_recent_changes,
+    get_unread_alert_count,
     get_watchlists,
     mark_alert_read,
+    mark_alerts_read_for_franchise,
     upsert_filing,
     upsert_watchlist,
 )
@@ -125,3 +127,14 @@ def alerts_read(payload: AlertReadIn) -> dict:
         generated_at=payload.generated_at,
     )
     return {"marked": bool(marked), "created": marked}
+
+
+@app.post("/alerts/read/franchise")
+def alerts_read_franchise(email: EmailStr, franchise_slug: str) -> dict:
+    marked = mark_alerts_read_for_franchise(email=str(email), franchise_slug=franchise_slug)
+    return {"marked": marked}
+
+
+@app.get("/alerts/unread-count")
+def alerts_unread_count(email: EmailStr) -> dict:
+    return {"email": email, "unread_count": get_unread_alert_count(email=str(email))}
