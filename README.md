@@ -106,3 +106,11 @@ curl -X POST http://localhost:8000/alerts/digest/run \
 
 
 Outbox/sent/failed records now include run metadata fields (`run_id`, `queued_at`, `dispatched_at`, `failed_at`, `retry_count`, `retried_at`) for cron auditability.
+
+
+**Single-shot cron cycle (generate → dispatch → retry):**
+```bash
+curl -X POST http://localhost:8000/alerts/cron/tick \
+  -H "Content-Type: application/json" \
+  -d '{"max_alerts":25,"generate_mark_read":false,"dispatch_limit":100,"retry_limit":100,"run_id":"nightly-2026-04-08"}'
+```

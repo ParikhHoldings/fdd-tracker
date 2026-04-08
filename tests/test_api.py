@@ -272,3 +272,27 @@ def test_alerts_outbox_retry_failed_endpoint():
     data = r.json()
     assert "retried" in data
     assert "remaining_failed" in data
+
+
+
+def test_alerts_cron_tick_endpoint():
+    email = f"crontick-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+
+    r = client.post(
+        "/alerts/cron/tick",
+        json={
+            "max_alerts": 10,
+            "generate_mark_read": False,
+            "dispatch_limit": 10,
+            "retry_limit": 10,
+            "run_id": "api-cron-run",
+        },
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["run_id"] == "api-cron-run"
+    assert "generated" in data
+    assert "dispatched" in data
+    assert "retried" in data

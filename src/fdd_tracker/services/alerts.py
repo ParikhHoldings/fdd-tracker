@@ -240,3 +240,31 @@ def retry_failed_outbox(limit: int = 100, failed_path: str | None = None, outbox
         ff.writelines(remaining)
 
     return {"retried": len(cleaned), "remaining_failed": len(remaining), "failed_path": str(failed), "outbox_path": str(outbox)}
+
+
+
+def run_alerts_cron_tick(
+    max_alerts: int = 25,
+    generate_mark_read: bool = False,
+    dispatch_limit: int = 100,
+    retry_limit: int = 100,
+    db_path: str | None = None,
+    run_id: str | None = None,
+) -> dict:
+    run_id = run_id or f"cron-{int(datetime.now(timezone.utc).timestamp())}"
+
+    generation = run_digest_for_all_emails(
+        max_alerts=max_alerts,
+        mark_read=generate_mark_read,
+        db_path=db_path,
+        run_id=run_id,
+    )
+    dispatch = dispatch_outbox(limit=dispatch_limit)
+    retry = retry_failed_outbox(limit=retry_limit)
+
+    return {
+        "run_id": run_id,
+        "generated": generation,
+        "dispatched": dispatch,
+        "retried": retry,
+    }

@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr
 
 from fdd_tracker.db import ensure_db
 from fdd_tracker.models import Filing
-from fdd_tracker.services.alerts import dispatch_outbox, list_outbox, retry_failed_outbox, run_digest_for_all_emails, run_digest_for_email
+from fdd_tracker.services.alerts import dispatch_outbox, list_outbox, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
 from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestion
 from fdd_tracker.services.store import (
     delete_watchlist,
@@ -124,6 +124,14 @@ class AlertOutboxRetryIn(BaseModel):
     limit: int = 100
 
 
+class AlertCronTickIn(BaseModel):
+    max_alerts: int = 25
+    generate_mark_read: bool = False
+    dispatch_limit: int = 100
+    retry_limit: int = 100
+    run_id: str | None = None
+
+
 @app.post("/ingest/refresh-state-sources")
 def refresh_state_sources(payload: RefreshStateSourcesRequest | None = None) -> dict:
     """Refresh state filings from live portal sources and update JSON cache."""
@@ -206,3 +214,14 @@ def alerts_outbox_dispatch(payload: AlertOutboxDispatchIn) -> dict:
 def alerts_outbox_retry_failed(payload: AlertOutboxRetryIn) -> dict:
     limit = max(1, min(payload.limit, 500))
     return retry_failed_outbox(limit=limit)
+
+
+@app.post("/alerts/cron/tick")
+def alerts_cron_tick(payload: AlertCronTickIn) -> dict:
+    return run_alerts_cron_tick(
+        max_alerts=max(1, min(payload.max_alerts, 200)),
+        generate_mark_read=payload.generate_mark_read,
+        dispatch_limit=max(1, min(payload.dispatch_limit, 500)),
+        retry_limit=max(1, min(payload.retry_limit, 500)),
+        run_id=payload.run_id,
+    )

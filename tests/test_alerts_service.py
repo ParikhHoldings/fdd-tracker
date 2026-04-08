@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from fdd_tracker.services.alerts import dispatch_outbox, list_outbox, retry_failed_outbox, run_digest_for_all_emails, run_digest_for_email
+from fdd_tracker.services.alerts import dispatch_outbox, list_outbox, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
 from fdd_tracker.services.store import get_alert_feed, seed_change_summary, upsert_watchlist
 
 
@@ -106,3 +106,22 @@ def test_digest_records_include_run_metadata(tmp_path):
     sent_rows = [json.loads(line) for line in sent.read_text(encoding="utf-8").splitlines() if line.strip()]
     assert sent_rows[-1]["run_id"] == "meta-run"
     assert "dispatched_at" in sent_rows[-1]
+
+
+
+def test_run_alerts_cron_tick(tmp_path):
+    db = str(tmp_path / "test.db")
+    upsert_watchlist("cron@example.com", "chick-fil-a", db_path=db)
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high", db_path=db)
+
+    result = run_alerts_cron_tick(
+        max_alerts=10,
+        generate_mark_read=False,
+        dispatch_limit=10,
+        retry_limit=10,
+        db_path=db,
+        run_id="cron-test-run",
+    )
+    assert result["run_id"] == "cron-test-run"
+    assert "generated" in result and "dispatched" in result and "retried" in result
+    assert result["generated"]["digests_sent"] >= 1
