@@ -211,3 +211,33 @@ def test_alerts_summary_endpoint():
     assert data["by_risk"]["medium"] >= 1
     assert data["by_risk"]["high"] >= 1
     assert isinstance(data["top_unread_franchises"], list)
+
+
+
+def test_alerts_digest_run_for_email():
+    email = f"digest-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+
+    r = client.post("/alerts/digest/run", json={"email": email, "max_alerts": 10, "mark_read": True})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["email"] == email
+    assert data["sent"] is True
+    assert data["marked_read"] >= 1
+
+
+def test_alerts_digest_run_for_all_watchlist_emails():
+    email_a = f"digestall-a-{uuid4().hex[:8]}@example.com"
+    email_b = f"digestall-b-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email_a, "franchise_slug": "chick-fil-a"})
+    client.post("/watchlists", json={"email": email_b, "franchise_slug": "orangetheory"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+    seed_change_summary("orangetheory", ["litigation"], risk_level="medium")
+
+    r = client.post("/alerts/digest/run", json={"max_alerts": 5, "mark_read": False})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["emails_scanned"] >= 2
+    assert data["digests_sent"] >= 2
+    assert isinstance(data["results"], list)

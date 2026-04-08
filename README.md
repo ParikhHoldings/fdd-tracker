@@ -83,3 +83,18 @@ curl "http://localhost:8000/alerts?email=you@example.com&risk_level=high,medium&
 curl "http://localhost:8000/alerts/summary?email=you@example.com"
 ```
 Returns total/unread counts, risk-level breakdown, and top unread franchises.
+
+
+**Generate alert digests (writes to outbox JSONL):**
+```bash
+# Single email
+curl -X POST http://localhost:8000/alerts/digest/run \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","max_alerts":25,"mark_read":false}'
+
+# All watchlist emails
+curl -X POST http://localhost:8000/alerts/digest/run \
+  -H "Content-Type: application/json" \
+  -d '{"max_alerts":25,"mark_read":false}'
+```
+

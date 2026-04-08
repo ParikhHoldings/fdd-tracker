@@ -174,6 +174,18 @@ def get_watchlists(email: str | None = None, db_path: str | None = None) -> list
     ]
 
 
+
+def get_watchlist_emails(db_path: str | None = None) -> list[str]:
+    with get_conn(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT email
+            FROM watchlists
+            ORDER BY email ASC
+            """
+        ).fetchall()
+    return [row["email"] for row in rows]
+
 def delete_watchlist(email: str, franchise_slug: str, db_path: str | None = None) -> int:
     with get_conn(db_path) as conn:
         cur = conn.execute(

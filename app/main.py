@@ -6,6 +6,7 @@ from pydantic import BaseModel, EmailStr
 
 from fdd_tracker.db import ensure_db
 from fdd_tracker.models import Filing
+from fdd_tracker.services.alerts import run_digest_for_all_emails, run_digest_for_email
 from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestion
 from fdd_tracker.services.store import (
     delete_watchlist,
@@ -108,6 +109,12 @@ class AlertReadIn(BaseModel):
     generated_at: str
 
 
+class AlertDigestRunIn(BaseModel):
+    email: EmailStr | None = None
+    max_alerts: int = 25
+    mark_read: bool = False
+
+
 @app.post("/ingest/refresh-state-sources")
 def refresh_state_sources(payload: RefreshStateSourcesRequest | None = None) -> dict:
     """Refresh state filings from live portal sources and update JSON cache."""
@@ -160,3 +167,15 @@ def alerts_unread_count(email: EmailStr) -> dict:
 @app.get("/alerts/summary")
 def alerts_summary(email: EmailStr) -> dict:
     return {"email": email, **get_alert_summary(email=str(email))}
+
+
+@app.post("/alerts/digest/run")
+def alerts_digest_run(payload: AlertDigestRunIn) -> dict:
+    max_alerts = max(1, min(payload.max_alerts, 200))
+    if payload.email:
+        return run_digest_for_email(
+            email=str(payload.email),
+            max_alerts=max_alerts,
+            mark_read=payload.mark_read,
+        )
+    return run_digest_for_all_emails(max_alerts=max_alerts, mark_read=payload.mark_read)
