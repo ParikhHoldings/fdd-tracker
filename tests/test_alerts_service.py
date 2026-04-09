@@ -237,3 +237,19 @@ def test_run_alerts_cron_tick_skips_when_locked(tmp_path):
     assert result["lock"]["acquired"] is False
     assert result["lock"]["lock"]["run_id"] == "active-run"
     assert history.exists()
+
+
+def test_dispatch_outbox_includes_delivery_metadata(tmp_path):
+    outbox = tmp_path / "alert_outbox.jsonl"
+    sent = tmp_path / "alert_outbox_sent.jsonl"
+
+    outbox.write_text("""{"email":"meta@example.com","subject":"x","body":"y","generated_at":"2026-01-01T00:00:00Z","run_id":"run-meta"}
+""", encoding="utf-8")
+    result = dispatch_outbox(limit=10, outbox_path=str(outbox), sent_path=str(sent), dry_run=True, provider="noop")
+
+    assert result["dispatched"] == 1
+    sent_row = json.loads(sent.read_text(encoding="utf-8").strip().splitlines()[-1])
+    assert sent_row["delivery_mode"] == "dry_run"
+    assert sent_row["delivery_provider"] == "noop"
+    assert sent_row["delivery_status"] == "simulated_sent"
+    assert "provider_message_id" in sent_row

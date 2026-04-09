@@ -355,3 +355,16 @@ def test_alerts_cron_tick_endpoint_skips_when_locked(tmp_path, monkeypatch):
     data = r.json()
     assert data["status"] == "skipped_locked"
     assert data["lock"]["acquired"] is False
+
+
+def test_alerts_outbox_dispatch_with_provider_metadata():
+    email = f"outboxmeta-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+    client.post("/alerts/digest/run", json={"email": email, "max_alerts": 10, "mark_read": False})
+
+    dispatched = client.post("/alerts/outbox/dispatch", json={"limit": 10, "dry_run": True, "provider": "noop"})
+    assert dispatched.status_code == 200
+    data = dispatched.json()
+    assert "dry_run" in data and data["dry_run"] is True
+    assert data["provider"] == "noop"

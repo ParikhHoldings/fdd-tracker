@@ -118,6 +118,8 @@ class AlertDigestRunIn(BaseModel):
 
 class AlertOutboxDispatchIn(BaseModel):
     limit: int = 100
+    dry_run: bool = True
+    provider: str = "noop"
 
 
 class AlertOutboxRetryIn(BaseModel):
@@ -215,7 +217,8 @@ def alerts_outbox(limit: int = Query(default=100, ge=1, le=500)) -> dict:
 @app.post("/alerts/outbox/dispatch")
 def alerts_outbox_dispatch(payload: AlertOutboxDispatchIn) -> dict:
     limit = max(1, min(payload.limit, 500))
-    return dispatch_outbox(limit=limit)
+    provider = (payload.provider or "noop").strip() or "noop"
+    return dispatch_outbox(limit=limit, dry_run=payload.dry_run, provider=provider)
 
 
 @app.post("/alerts/outbox/retry-failed")

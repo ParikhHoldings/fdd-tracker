@@ -108,13 +108,15 @@ def dispatch_outbox(
     outbox_path: str | None = None,
     sent_path: str | None = None,
     failed_path: str | None = None,
+    dry_run: bool = True,
+    provider: str = "noop",
 ) -> dict:
     outbox = Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl")
     sent = Path(sent_path) if sent_path else _default_data_path("alert_outbox_sent.jsonl")
     failed = Path(failed_path) if failed_path else _default_data_path("alert_outbox_failed.jsonl")
 
     if not outbox.exists():
-        return {"dispatched": 0, "failed": 0, "remaining": 0, "sent_path": str(sent), "failed_path": str(failed), "outbox_path": str(outbox)}
+        return {"dispatched": 0, "failed": 0, "remaining": 0, "sent_path": str(sent), "failed_path": str(failed), "outbox_path": str(outbox), "dry_run": dry_run, "provider": provider}
 
     with outbox.open("r", encoding="utf-8") as f:
         lines = [line for line in f if line.strip()]
@@ -126,12 +128,16 @@ def dispatch_outbox(
     failed_lines: list[str] = []
     for line in to_dispatch:
         row = json.loads(line)
+        row["delivery_provider"] = provider
+        row["delivery_mode"] = "dry_run" if dry_run else "live"
         if row.get("force_fail"):
             row["failure_reason"] = row.get("failure_reason", "forced failure")
             row["failed_at"] = _now_iso()
             failed_lines.append(json.dumps(row) + "\n")
         else:
             row["dispatched_at"] = _now_iso()
+            row["delivery_status"] = "simulated_sent" if dry_run else "sent"
+            row["provider_message_id"] = f"{provider}-{row.get('run_id') or 'adhoc'}-{int(datetime.now(timezone.utc).timestamp())}"
             dispatched_lines.append(json.dumps(row) + "\n")
 
     if dispatched_lines:
@@ -154,6 +160,8 @@ def dispatch_outbox(
         "sent_path": str(sent),
         "failed_path": str(failed),
         "outbox_path": str(outbox),
+        "dry_run": dry_run,
+        "provider": provider,
     }
 
 
@@ -370,7 +378,7 @@ def run_alerts_cron_tick(
             db_path=db_path,
             run_id=run_id,
         )
-        dispatch = dispatch_outbox(limit=dispatch_limit)
+        dispatch = dispatch_outbox(limit=dispatch_limit, dry_run=True, provider="noop")
         retry = retry_failed_outbox(limit=retry_limit)
 
         result = {

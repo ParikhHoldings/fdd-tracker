@@ -87,7 +87,7 @@ Returns total/unread counts, risk-level breakdown, and top unread franchises.
 **Inspect and dispatch outbox queue:**
 ```bash
 curl "http://localhost:8000/alerts/outbox?limit=25"
-curl -X POST http://localhost:8000/alerts/outbox/dispatch   -H "Content-Type: application/json"   -d '{"limit":25}'
+curl -X POST http://localhost:8000/alerts/outbox/dispatch   -H "Content-Type: application/json"   -d '{"limit":25,"dry_run":true,"provider":"noop"}'
 ```
 
 
@@ -105,7 +105,7 @@ curl -X POST http://localhost:8000/alerts/digest/run \
 ```
 
 
-Outbox/sent/failed records now include run metadata fields (`run_id`, `queued_at`, `dispatched_at`, `failed_at`, `retry_count`, `retried_at`) for cron auditability.
+Outbox/sent/failed records now include run metadata fields (`run_id`, `queued_at`, `dispatched_at`, `failed_at`, `retry_count`, `retried_at`) plus delivery metadata (`delivery_mode`, `delivery_provider`, `delivery_status`, `provider_message_id`) for cron auditability.
 
 
 **Single-shot cron cycle (generate → dispatch → retry):**
