@@ -103,6 +103,70 @@ def list_outbox(limit: int = 100, outbox_path: str | None = None) -> list[dict]:
     return rows[-limit:]
 
 
+
+
+def get_dispatch_provider_catalog() -> dict:
+    providers = {
+        "noop": {
+            "supports_live": False,
+            "requires_env": [],
+            "ready": True,
+            "description": "No-op dispatcher for deterministic dry-run testing.",
+        },
+        "loops": {
+            "supports_live": False,
+            "requires_env": ["LOOPS_API_KEY"],
+            "ready": bool(os.getenv("LOOPS_API_KEY")),
+            "description": "Reserved provider slot for future Loops integration.",
+        },
+        "beehiiv": {
+            "supports_live": False,
+            "requires_env": ["BEEHIIV_API_KEY"],
+            "ready": bool(os.getenv("BEEHIIV_API_KEY")),
+            "description": "Reserved provider slot for future Beehiiv integration.",
+        },
+    }
+    return {"default": "noop", "providers": providers}
+
+
+def validate_dispatch_provider(provider: str, dry_run: bool = True) -> dict:
+    provider_name = (provider or "noop").strip().lower() or "noop"
+    catalog = get_dispatch_provider_catalog()
+    providers = catalog["providers"]
+    if provider_name not in providers:
+        return {
+            "ok": False,
+            "provider": provider_name,
+            "reason": "unsupported-provider",
+            "supported": sorted(providers.keys()),
+            "dry_run": dry_run,
+        }
+
+    meta = providers[provider_name]
+    if dry_run:
+        return {"ok": True, "provider": provider_name, "dry_run": True, "meta": meta}
+
+    if not meta.get("supports_live", False):
+        return {
+            "ok": False,
+            "provider": provider_name,
+            "reason": "live-not-supported",
+            "supported_live": [name for name, m in providers.items() if m.get("supports_live")],
+            "dry_run": False,
+        }
+
+    missing = [k for k in meta.get("requires_env", []) if not os.getenv(k)]
+    if missing:
+        return {
+            "ok": False,
+            "provider": provider_name,
+            "reason": "missing-env",
+            "missing_env": missing,
+            "dry_run": False,
+        }
+
+    return {"ok": True, "provider": provider_name, "dry_run": False, "meta": meta}
+
 def dispatch_outbox(
     limit: int = 100,
     outbox_path: str | None = None,
@@ -111,12 +175,24 @@ def dispatch_outbox(
     dry_run: bool = True,
     provider: str = "noop",
 ) -> dict:
+    provider_check = validate_dispatch_provider(provider=provider, dry_run=dry_run)
+    provider_name = provider_check.get("provider", (provider or "noop").strip().lower() or "noop")
+    if not provider_check.get("ok", False):
+        return {
+            "dispatched": 0,
+            "failed": 0,
+            "remaining": 0,
+            "dry_run": dry_run,
+            "provider": provider_name,
+            "error": provider_check,
+        }
+
     outbox = Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl")
     sent = Path(sent_path) if sent_path else _default_data_path("alert_outbox_sent.jsonl")
     failed = Path(failed_path) if failed_path else _default_data_path("alert_outbox_failed.jsonl")
 
     if not outbox.exists():
-        return {"dispatched": 0, "failed": 0, "remaining": 0, "sent_path": str(sent), "failed_path": str(failed), "outbox_path": str(outbox), "dry_run": dry_run, "provider": provider}
+        return {"dispatched": 0, "failed": 0, "remaining": 0, "sent_path": str(sent), "failed_path": str(failed), "outbox_path": str(outbox), "dry_run": dry_run, "provider": provider_name}
 
     with outbox.open("r", encoding="utf-8") as f:
         lines = [line for line in f if line.strip()]
@@ -128,7 +204,7 @@ def dispatch_outbox(
     failed_lines: list[str] = []
     for line in to_dispatch:
         row = json.loads(line)
-        row["delivery_provider"] = provider
+        row["delivery_provider"] = provider_name
         row["delivery_mode"] = "dry_run" if dry_run else "live"
         if row.get("force_fail"):
             row["failure_reason"] = row.get("failure_reason", "forced failure")
@@ -137,7 +213,7 @@ def dispatch_outbox(
         else:
             row["dispatched_at"] = _now_iso()
             row["delivery_status"] = "simulated_sent" if dry_run else "sent"
-            row["provider_message_id"] = f"{provider}-{row.get('run_id') or 'adhoc'}-{int(datetime.now(timezone.utc).timestamp())}"
+            row["provider_message_id"] = f"{provider_name}-{row.get('run_id') or 'adhoc'}-{int(datetime.now(timezone.utc).timestamp())}"
             dispatched_lines.append(json.dumps(row) + "\n")
 
     if dispatched_lines:
@@ -161,7 +237,7 @@ def dispatch_outbox(
         "failed_path": str(failed),
         "outbox_path": str(outbox),
         "dry_run": dry_run,
-        "provider": provider,
+        "provider": provider_name,
     }
 
 

@@ -253,3 +253,27 @@ def test_dispatch_outbox_includes_delivery_metadata(tmp_path):
     assert sent_row["delivery_provider"] == "noop"
     assert sent_row["delivery_status"] == "simulated_sent"
     assert "provider_message_id" in sent_row
+
+
+def test_validate_dispatch_provider_catalog_and_rejection():
+    from fdd_tracker.services.alerts import get_dispatch_provider_catalog, validate_dispatch_provider
+
+    catalog = get_dispatch_provider_catalog()
+    assert "noop" in catalog["providers"]
+    assert catalog["default"] == "noop"
+
+    ok = validate_dispatch_provider("noop", dry_run=True)
+    assert ok["ok"] is True
+
+    bad = validate_dispatch_provider("unknown", dry_run=True)
+    assert bad["ok"] is False
+    assert bad["reason"] == "unsupported-provider"
+
+
+def test_dispatch_outbox_rejects_unsupported_provider(tmp_path):
+    outbox = tmp_path / "alert_outbox.jsonl"
+    outbox.write_text('{"email":"x@example.com","subject":"x","body":"x","generated_at":"2026-01-01T00:00:00Z"}\n', encoding="utf-8")
+
+    result = dispatch_outbox(limit=10, outbox_path=str(outbox), provider="invalid-provider", dry_run=True)
+    assert result["dispatched"] == 0
+    assert result["error"]["reason"] == "unsupported-provider"

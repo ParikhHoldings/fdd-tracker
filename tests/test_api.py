@@ -368,3 +368,20 @@ def test_alerts_outbox_dispatch_with_provider_metadata():
     data = dispatched.json()
     assert "dry_run" in data and data["dry_run"] is True
     assert data["provider"] == "noop"
+
+
+def test_alerts_providers_endpoint():
+    r = client.get('/alerts/providers')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['default'] == 'noop'
+    assert 'providers' in data
+    assert 'noop' in data['providers']
+
+
+def test_alerts_outbox_dispatch_rejects_unknown_provider():
+    r = client.post('/alerts/outbox/dispatch', json={'limit': 10, 'provider': 'not-real', 'dry_run': True})
+    assert r.status_code == 200
+    data = r.json()
+    assert data['dispatched'] == 0
+    assert data['error']['reason'] == 'unsupported-provider'

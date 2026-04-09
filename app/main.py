@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr
 
 from fdd_tracker.db import ensure_db
 from fdd_tracker.models import Filing
-from fdd_tracker.services.alerts import dispatch_outbox, list_cron_history, list_outbox, prune_alert_artifacts, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
+from fdd_tracker.services.alerts import dispatch_outbox, get_dispatch_provider_catalog, list_cron_history, list_outbox, prune_alert_artifacts, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
 from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestion
 from fdd_tracker.services.store import (
     delete_watchlist,
@@ -212,6 +212,13 @@ def alerts_digest_run(payload: AlertDigestRunIn) -> dict:
 @app.get("/alerts/outbox")
 def alerts_outbox(limit: int = Query(default=100, ge=1, le=500)) -> dict:
     return {"items": list_outbox(limit=limit)}
+
+
+
+
+@app.get("/alerts/providers")
+def alerts_providers() -> dict:
+    return get_dispatch_provider_catalog()
 
 
 @app.post("/alerts/outbox/dispatch")
