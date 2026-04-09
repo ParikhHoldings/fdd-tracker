@@ -295,3 +295,50 @@ def list_cron_history(limit: int = 50, history_path: str | None = None) -> list[
     with path.open("r", encoding="utf-8") as f:
         rows = [json.loads(line) for line in f if line.strip()]
     return rows[-limit:]
+
+
+
+def prune_jsonl_records(path: Path, keep_last: int) -> dict:
+    if not path.exists():
+        return {"path": str(path), "before": 0, "after": 0, "removed": 0}
+
+    with path.open("r", encoding="utf-8") as f:
+        lines = [line for line in f if line.strip()]
+
+    before = len(lines)
+    keep_last = max(0, keep_last)
+    kept = lines[-keep_last:] if keep_last > 0 else []
+
+    with path.open("w", encoding="utf-8") as f:
+        f.writelines(kept)
+
+    after = len(kept)
+    return {"path": str(path), "before": before, "after": after, "removed": before - after}
+
+
+def prune_alert_artifacts(
+    outbox_keep_last: int = 1000,
+    sent_keep_last: int = 2000,
+    failed_keep_last: int = 1000,
+    history_keep_last: int = 2000,
+    outbox_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
+    history_path: str | None = None,
+) -> dict:
+    outbox = Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl")
+    sent = Path(sent_path) if sent_path else _default_data_path("alert_outbox_sent.jsonl")
+    failed = Path(failed_path) if failed_path else _default_data_path("alert_outbox_failed.jsonl")
+    history = Path(history_path) if history_path else _history_path()
+
+    outbox_result = prune_jsonl_records(outbox, outbox_keep_last)
+    sent_result = prune_jsonl_records(sent, sent_keep_last)
+    failed_result = prune_jsonl_records(failed, failed_keep_last)
+    history_result = prune_jsonl_records(history, history_keep_last)
+
+    return {
+        "outbox": outbox_result,
+        "sent": sent_result,
+        "failed": failed_result,
+        "history": history_result,
+    }

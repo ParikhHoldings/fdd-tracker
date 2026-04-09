@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from fdd_tracker.services.alerts import dispatch_outbox, list_cron_history, list_outbox, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
+from fdd_tracker.services.alerts import dispatch_outbox, list_cron_history, list_outbox, prune_alert_artifacts, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
 from fdd_tracker.services.store import get_alert_feed, seed_change_summary, upsert_watchlist
 
 
@@ -149,3 +149,33 @@ def test_cron_history_written_and_listed(tmp_path):
     assert len(rows) >= 1
     assert rows[-1]["run_id"] == "history-run"
     assert "ran_at" in rows[-1]
+
+
+
+def test_prune_alert_artifacts(tmp_path):
+    outbox = tmp_path / "alert_outbox.jsonl"
+    sent = tmp_path / "alert_outbox_sent.jsonl"
+    failed = tmp_path / "alert_outbox_failed.jsonl"
+    history = tmp_path / "alerts_cron_history.jsonl"
+
+    sample = "{\"k\":1}\n{\"k\":2}\n{\"k\":3}\n"
+    outbox.write_text(sample, encoding="utf-8")
+    sent.write_text(sample, encoding="utf-8")
+    failed.write_text(sample, encoding="utf-8")
+    history.write_text(sample, encoding="utf-8")
+
+    result = prune_alert_artifacts(
+        outbox_keep_last=1,
+        sent_keep_last=2,
+        failed_keep_last=0,
+        history_keep_last=2,
+        outbox_path=str(outbox),
+        sent_path=str(sent),
+        failed_path=str(failed),
+        history_path=str(history),
+    )
+
+    assert result["outbox"]["after"] == 1
+    assert result["sent"]["after"] == 2
+    assert result["failed"]["after"] == 0
+    assert result["history"]["after"] == 2

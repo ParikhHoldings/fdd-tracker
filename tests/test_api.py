@@ -305,3 +305,22 @@ def test_alerts_cron_history_endpoint():
     data = r.json()
     assert "items" in data
     assert isinstance(data["items"], list)
+
+
+
+def test_alerts_retention_prune_endpoint():
+    r = client.post(
+        "/alerts/retention/prune",
+        json={
+            "outbox_keep_last": 10,
+            "sent_keep_last": 10,
+            "failed_keep_last": 10,
+            "history_keep_last": 10,
+        },
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert "outbox" in data
+    assert "sent" in data
+    assert "failed" in data
+    assert "history" in data

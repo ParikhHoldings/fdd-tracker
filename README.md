@@ -120,3 +120,11 @@ curl -X POST http://localhost:8000/alerts/cron/tick \
 ```bash
 curl "http://localhost:8000/alerts/cron/history?limit=25"
 ```
+
+
+**Prune retained artifact logs (bounded storage):**
+```bash
+curl -X POST http://localhost:8000/alerts/retention/prune \
+  -H "Content-Type: application/json" \
+  -d '{"outbox_keep_last":1000,"sent_keep_last":2000,"failed_keep_last":1000,"history_keep_last":2000}'
+```

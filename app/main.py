@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr
 
 from fdd_tracker.db import ensure_db
 from fdd_tracker.models import Filing
-from fdd_tracker.services.alerts import dispatch_outbox, list_cron_history, list_outbox, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
+from fdd_tracker.services.alerts import dispatch_outbox, list_cron_history, list_outbox, prune_alert_artifacts, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
 from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestion
 from fdd_tracker.services.store import (
     delete_watchlist,
@@ -132,6 +132,13 @@ class AlertCronTickIn(BaseModel):
     run_id: str | None = None
 
 
+class AlertRetentionPruneIn(BaseModel):
+    outbox_keep_last: int = 1000
+    sent_keep_last: int = 2000
+    failed_keep_last: int = 1000
+    history_keep_last: int = 2000
+
+
 @app.post("/ingest/refresh-state-sources")
 def refresh_state_sources(payload: RefreshStateSourcesRequest | None = None) -> dict:
     """Refresh state filings from live portal sources and update JSON cache."""
@@ -230,3 +237,13 @@ def alerts_cron_tick(payload: AlertCronTickIn) -> dict:
 @app.get("/alerts/cron/history")
 def alerts_cron_history(limit: int = Query(default=50, ge=1, le=500)) -> dict:
     return {"items": list_cron_history(limit=limit)}
+
+
+@app.post("/alerts/retention/prune")
+def alerts_retention_prune(payload: AlertRetentionPruneIn) -> dict:
+    return prune_alert_artifacts(
+        outbox_keep_last=max(0, payload.outbox_keep_last),
+        sent_keep_last=max(0, payload.sent_keep_last),
+        failed_keep_last=max(0, payload.failed_keep_last),
+        history_keep_last=max(0, payload.history_keep_last),
+    )
