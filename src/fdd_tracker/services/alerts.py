@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fdd_tracker.services.store import get_alert_feed, get_watchlist_emails, mark_alert_read
@@ -38,6 +39,10 @@ def _default_data_path(filename: str) -> Path:
 
 def _history_path() -> Path:
     return _default_data_path("alerts_cron_history.jsonl")
+
+
+def _lock_path() -> Path:
+    return _default_data_path("alerts_cron.lock")
 
 
 def _now_iso() -> str:
@@ -247,6 +252,89 @@ def retry_failed_outbox(limit: int = 100, failed_path: str | None = None, outbox
 
 
 
+def _read_lock_row(lock_path: Path) -> dict | None:
+    if not lock_path.exists():
+        return None
+    try:
+        return json.loads(lock_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def _lock_is_stale(lock_row: dict | None, stale_after_seconds: int, now: datetime) -> bool:
+    if lock_row is None:
+        return True
+    acquired_at = lock_row.get("acquired_at")
+    if not acquired_at:
+        return True
+    try:
+        acquired_dt = datetime.fromisoformat(acquired_at)
+    except ValueError:
+        return True
+    return acquired_dt <= now - timedelta(seconds=max(1, stale_after_seconds))
+
+
+def acquire_cron_lock(run_id: str, stale_after_seconds: int = 900, lock_path: str | None = None) -> dict:
+    lock_file = Path(lock_path) if lock_path else _lock_path()
+    lock_file.parent.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc)
+
+    payload = {"run_id": run_id, "acquired_at": now.isoformat(), "pid": os.getpid()}
+    serialized = json.dumps(payload)
+
+    def _create_lock() -> bool:
+        try:
+            fd = os.open(lock_file, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            return False
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(serialized)
+            return True
+        except OSError:
+            return False
+
+    if _create_lock():
+        return {"acquired": True, "lock_path": str(lock_file), "lock": payload}
+
+    existing = _read_lock_row(lock_file)
+    if _lock_is_stale(existing, stale_after_seconds=stale_after_seconds, now=now):
+        try:
+            lock_file.unlink(missing_ok=True)
+        except OSError:
+            pass
+        if _create_lock():
+            return {
+                "acquired": True,
+                "lock_path": str(lock_file),
+                "lock": payload,
+                "stale_replaced": existing,
+            }
+
+    return {
+        "acquired": False,
+        "lock_path": str(lock_file),
+        "lock": existing,
+        "stale_after_seconds": max(1, stale_after_seconds),
+    }
+
+
+def release_cron_lock(run_id: str, lock_path: str | None = None) -> dict:
+    lock_file = Path(lock_path) if lock_path else _lock_path()
+    current = _read_lock_row(lock_file)
+    if not lock_file.exists():
+        return {"released": False, "reason": "missing", "lock_path": str(lock_file)}
+
+    if current and current.get("run_id") != run_id:
+        return {"released": False, "reason": "owner-mismatch", "lock_path": str(lock_file), "lock": current}
+
+    try:
+        lock_file.unlink(missing_ok=True)
+    except OSError:
+        return {"released": False, "reason": "io-error", "lock_path": str(lock_file), "lock": current}
+    return {"released": True, "lock_path": str(lock_file), "lock": current}
+
+
 def run_alerts_cron_tick(
     max_alerts: int = 25,
     generate_mark_read: bool = False,
@@ -255,28 +343,51 @@ def run_alerts_cron_tick(
     db_path: str | None = None,
     run_id: str | None = None,
     history_path: str | None = None,
+    lock_path: str | None = None,
+    lock_stale_after_seconds: int = 900,
 ) -> dict:
     run_id = run_id or f"cron-{int(datetime.now(timezone.utc).timestamp())}"
 
-    generation = run_digest_for_all_emails(
-        max_alerts=max_alerts,
-        mark_read=generate_mark_read,
-        db_path=db_path,
+    lock_result = acquire_cron_lock(
         run_id=run_id,
+        stale_after_seconds=max(1, lock_stale_after_seconds),
+        lock_path=lock_path,
     )
-    dispatch = dispatch_outbox(limit=dispatch_limit)
-    retry = retry_failed_outbox(limit=retry_limit)
+    if not lock_result["acquired"]:
+        result = {
+            "status": "skipped_locked",
+            "run_id": run_id,
+            "ran_at": _now_iso(),
+            "lock": lock_result,
+        }
+        result["history_path"] = append_cron_history(result, history_path=history_path)
+        return result
 
-    result = {
-        "run_id": run_id,
-        "ran_at": _now_iso(),
-        "generated": generation,
-        "dispatched": dispatch,
-        "retried": retry,
-    }
-    history_file = append_cron_history(result, history_path=history_path)
-    result["history_path"] = history_file
-    return result
+    try:
+        generation = run_digest_for_all_emails(
+            max_alerts=max_alerts,
+            mark_read=generate_mark_read,
+            db_path=db_path,
+            run_id=run_id,
+        )
+        dispatch = dispatch_outbox(limit=dispatch_limit)
+        retry = retry_failed_outbox(limit=retry_limit)
+
+        result = {
+            "status": "executed",
+            "run_id": run_id,
+            "ran_at": _now_iso(),
+            "generated": generation,
+            "dispatched": dispatch,
+            "retried": retry,
+            "lock": lock_result,
+        }
+        history_file = append_cron_history(result, history_path=history_path)
+        result["history_path"] = history_file
+        return result
+    finally:
+        release_result = release_cron_lock(run_id=run_id, lock_path=lock_path)
+        lock_result["release"] = release_result
 
 
 

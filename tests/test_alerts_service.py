@@ -179,3 +179,61 @@ def test_prune_alert_artifacts(tmp_path):
     assert result["sent"]["after"] == 2
     assert result["failed"]["after"] == 0
     assert result["history"]["after"] == 2
+
+
+def test_cron_lock_acquire_and_release(tmp_path):
+    from fdd_tracker.services.alerts import acquire_cron_lock, release_cron_lock
+
+    lock = tmp_path / "alerts_cron.lock"
+    acquired = acquire_cron_lock("run-1", lock_path=str(lock), stale_after_seconds=900)
+    assert acquired["acquired"] is True
+    assert lock.exists()
+
+    released = release_cron_lock("run-1", lock_path=str(lock))
+    assert released["released"] is True
+    assert not lock.exists()
+
+
+def test_cron_lock_blocks_second_run(tmp_path):
+    from fdd_tracker.services.alerts import acquire_cron_lock
+
+    lock = tmp_path / "alerts_cron.lock"
+    first = acquire_cron_lock("run-1", lock_path=str(lock), stale_after_seconds=900)
+    second = acquire_cron_lock("run-2", lock_path=str(lock), stale_after_seconds=900)
+
+    assert first["acquired"] is True
+    assert second["acquired"] is False
+    assert second["lock"]["run_id"] == "run-1"
+
+
+def test_cron_lock_recovers_stale_lock(tmp_path):
+    from fdd_tracker.services.alerts import acquire_cron_lock
+
+    lock = tmp_path / "alerts_cron.lock"
+    lock.write_text('{"run_id":"old-run","acquired_at":"2000-01-01T00:00:00+00:00","pid":1}', encoding="utf-8")
+
+    recovered = acquire_cron_lock("new-run", lock_path=str(lock), stale_after_seconds=60)
+    assert recovered["acquired"] is True
+    assert recovered.get("stale_replaced", {}).get("run_id") == "old-run"
+
+
+def test_run_alerts_cron_tick_skips_when_locked(tmp_path):
+    from fdd_tracker.services.alerts import run_alerts_cron_tick
+
+    db = str(tmp_path / "test.db")
+    history = tmp_path / "history.jsonl"
+    lock = tmp_path / "alerts_cron.lock"
+    lock.write_text('{"run_id":"active-run","acquired_at":"2999-01-01T00:00:00+00:00","pid":1}', encoding="utf-8")
+
+    result = run_alerts_cron_tick(
+        db_path=db,
+        history_path=str(history),
+        lock_path=str(lock),
+        run_id="blocked-run",
+        lock_stale_after_seconds=900,
+    )
+
+    assert result["status"] == "skipped_locked"
+    assert result["lock"]["acquired"] is False
+    assert result["lock"]["lock"]["run_id"] == "active-run"
+    assert history.exists()

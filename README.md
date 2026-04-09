@@ -112,7 +112,16 @@ Outbox/sent/failed records now include run metadata fields (`run_id`, `queued_at
 ```bash
 curl -X POST http://localhost:8000/alerts/cron/tick \
   -H "Content-Type: application/json" \
-  -d '{"max_alerts":25,"generate_mark_read":false,"dispatch_limit":100,"retry_limit":100,"run_id":"nightly-2026-04-08"}'
+  -d '{"max_alerts":25,"generate_mark_read":false,"dispatch_limit":100,"retry_limit":100,"run_id":"nightly-2026-04-08","lock_stale_after_seconds":900}'
+```
+
+The cron tick is lock-guarded with `data/alerts_cron.lock`.
+- If another run is active, the endpoint returns `status="skipped_locked"` and writes that event to cron history.
+- Stale lock recovery is automatic after `lock_stale_after_seconds` (default 900 seconds).
+
+Example locked response shape:
+```json
+{"status":"skipped_locked","run_id":"nightly-2026-04-08","lock":{"acquired":false,"lock":{"run_id":"active-run"}}}
 ```
 
 

@@ -130,6 +130,7 @@ class AlertCronTickIn(BaseModel):
     dispatch_limit: int = 100
     retry_limit: int = 100
     run_id: str | None = None
+    lock_stale_after_seconds: int = 900
 
 
 class AlertRetentionPruneIn(BaseModel):
@@ -231,6 +232,7 @@ def alerts_cron_tick(payload: AlertCronTickIn) -> dict:
         dispatch_limit=max(1, min(payload.dispatch_limit, 500)),
         retry_limit=max(1, min(payload.retry_limit, 500)),
         run_id=payload.run_id,
+        lock_stale_after_seconds=max(1, min(payload.lock_stale_after_seconds, 86400)),
     )
 
 

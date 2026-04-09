@@ -324,3 +324,34 @@ def test_alerts_retention_prune_endpoint():
     assert "sent" in data
     assert "failed" in data
     assert "history" in data
+
+
+def test_alerts_cron_tick_endpoint_skips_when_locked(tmp_path, monkeypatch):
+    lock = tmp_path / "alerts_cron.lock"
+    lock.write_text('{"run_id":"active-api-run","acquired_at":"2999-01-01T00:00:00+00:00","pid":1}', encoding="utf-8")
+
+    from app import main as main_module
+
+    original = main_module.run_alerts_cron_tick
+
+    def wrapped(*args, **kwargs):
+        kwargs["lock_path"] = str(lock)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(main_module, "run_alerts_cron_tick", wrapped)
+
+    r = client.post(
+        "/alerts/cron/tick",
+        json={
+            "max_alerts": 10,
+            "generate_mark_read": False,
+            "dispatch_limit": 10,
+            "retry_limit": 10,
+            "run_id": "api-cron-locked-run",
+            "lock_stale_after_seconds": 900,
+        },
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["status"] == "skipped_locked"
+    assert data["lock"]["acquired"] is False
