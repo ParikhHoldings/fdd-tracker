@@ -248,6 +248,7 @@ def test_dispatch_outbox_includes_delivery_metadata(tmp_path):
     result = dispatch_outbox(limit=10, outbox_path=str(outbox), sent_path=str(sent), dry_run=True, provider="noop")
 
     assert result["dispatched"] == 1
+    assert result["validation"]["ok"] is True
     sent_row = json.loads(sent.read_text(encoding="utf-8").strip().splitlines()[-1])
     assert sent_row["delivery_mode"] == "dry_run"
     assert sent_row["delivery_provider"] == "noop"
@@ -276,6 +277,7 @@ def test_dispatch_outbox_rejects_unsupported_provider(tmp_path):
 
     result = dispatch_outbox(limit=10, outbox_path=str(outbox), provider="invalid-provider", dry_run=True)
     assert result["dispatched"] == 0
+    assert result["remaining"] == 1
     assert result["error"]["reason"] == "unsupported-provider"
 
 

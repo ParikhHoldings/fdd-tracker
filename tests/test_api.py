@@ -368,6 +368,7 @@ def test_alerts_outbox_dispatch_with_provider_metadata():
     data = dispatched.json()
     assert "dry_run" in data and data["dry_run"] is True
     assert data["provider"] == "noop"
+    assert 'validation' in data
 
 
 def test_alerts_providers_endpoint():
@@ -385,6 +386,7 @@ def test_alerts_outbox_dispatch_rejects_unknown_provider():
     data = r.json()
     assert data['dispatched'] == 0
     assert data['error']['reason'] == 'unsupported-provider'
+    assert data['remaining'] >= 0
 
 
 def test_alerts_cron_status_endpoint():

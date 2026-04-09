@@ -108,7 +108,7 @@ curl -X POST http://localhost:8000/alerts/digest/run \
 
 Outbox/sent/failed records now include run metadata fields (`run_id`, `queued_at`, `dispatched_at`, `failed_at`, `retry_count`, `retried_at`) plus delivery metadata (`delivery_mode`, `delivery_provider`, `delivery_status`, `provider_message_id`) for cron auditability.
 
-Provider routing is deterministic: unknown providers are rejected with `error.reason=unsupported-provider` and no queue mutation.
+Provider routing is deterministic: unknown providers are rejected with `error.reason=unsupported-provider`, returns queue counts (`remaining`), and performs no queue mutation.
 
 
 **Single-shot cron cycle (generate → dispatch → retry):**

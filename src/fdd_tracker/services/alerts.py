@@ -177,22 +177,29 @@ def dispatch_outbox(
 ) -> dict:
     provider_check = validate_dispatch_provider(provider=provider, dry_run=dry_run)
     provider_name = provider_check.get("provider", (provider or "noop").strip().lower() or "noop")
+    outbox = Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl")
+    sent = Path(sent_path) if sent_path else _default_data_path("alert_outbox_sent.jsonl")
+    failed = Path(failed_path) if failed_path else _default_data_path("alert_outbox_failed.jsonl")
+
     if not provider_check.get("ok", False):
+        remaining = 0
+        if outbox.exists():
+            with outbox.open("r", encoding="utf-8") as f:
+                remaining = sum(1 for line in f if line.strip())
         return {
             "dispatched": 0,
             "failed": 0,
-            "remaining": 0,
+            "remaining": remaining,
+            "sent_path": str(sent),
+            "failed_path": str(failed),
+            "outbox_path": str(outbox),
             "dry_run": dry_run,
             "provider": provider_name,
             "error": provider_check,
         }
 
-    outbox = Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl")
-    sent = Path(sent_path) if sent_path else _default_data_path("alert_outbox_sent.jsonl")
-    failed = Path(failed_path) if failed_path else _default_data_path("alert_outbox_failed.jsonl")
-
     if not outbox.exists():
-        return {"dispatched": 0, "failed": 0, "remaining": 0, "sent_path": str(sent), "failed_path": str(failed), "outbox_path": str(outbox), "dry_run": dry_run, "provider": provider_name}
+        return {"dispatched": 0, "failed": 0, "remaining": 0, "sent_path": str(sent), "failed_path": str(failed), "outbox_path": str(outbox), "dry_run": dry_run, "provider": provider_name, "validation": provider_check}
 
     with outbox.open("r", encoding="utf-8") as f:
         lines = [line for line in f if line.strip()]
@@ -238,6 +245,7 @@ def dispatch_outbox(
         "outbox_path": str(outbox),
         "dry_run": dry_run,
         "provider": provider_name,
+        "validation": provider_check,
     }
 
 
