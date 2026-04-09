@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from fdd_tracker.services.alerts import dispatch_outbox, list_outbox, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
+from fdd_tracker.services.alerts import dispatch_outbox, list_cron_history, list_outbox, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
 from fdd_tracker.services.store import get_alert_feed, seed_change_summary, upsert_watchlist
 
 
@@ -125,3 +125,27 @@ def test_run_alerts_cron_tick(tmp_path):
     assert result["run_id"] == "cron-test-run"
     assert "generated" in result and "dispatched" in result and "retried" in result
     assert result["generated"]["digests_sent"] >= 1
+
+
+
+def test_cron_history_written_and_listed(tmp_path):
+    db = str(tmp_path / "test.db")
+    history = tmp_path / "alerts_cron_history.jsonl"
+    upsert_watchlist("history@example.com", "chick-fil-a", db_path=db)
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high", db_path=db)
+
+    result = run_alerts_cron_tick(
+        max_alerts=10,
+        dispatch_limit=10,
+        retry_limit=10,
+        db_path=db,
+        run_id="history-run",
+        history_path=str(history),
+    )
+    assert result["run_id"] == "history-run"
+    assert history.exists()
+
+    rows = list_cron_history(limit=10, history_path=str(history))
+    assert len(rows) >= 1
+    assert rows[-1]["run_id"] == "history-run"
+    assert "ran_at" in rows[-1]

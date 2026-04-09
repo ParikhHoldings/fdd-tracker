@@ -296,3 +296,12 @@ def test_alerts_cron_tick_endpoint():
     assert "generated" in data
     assert "dispatched" in data
     assert "retried" in data
+
+
+
+def test_alerts_cron_history_endpoint():
+    r = client.get("/alerts/cron/history?limit=10")
+    assert r.status_code == 200
+    data = r.json()
+    assert "items" in data
+    assert isinstance(data["items"], list)

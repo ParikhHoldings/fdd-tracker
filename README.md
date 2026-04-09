@@ -114,3 +114,9 @@ curl -X POST http://localhost:8000/alerts/cron/tick \
   -H "Content-Type: application/json" \
   -d '{"max_alerts":25,"generate_mark_read":false,"dispatch_limit":100,"retry_limit":100,"run_id":"nightly-2026-04-08"}'
 ```
+
+
+**View recent cron runs:**
+```bash
+curl "http://localhost:8000/alerts/cron/history?limit=25"
+```

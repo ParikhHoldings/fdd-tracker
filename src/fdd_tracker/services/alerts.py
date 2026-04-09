@@ -36,6 +36,10 @@ def _default_data_path(filename: str) -> Path:
     return Path(__file__).resolve().parents[3] / "data" / filename
 
 
+def _history_path() -> Path:
+    return _default_data_path("alerts_cron_history.jsonl")
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -250,6 +254,7 @@ def run_alerts_cron_tick(
     retry_limit: int = 100,
     db_path: str | None = None,
     run_id: str | None = None,
+    history_path: str | None = None,
 ) -> dict:
     run_id = run_id or f"cron-{int(datetime.now(timezone.utc).timestamp())}"
 
@@ -262,9 +267,31 @@ def run_alerts_cron_tick(
     dispatch = dispatch_outbox(limit=dispatch_limit)
     retry = retry_failed_outbox(limit=retry_limit)
 
-    return {
+    result = {
         "run_id": run_id,
+        "ran_at": _now_iso(),
         "generated": generation,
         "dispatched": dispatch,
         "retried": retry,
     }
+    history_file = append_cron_history(result, history_path=history_path)
+    result["history_path"] = history_file
+    return result
+
+
+
+def append_cron_history(row: dict, history_path: str | None = None) -> str:
+    path = Path(history_path) if history_path else _history_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(row) + "\n")
+    return str(path)
+
+
+def list_cron_history(limit: int = 50, history_path: str | None = None) -> list[dict]:
+    path = Path(history_path) if history_path else _history_path()
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8") as f:
+        rows = [json.loads(line) for line in f if line.strip()]
+    return rows[-limit:]

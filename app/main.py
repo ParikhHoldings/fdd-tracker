@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr
 
 from fdd_tracker.db import ensure_db
 from fdd_tracker.models import Filing
-from fdd_tracker.services.alerts import dispatch_outbox, list_outbox, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
+from fdd_tracker.services.alerts import dispatch_outbox, list_cron_history, list_outbox, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
 from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestion
 from fdd_tracker.services.store import (
     delete_watchlist,
@@ -225,3 +225,8 @@ def alerts_cron_tick(payload: AlertCronTickIn) -> dict:
         retry_limit=max(1, min(payload.retry_limit, 500)),
         run_id=payload.run_id,
     )
+
+
+@app.get("/alerts/cron/history")
+def alerts_cron_history(limit: int = Query(default=50, ge=1, le=500)) -> dict:
+    return {"items": list_cron_history(limit=limit)}
