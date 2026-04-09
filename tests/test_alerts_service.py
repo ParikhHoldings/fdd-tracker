@@ -309,3 +309,35 @@ def test_get_alerts_cron_status_counts_and_lock(tmp_path):
     assert status['lock']['present'] is True
     assert status['lock']['stale'] is False
     assert status['lock']['metadata']['run_id'] == 'active-run'
+
+
+def test_recover_alerts_cron_lock_stale_and_active(tmp_path):
+    from fdd_tracker.services.alerts import recover_alerts_cron_lock
+
+    lock = tmp_path / "alerts_cron.lock"
+
+    # Active lock should not recover without force
+    lock.write_text('{"run_id":"active","acquired_at":"2999-01-01T00:00:00+00:00","pid":1}', encoding='utf-8')
+    active = recover_alerts_cron_lock(lock_path=str(lock), lock_stale_after_seconds=900, force=False)
+    assert active['recovered'] is False
+    assert active['reason'] == 'active-lock'
+    assert lock.exists()
+
+    # Stale lock should recover
+    lock.write_text('{"run_id":"stale","acquired_at":"2000-01-01T00:00:00+00:00","pid":1}', encoding='utf-8')
+    stale = recover_alerts_cron_lock(lock_path=str(lock), lock_stale_after_seconds=900, force=False)
+    assert stale['recovered'] is True
+    assert stale['reason'] == 'stale-lock'
+    assert not lock.exists()
+
+
+def test_recover_alerts_cron_lock_force(tmp_path):
+    from fdd_tracker.services.alerts import recover_alerts_cron_lock
+
+    lock = tmp_path / "alerts_cron.lock"
+    lock.write_text('{"run_id":"active","acquired_at":"2999-01-01T00:00:00+00:00","pid":1}', encoding='utf-8')
+
+    forced = recover_alerts_cron_lock(lock_path=str(lock), lock_stale_after_seconds=900, force=True)
+    assert forced['recovered'] is True
+    assert forced['reason'] == 'forced'
+    assert not lock.exists()

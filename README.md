@@ -118,7 +118,7 @@ curl -X POST http://localhost:8000/alerts/cron/tick \
   -d '{"max_alerts":25,"generate_mark_read":false,"dispatch_limit":100,"retry_limit":100,"run_id":"nightly-2026-04-08","lock_stale_after_seconds":900}'
 ```
 
-The cron tick is lock-guarded with `data/alerts_cron.lock`.
+The cron tick is lock-guarded with `data/alerts_cron.lock` and now includes a lock-recovery endpoint for stale lock cleanup.
 - If another run is active, the endpoint returns `status="skipped_locked"` and writes that event to cron history.
 - Stale lock recovery is automatic after `lock_stale_after_seconds` (default 900 seconds).
 
@@ -131,6 +131,7 @@ Example locked response shape:
 **Check cron operational status + recent runs:**
 ```bash
 curl "http://localhost:8000/alerts/cron/status?lock_stale_after_seconds=900"
+curl -X POST http://localhost:8000/alerts/cron/recover-lock -H "Content-Type: application/json" -d '{"lock_stale_after_seconds":900,"force":false}'
 curl "http://localhost:8000/alerts/cron/history?limit=25"
 ```
 

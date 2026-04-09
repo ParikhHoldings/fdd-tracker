@@ -394,3 +394,11 @@ def test_alerts_cron_status_endpoint():
     assert 'counts' in data
     assert 'lock' in data
     assert 'paths' in data
+
+
+def test_alerts_cron_recover_lock_endpoint():
+    r = client.post('/alerts/cron/recover-lock', json={'lock_stale_after_seconds': 900, 'force': False})
+    assert r.status_code == 200
+    data = r.json()
+    assert 'recovered' in data
+    assert 'reason' in data

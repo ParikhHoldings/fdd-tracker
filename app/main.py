@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr
 
 from fdd_tracker.db import ensure_db
 from fdd_tracker.models import Filing
-from fdd_tracker.services.alerts import dispatch_outbox, get_alerts_cron_status, get_dispatch_provider_catalog, list_cron_history, list_outbox, prune_alert_artifacts, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
+from fdd_tracker.services.alerts import dispatch_outbox, get_alerts_cron_status, get_dispatch_provider_catalog, list_cron_history, list_outbox, prune_alert_artifacts, recover_alerts_cron_lock, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
 from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestion
 from fdd_tracker.services.store import (
     delete_watchlist,
@@ -135,6 +135,11 @@ class AlertCronTickIn(BaseModel):
     lock_stale_after_seconds: int = 900
 
 
+class AlertCronRecoverIn(BaseModel):
+    lock_stale_after_seconds: int = 900
+    force: bool = False
+
+
 class AlertRetentionPruneIn(BaseModel):
     outbox_keep_last: int = 1000
     sent_keep_last: int = 2000
@@ -251,6 +256,14 @@ def alerts_cron_tick(payload: AlertCronTickIn) -> dict:
 @app.get("/alerts/cron/status")
 def alerts_cron_status(lock_stale_after_seconds: int = Query(default=900, ge=1, le=86400)) -> dict:
     return get_alerts_cron_status(lock_stale_after_seconds=lock_stale_after_seconds)
+
+
+@app.post("/alerts/cron/recover-lock")
+def alerts_cron_recover_lock(payload: AlertCronRecoverIn) -> dict:
+    return recover_alerts_cron_lock(
+        lock_stale_after_seconds=max(1, min(payload.lock_stale_after_seconds, 86400)),
+        force=payload.force,
+    )
 
 
 @app.get("/alerts/cron/history")

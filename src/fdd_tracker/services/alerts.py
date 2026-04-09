@@ -469,6 +469,61 @@ def get_alerts_cron_status(
         },
     }
 
+
+
+def recover_alerts_cron_lock(
+    lock_path: str | None = None,
+    lock_stale_after_seconds: int = 900,
+    force: bool = False,
+) -> dict:
+    lock_file = Path(lock_path) if lock_path else _lock_path()
+    now = datetime.now(timezone.utc)
+
+    if not lock_file.exists():
+        return {
+            "recovered": False,
+            "reason": "missing",
+            "lock_path": str(lock_file),
+            "checked_at": _now_iso(),
+        }
+
+    lock_row = _read_lock_row(lock_file)
+    stale = _lock_is_stale(lock_row, stale_after_seconds=max(1, lock_stale_after_seconds), now=now)
+    if not stale and not force:
+        return {
+            "recovered": False,
+            "reason": "active-lock",
+            "lock_path": str(lock_file),
+            "checked_at": _now_iso(),
+            "lock": lock_row,
+            "stale": False,
+            "force": False,
+        }
+
+    try:
+        lock_file.unlink(missing_ok=True)
+    except OSError:
+        return {
+            "recovered": False,
+            "reason": "io-error",
+            "lock_path": str(lock_file),
+            "checked_at": _now_iso(),
+            "lock": lock_row,
+            "stale": stale,
+            "force": force,
+        }
+
+    return {
+        "recovered": True,
+        "reason": "forced" if force and not stale else "stale-lock",
+        "lock_path": str(lock_file),
+        "checked_at": _now_iso(),
+        "lock": lock_row,
+        "stale": stale,
+        "force": force,
+    }
+
+
 def run_alerts_cron_tick(
     max_alerts: int = 25,
     generate_mark_read: bool = False,
