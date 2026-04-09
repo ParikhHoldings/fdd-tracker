@@ -128,8 +128,9 @@ Example locked response shape:
 ```
 
 
-**View recent cron runs:**
+**Check cron operational status + recent runs:**
 ```bash
+curl "http://localhost:8000/alerts/cron/status?lock_stale_after_seconds=900"
 curl "http://localhost:8000/alerts/cron/history?limit=25"
 ```
 

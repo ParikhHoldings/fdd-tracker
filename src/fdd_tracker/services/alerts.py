@@ -419,6 +419,56 @@ def release_cron_lock(run_id: str, lock_path: str | None = None) -> dict:
     return {"released": True, "lock_path": str(lock_file), "lock": current}
 
 
+
+
+def get_alerts_cron_status(
+    outbox_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
+    history_path: str | None = None,
+    lock_path: str | None = None,
+    lock_stale_after_seconds: int = 900,
+) -> dict:
+    outbox = Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl")
+    sent = Path(sent_path) if sent_path else _default_data_path("alert_outbox_sent.jsonl")
+    failed = Path(failed_path) if failed_path else _default_data_path("alert_outbox_failed.jsonl")
+    history = Path(history_path) if history_path else _history_path()
+    lock_file = Path(lock_path) if lock_path else _lock_path()
+
+    def _count_rows(path: Path) -> int:
+        if not path.exists():
+            return 0
+        with path.open("r", encoding="utf-8") as f:
+            return sum(1 for line in f if line.strip())
+
+    now = datetime.now(timezone.utc)
+    lock_row = _read_lock_row(lock_file)
+    lock_present = lock_file.exists()
+    lock_stale = _lock_is_stale(lock_row, stale_after_seconds=max(1, lock_stale_after_seconds), now=now) if lock_present else False
+
+    return {
+        "checked_at": _now_iso(),
+        "paths": {
+            "outbox": str(outbox),
+            "sent": str(sent),
+            "failed": str(failed),
+            "history": str(history),
+            "lock": str(lock_file),
+        },
+        "counts": {
+            "outbox": _count_rows(outbox),
+            "sent": _count_rows(sent),
+            "failed": _count_rows(failed),
+            "history": _count_rows(history),
+        },
+        "lock": {
+            "present": lock_present,
+            "stale": lock_stale,
+            "stale_after_seconds": max(1, lock_stale_after_seconds),
+            "metadata": lock_row,
+        },
+    }
+
 def run_alerts_cron_tick(
     max_alerts: int = 25,
     generate_mark_read: bool = False,

@@ -277,3 +277,35 @@ def test_dispatch_outbox_rejects_unsupported_provider(tmp_path):
     result = dispatch_outbox(limit=10, outbox_path=str(outbox), provider="invalid-provider", dry_run=True)
     assert result["dispatched"] == 0
     assert result["error"]["reason"] == "unsupported-provider"
+
+
+def test_get_alerts_cron_status_counts_and_lock(tmp_path):
+    from fdd_tracker.services.alerts import get_alerts_cron_status
+
+    outbox = tmp_path / "alert_outbox.jsonl"
+    sent = tmp_path / "alert_outbox_sent.jsonl"
+    failed = tmp_path / "alert_outbox_failed.jsonl"
+    history = tmp_path / "alerts_cron_history.jsonl"
+    lock = tmp_path / "alerts_cron.lock"
+
+    outbox.write_text('{"a":1}\n{"a":2}\n', encoding='utf-8')
+    sent.write_text('{"a":1}\n', encoding='utf-8')
+    failed.write_text('', encoding='utf-8')
+    history.write_text('{"run_id":"x"}\n', encoding='utf-8')
+    lock.write_text('{"run_id":"active-run","acquired_at":"2999-01-01T00:00:00+00:00","pid":1}', encoding='utf-8')
+
+    status = get_alerts_cron_status(
+        outbox_path=str(outbox),
+        sent_path=str(sent),
+        failed_path=str(failed),
+        history_path=str(history),
+        lock_path=str(lock),
+        lock_stale_after_seconds=900,
+    )
+
+    assert status['counts']['outbox'] == 2
+    assert status['counts']['sent'] == 1
+    assert status['counts']['history'] == 1
+    assert status['lock']['present'] is True
+    assert status['lock']['stale'] is False
+    assert status['lock']['metadata']['run_id'] == 'active-run'

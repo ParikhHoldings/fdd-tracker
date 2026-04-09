@@ -385,3 +385,12 @@ def test_alerts_outbox_dispatch_rejects_unknown_provider():
     data = r.json()
     assert data['dispatched'] == 0
     assert data['error']['reason'] == 'unsupported-provider'
+
+
+def test_alerts_cron_status_endpoint():
+    r = client.get('/alerts/cron/status?lock_stale_after_seconds=900')
+    assert r.status_code == 200
+    data = r.json()
+    assert 'counts' in data
+    assert 'lock' in data
+    assert 'paths' in data
