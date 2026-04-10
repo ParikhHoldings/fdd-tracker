@@ -485,3 +485,55 @@ def test_run_provider_smoke_test_resend_live_success(monkeypatch):
     assert result["provider"] == "resend"
     assert result["mode"] == "live"
     assert result["provider_message_id"] == "re_smoke_123"
+
+
+def test_enforce_live_dispatch_gate_blocks_duplicate_idempotency_key(tmp_path):
+    from fdd_tracker.services.alerts import enforce_live_dispatch_gate
+
+    guard = tmp_path / "live_dispatch_guard.json"
+    first = enforce_live_dispatch_gate(
+        provider="resend",
+        dry_run=False,
+        confirm_live=True,
+        idempotency_key="abc123",
+        min_interval_seconds=1,
+        guard_path=str(guard),
+    )
+    second = enforce_live_dispatch_gate(
+        provider="resend",
+        dry_run=False,
+        confirm_live=True,
+        idempotency_key="abc123",
+        min_interval_seconds=1,
+        guard_path=str(guard),
+    )
+
+    assert first["ok"] is True
+    assert second["ok"] is False
+    assert second["reason"] == "live-dispatch-duplicate-idempotency-key"
+
+
+def test_enforce_live_dispatch_gate_rate_limit(tmp_path):
+    from fdd_tracker.services.alerts import enforce_live_dispatch_gate
+
+    guard = tmp_path / "live_dispatch_guard.json"
+    first = enforce_live_dispatch_gate(
+        provider="resend",
+        dry_run=False,
+        confirm_live=True,
+        idempotency_key="first",
+        min_interval_seconds=120,
+        guard_path=str(guard),
+    )
+    second = enforce_live_dispatch_gate(
+        provider="resend",
+        dry_run=False,
+        confirm_live=True,
+        idempotency_key="second",
+        min_interval_seconds=120,
+        guard_path=str(guard),
+    )
+
+    assert first["ok"] is True
+    assert second["ok"] is False
+    assert second["reason"] == "live-dispatch-rate-limited"

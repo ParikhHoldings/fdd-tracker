@@ -175,6 +175,66 @@ def validate_dispatch_provider(provider: str, dry_run: bool = True) -> dict:
 
     return {"ok": True, "provider": provider_name, "dry_run": False, "meta": meta}
 
+
+
+def _live_dispatch_guard_path() -> Path:
+    return _default_data_path("live_dispatch_guard.json")
+
+
+def enforce_live_dispatch_gate(
+    provider: str,
+    dry_run: bool,
+    confirm_live: bool,
+    idempotency_key: str | None = None,
+    min_interval_seconds: int = 60,
+    guard_path: str | None = None,
+) -> dict:
+    provider_name = (provider or "noop").strip().lower() or "noop"
+    if dry_run:
+        return {"ok": True, "provider": provider_name, "mode": "dry_run"}
+
+    if not confirm_live:
+        return {"ok": False, "reason": "live-dispatch-confirmation-required", "provider": provider_name}
+
+    path = Path(guard_path) if guard_path else _live_dispatch_guard_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    now = datetime.now(timezone.utc)
+    state = {"last_live_dispatch_at": None, "idempotency_keys": []}
+    if path.exists():
+        try:
+            state = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            state = {"last_live_dispatch_at": None, "idempotency_keys": []}
+
+    keys = list(state.get("idempotency_keys", []))
+    if idempotency_key:
+        if idempotency_key in keys:
+            return {"ok": False, "reason": "live-dispatch-duplicate-idempotency-key", "provider": provider_name}
+
+    last_at = state.get("last_live_dispatch_at")
+    if last_at:
+        try:
+            last_dt = datetime.fromisoformat(last_at)
+            if now < last_dt + timedelta(seconds=max(1, min_interval_seconds)):
+                return {
+                    "ok": False,
+                    "reason": "live-dispatch-rate-limited",
+                    "provider": provider_name,
+                    "retry_after_seconds": int((last_dt + timedelta(seconds=max(1, min_interval_seconds)) - now).total_seconds()),
+                }
+        except ValueError:
+            pass
+
+    if idempotency_key:
+        keys.append(idempotency_key)
+
+    state["last_live_dispatch_at"] = now.isoformat()
+    state["idempotency_keys"] = keys[-200:]
+    path.write_text(json.dumps(state), encoding="utf-8")
+
+    return {"ok": True, "provider": provider_name, "mode": "live", "idempotency_key": idempotency_key}
+
 def dispatch_outbox(
     limit: int = 100,
     outbox_path: str | None = None,

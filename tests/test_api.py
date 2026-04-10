@@ -446,3 +446,22 @@ def test_alerts_outbox_dispatch_live_requires_confirmation():
     assert data['dispatched'] == 0
     assert data['error']['reason'] == 'live-dispatch-confirmation-required'
 
+
+
+def test_alerts_outbox_dispatch_live_duplicate_idempotency_key_rejected():
+    payload = {
+        'limit': 1,
+        'provider': 'resend',
+        'dry_run': False,
+        'confirm_live': True,
+        'idempotency_key': 'dup-key-1',
+        'live_min_interval_seconds': 1,
+    }
+    first = client.post('/alerts/outbox/dispatch', json=payload)
+    assert first.status_code == 200
+
+    second = client.post('/alerts/outbox/dispatch', json=payload)
+    assert second.status_code == 200
+    data = second.json()
+    assert data['dispatched'] == 0
+    assert data['error']['reason'] == 'live-dispatch-duplicate-idempotency-key'

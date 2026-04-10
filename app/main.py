@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr
 
 from fdd_tracker.db import ensure_db
 from fdd_tracker.models import Filing
-from fdd_tracker.services.alerts import dispatch_outbox, get_alerts_cron_preflight, get_alerts_cron_status, get_dispatch_provider_catalog, get_latest_cron_history_entry, list_cron_history, list_outbox, prune_alert_artifacts, recover_alerts_cron_lock, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, run_provider_smoke_test
+from fdd_tracker.services.alerts import dispatch_outbox, enforce_live_dispatch_gate, get_alerts_cron_preflight, get_alerts_cron_status, get_dispatch_provider_catalog, get_latest_cron_history_entry, list_cron_history, list_outbox, prune_alert_artifacts, recover_alerts_cron_lock, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, run_provider_smoke_test
 from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestion
 from fdd_tracker.services.store import (
     delete_watchlist,
@@ -121,6 +121,8 @@ class AlertOutboxDispatchIn(BaseModel):
     dry_run: bool = True
     provider: str = "noop"
     confirm_live: bool = False
+    idempotency_key: str | None = None
+    live_min_interval_seconds: int = 60
 
 
 class AlertProviderSmokeTestIn(BaseModel):
@@ -251,20 +253,27 @@ def alerts_provider_smoke_test(payload: AlertProviderSmokeTestIn) -> dict:
 def alerts_outbox_dispatch(payload: AlertOutboxDispatchIn) -> dict:
     limit = max(1, min(payload.limit, 500))
     provider = (payload.provider or "noop").strip() or "noop"
-    if not payload.dry_run and not payload.confirm_live:
+
+    gate = enforce_live_dispatch_gate(
+        provider=provider,
+        dry_run=payload.dry_run,
+        confirm_live=payload.confirm_live,
+        idempotency_key=(payload.idempotency_key or None),
+        min_interval_seconds=max(1, min(payload.live_min_interval_seconds, 3600)),
+    )
+    if not gate.get("ok", False):
         return {
             "dispatched": 0,
             "failed": 0,
             "remaining": None,
-            "dry_run": False,
+            "dry_run": payload.dry_run,
             "provider": provider,
-            "error": {
-                "ok": False,
-                "reason": "live-dispatch-confirmation-required",
-                "message": "Set confirm_live=true to run non-dry-run dispatch.",
-            },
+            "error": gate,
         }
-    return dispatch_outbox(limit=limit, dry_run=payload.dry_run, provider=provider)
+
+    result = dispatch_outbox(limit=limit, dry_run=payload.dry_run, provider=provider)
+    result["gate"] = gate
+    return result
 
 
 @app.post("/alerts/outbox/retry-failed")
