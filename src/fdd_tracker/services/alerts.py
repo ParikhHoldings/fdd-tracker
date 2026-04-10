@@ -137,6 +137,25 @@ def get_dispatch_provider_catalog() -> dict:
     return {"default": "noop", "providers": providers}
 
 
+
+
+def get_provider_health(provider: str) -> dict:
+    provider_name = (provider or "noop").strip().lower() or "noop"
+    catalog = get_dispatch_provider_catalog()
+    meta = catalog["providers"].get(provider_name)
+    if not meta:
+        return {"provider": provider_name, "known": False, "ready": False, "reason": "unsupported-provider"}
+
+    missing = [k for k in meta.get("requires_env", []) if not os.getenv(k)]
+    return {
+        "provider": provider_name,
+        "known": True,
+        "supports_live": bool(meta.get("supports_live", False)),
+        "ready": bool(meta.get("ready", False)) and not missing,
+        "missing_env": missing,
+        "description": meta.get("description"),
+    }
+
 def validate_dispatch_provider(provider: str, dry_run: bool = True) -> dict:
     provider_name = (provider or "noop").strip().lower() or "noop"
     catalog = get_dispatch_provider_catalog()
@@ -620,12 +639,16 @@ def get_alerts_cron_preflight(
     lock_present = lock_file.exists()
     lock_stale = _lock_is_stale(lock_row, stale_after_seconds=max(1, lock_stale_after_seconds), now=now) if lock_present else False
 
+    provider_name = (dispatch_provider or "noop").strip().lower() or "noop"
+    provider_health = get_provider_health(provider_name)
+
     return {
         "checked_at": _now_iso(),
         "dispatch": {
-            "provider": (dispatch_provider or "noop").strip().lower() or "noop",
+            "provider": provider_name,
             "dry_run": dispatch_dry_run,
             "validation": provider_check,
+            "provider_health": provider_health,
         },
         "lock": {
             "path": str(lock_file),

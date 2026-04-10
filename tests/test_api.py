@@ -418,6 +418,8 @@ def test_alerts_cron_preflight_endpoint():
     assert 'dispatch' in data
     assert 'lock' in data
     assert data['dispatch']['validation']['ok'] is True
+    assert 'provider_health' in data['dispatch']
+    assert data['dispatch']['provider_health']['provider'] == 'noop'
 
 
 def test_alerts_cron_history_latest_endpoint():

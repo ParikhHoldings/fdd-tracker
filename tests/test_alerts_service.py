@@ -537,3 +537,23 @@ def test_enforce_live_dispatch_gate_rate_limit(tmp_path):
     assert first["ok"] is True
     assert second["ok"] is False
     assert second["reason"] == "live-dispatch-rate-limited"
+
+
+def test_get_provider_health_unknown():
+    from fdd_tracker.services.alerts import get_provider_health
+
+    health = get_provider_health('not-real')
+    assert health['known'] is False
+    assert health['ready'] is False
+    assert health['reason'] == 'unsupported-provider'
+
+
+def test_get_provider_health_resend_missing_env(monkeypatch):
+    from fdd_tracker.services.alerts import get_provider_health
+
+    monkeypatch.delenv('RESEND_API_KEY', raising=False)
+    monkeypatch.delenv('ALERTS_FROM_EMAIL', raising=False)
+    health = get_provider_health('resend')
+    assert health['known'] is True
+    assert health['ready'] is False
+    assert 'RESEND_API_KEY' in health['missing_env']
