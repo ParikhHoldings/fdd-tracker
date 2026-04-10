@@ -287,6 +287,8 @@ def test_alerts_cron_tick_endpoint():
             "generate_mark_read": False,
             "dispatch_limit": 10,
             "retry_limit": 10,
+            "dispatch_dry_run": True,
+            "dispatch_provider": "noop",
             "run_id": "api-cron-run",
         },
     )
@@ -296,6 +298,8 @@ def test_alerts_cron_tick_endpoint():
     assert "generated" in data
     assert "dispatched" in data
     assert "retried" in data
+    assert data["dispatched"]["provider"] == "noop"
+    assert data["dispatched"]["dry_run"] is True
 
 
 

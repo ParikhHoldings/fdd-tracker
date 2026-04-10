@@ -537,6 +537,8 @@ def run_alerts_cron_tick(
     generate_mark_read: bool = False,
     dispatch_limit: int = 100,
     retry_limit: int = 100,
+    dispatch_dry_run: bool = True,
+    dispatch_provider: str = "noop",
     db_path: str | None = None,
     run_id: str | None = None,
     history_path: str | None = None,
@@ -567,7 +569,7 @@ def run_alerts_cron_tick(
             db_path=db_path,
             run_id=run_id,
         )
-        dispatch = dispatch_outbox(limit=dispatch_limit, dry_run=True, provider="noop")
+        dispatch = dispatch_outbox(limit=dispatch_limit, dry_run=dispatch_dry_run, provider=dispatch_provider)
         retry = retry_failed_outbox(limit=retry_limit)
 
         result = {

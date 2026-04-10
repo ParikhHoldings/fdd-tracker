@@ -343,3 +343,24 @@ def test_recover_alerts_cron_lock_force(tmp_path):
     assert forced['recovered'] is True
     assert forced['reason'] == 'forced'
     assert not lock.exists()
+
+
+def test_run_alerts_cron_tick_with_dispatch_config(tmp_path):
+    db = str(tmp_path / "test.db")
+    upsert_watchlist("croncfg@example.com", "chick-fil-a", db_path=db)
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high", db_path=db)
+
+    result = run_alerts_cron_tick(
+        max_alerts=10,
+        generate_mark_read=False,
+        dispatch_limit=10,
+        retry_limit=10,
+        dispatch_dry_run=True,
+        dispatch_provider="noop",
+        db_path=db,
+        run_id="cron-config-run",
+    )
+
+    assert result["status"] == "executed"
+    assert result["dispatched"]["provider"] == "noop"
+    assert result["dispatched"]["dry_run"] is True

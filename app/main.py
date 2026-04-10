@@ -131,6 +131,8 @@ class AlertCronTickIn(BaseModel):
     generate_mark_read: bool = False
     dispatch_limit: int = 100
     retry_limit: int = 100
+    dispatch_dry_run: bool = True
+    dispatch_provider: str = "noop"
     run_id: str | None = None
     lock_stale_after_seconds: int = 900
 
@@ -246,6 +248,8 @@ def alerts_cron_tick(payload: AlertCronTickIn) -> dict:
         generate_mark_read=payload.generate_mark_read,
         dispatch_limit=max(1, min(payload.dispatch_limit, 500)),
         retry_limit=max(1, min(payload.retry_limit, 500)),
+        dispatch_dry_run=payload.dispatch_dry_run,
+        dispatch_provider=(payload.dispatch_provider or "noop").strip() or "noop",
         run_id=payload.run_id,
         lock_stale_after_seconds=max(1, min(payload.lock_stale_after_seconds, 86400)),
     )

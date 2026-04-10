@@ -115,10 +115,10 @@ Provider routing is deterministic: unknown providers are rejected with `error.re
 ```bash
 curl -X POST http://localhost:8000/alerts/cron/tick \
   -H "Content-Type: application/json" \
-  -d '{"max_alerts":25,"generate_mark_read":false,"dispatch_limit":100,"retry_limit":100,"run_id":"nightly-2026-04-08","lock_stale_after_seconds":900}'
+  -d '{"max_alerts":25,"generate_mark_read":false,"dispatch_limit":100,"retry_limit":100,"dispatch_dry_run":true,"dispatch_provider":"noop","run_id":"nightly-2026-04-08","lock_stale_after_seconds":900}'
 ```
 
-The cron tick is lock-guarded with `data/alerts_cron.lock` and now includes a lock-recovery endpoint for stale lock cleanup.
+The cron tick is lock-guarded with `data/alerts_cron.lock` and now includes a lock-recovery endpoint for stale lock cleanup. It also accepts `dispatch_dry_run`/`dispatch_provider` so scheduler runs can be deterministic in test mode or explicitly provider-routed.
 - If another run is active, the endpoint returns `status="skipped_locked"` and writes that event to cron history.
 - Stale lock recovery is automatic after `lock_stale_after_seconds` (default 900 seconds).
 
