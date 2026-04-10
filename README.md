@@ -133,6 +133,7 @@ Example locked response shape:
 curl "http://localhost:8000/alerts/cron/status?lock_stale_after_seconds=900"
 curl -X POST http://localhost:8000/alerts/cron/preflight -H "Content-Type: application/json" -d '{"dispatch_dry_run":true,"dispatch_provider":"noop","lock_stale_after_seconds":900}'
 curl -X POST http://localhost:8000/alerts/cron/recover-lock -H "Content-Type: application/json" -d '{"lock_stale_after_seconds":900,"force":false}'
+curl "http://localhost:8000/alerts/cron/history/latest"
 curl "http://localhost:8000/alerts/cron/history?limit=25"
 ```
 

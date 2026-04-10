@@ -418,3 +418,11 @@ def test_alerts_cron_preflight_endpoint():
     assert 'dispatch' in data
     assert 'lock' in data
     assert data['dispatch']['validation']['ok'] is True
+
+
+def test_alerts_cron_history_latest_endpoint():
+    r = client.get('/alerts/cron/history/latest')
+    assert r.status_code == 200
+    data = r.json()
+    assert 'exists' in data
+    assert 'item' in data

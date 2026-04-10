@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr
 
 from fdd_tracker.db import ensure_db
 from fdd_tracker.models import Filing
-from fdd_tracker.services.alerts import dispatch_outbox, get_alerts_cron_preflight, get_alerts_cron_status, get_dispatch_provider_catalog, list_cron_history, list_outbox, prune_alert_artifacts, recover_alerts_cron_lock, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
+from fdd_tracker.services.alerts import dispatch_outbox, get_alerts_cron_preflight, get_alerts_cron_status, get_dispatch_provider_catalog, get_latest_cron_history_entry, list_cron_history, list_outbox, prune_alert_artifacts, recover_alerts_cron_lock, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
 from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestion
 from fdd_tracker.services.store import (
     delete_watchlist,
@@ -283,6 +283,11 @@ def alerts_cron_recover_lock(payload: AlertCronRecoverIn) -> dict:
         lock_stale_after_seconds=max(1, min(payload.lock_stale_after_seconds, 86400)),
         force=payload.force,
     )
+
+
+@app.get("/alerts/cron/history/latest")
+def alerts_cron_history_latest() -> dict:
+    return get_latest_cron_history_entry()
 
 
 @app.get("/alerts/cron/history")

@@ -631,6 +631,15 @@ def append_cron_history(row: dict, history_path: str | None = None) -> str:
     return str(path)
 
 
+
+
+def get_latest_cron_history_entry(history_path: str | None = None) -> dict:
+    items = list_cron_history(limit=1, history_path=history_path)
+    if not items:
+        return {"exists": False, "item": None}
+    return {"exists": True, "item": items[-1]}
+
+
 def list_cron_history(limit: int = 50, history_path: str | None = None) -> list[dict]:
     path = Path(history_path) if history_path else _history_path()
     if not path.exists():

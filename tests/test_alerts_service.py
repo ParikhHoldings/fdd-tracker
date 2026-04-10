@@ -389,3 +389,15 @@ def test_get_alerts_cron_preflight(tmp_path):
         lock_path=str(lock),
     )
     assert bad_provider['dispatch']['validation']['ok'] is False
+
+
+def test_get_latest_cron_history_entry(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, get_latest_cron_history_entry
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history({"run_id": "r1"}, history_path=str(history))
+    append_cron_history({"run_id": "r2"}, history_path=str(history))
+
+    latest = get_latest_cron_history_entry(history_path=str(history))
+    assert latest['exists'] is True
+    assert latest['item']['run_id'] == 'r2'
