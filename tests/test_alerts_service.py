@@ -452,3 +452,36 @@ def test_get_latest_cron_history_entry(tmp_path):
     latest = get_latest_cron_history_entry(history_path=str(history))
     assert latest['exists'] is True
     assert latest['item']['run_id'] == 'r2'
+
+
+def test_run_provider_smoke_test_unknown_provider():
+    from fdd_tracker.services.alerts import run_provider_smoke_test
+
+    result = run_provider_smoke_test(provider="unknown-provider", email="x@example.com", dry_run=True)
+    assert result["success"] is False
+    assert result["validation"]["reason"] == "unsupported-provider"
+
+
+def test_run_provider_smoke_test_resend_live_success(monkeypatch):
+    from fdd_tracker.services import alerts
+
+    monkeypatch.setenv("RESEND_API_KEY", "test-key")
+    monkeypatch.setenv("ALERTS_FROM_EMAIL", "alerts@example.com")
+
+    class _Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b'{"id":"re_smoke_123"}'
+
+    monkeypatch.setattr(alerts.urlrequest, "urlopen", lambda req, timeout=15: _Resp())
+
+    result = alerts.run_provider_smoke_test(provider="resend", email="live@example.com", dry_run=False)
+    assert result["success"] is True
+    assert result["provider"] == "resend"
+    assert result["mode"] == "live"
+    assert result["provider_message_id"] == "re_smoke_123"

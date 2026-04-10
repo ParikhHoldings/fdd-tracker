@@ -87,6 +87,7 @@ Returns total/unread counts, risk-level breakdown, and top unread franchises.
 **Inspect provider catalog + dispatch outbox queue:**
 ```bash
 curl "http://localhost:8000/alerts/providers"
+curl -X POST http://localhost:8000/alerts/providers/smoke-test -H "Content-Type: application/json" -d "{\"provider\":\"noop\",\"email\":\"ops@example.com\",\"dry_run\":true}"
 curl "http://localhost:8000/alerts/outbox?limit=25"
 curl -X POST http://localhost:8000/alerts/outbox/dispatch   -H "Content-Type: application/json"   -d '{"limit":25,"dry_run":true,"provider":"noop"}'
 ```

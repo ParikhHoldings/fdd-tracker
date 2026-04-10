@@ -312,6 +312,59 @@ def _dispatch_via_resend(payload: dict) -> dict:
         return {"ok": False, "error": str(exc)}
 
 
+def run_provider_smoke_test(provider: str, email: str, dry_run: bool = True) -> dict:
+    provider_name = (provider or "noop").strip().lower() or "noop"
+    validation = validate_dispatch_provider(provider=provider_name, dry_run=dry_run)
+
+    if not validation.get("ok", False):
+        return {
+            "success": False,
+            "provider": provider_name,
+            "email": email,
+            "mode": "dry_run" if dry_run else "live",
+            "validation": validation,
+        }
+
+    now = datetime.now(timezone.utc)
+    payload = {
+        "email": email,
+        "subject": f"FDD Tracker provider smoke test ({provider_name})",
+        "body": f"Smoke test at {now.isoformat()} for provider={provider_name}, dry_run={dry_run}",
+        "generated_at": now.isoformat(),
+        "run_id": f"smoke-{int(now.timestamp())}",
+    }
+
+    if dry_run:
+        return {
+            "success": True,
+            "provider": provider_name,
+            "email": email,
+            "mode": "dry_run",
+            "provider_message_id": f"{provider_name}-smoke-{int(now.timestamp())}",
+            "validation": validation,
+        }
+
+    live_result = _dispatch_live(provider_name=provider_name, payload=payload)
+    if live_result.get("ok", False):
+        return {
+            "success": True,
+            "provider": provider_name,
+            "email": email,
+            "mode": "live",
+            "provider_message_id": live_result.get("provider_message_id"),
+            "validation": validation,
+        }
+
+    return {
+        "success": False,
+        "provider": provider_name,
+        "email": email,
+        "mode": "live",
+        "validation": validation,
+        "error": live_result.get("error", "provider dispatch failed"),
+    }
+
+
 def run_digest_for_email(
     email: str,
     max_alerts: int = 25,

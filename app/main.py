@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr
 
 from fdd_tracker.db import ensure_db
 from fdd_tracker.models import Filing
-from fdd_tracker.services.alerts import dispatch_outbox, get_alerts_cron_preflight, get_alerts_cron_status, get_dispatch_provider_catalog, get_latest_cron_history_entry, list_cron_history, list_outbox, prune_alert_artifacts, recover_alerts_cron_lock, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
+from fdd_tracker.services.alerts import dispatch_outbox, get_alerts_cron_preflight, get_alerts_cron_status, get_dispatch_provider_catalog, get_latest_cron_history_entry, list_cron_history, list_outbox, prune_alert_artifacts, recover_alerts_cron_lock, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, run_provider_smoke_test
 from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestion
 from fdd_tracker.services.store import (
     delete_watchlist,
@@ -122,6 +122,12 @@ class AlertOutboxDispatchIn(BaseModel):
     provider: str = "noop"
 
 
+class AlertProviderSmokeTestIn(BaseModel):
+    provider: str = "noop"
+    email: EmailStr
+    dry_run: bool = True
+
+
 class AlertOutboxRetryIn(BaseModel):
     limit: int = 100
 
@@ -232,6 +238,12 @@ def alerts_outbox(limit: int = Query(default=100, ge=1, le=500)) -> dict:
 @app.get("/alerts/providers")
 def alerts_providers() -> dict:
     return get_dispatch_provider_catalog()
+
+
+@app.post("/alerts/providers/smoke-test")
+def alerts_provider_smoke_test(payload: AlertProviderSmokeTestIn) -> dict:
+    provider = (payload.provider or "noop").strip() or "noop"
+    return run_provider_smoke_test(provider=provider, email=str(payload.email), dry_run=payload.dry_run)
 
 
 @app.post("/alerts/outbox/dispatch")

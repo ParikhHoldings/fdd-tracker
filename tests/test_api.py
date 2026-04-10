@@ -426,3 +426,14 @@ def test_alerts_cron_history_latest_endpoint():
     data = r.json()
     assert 'exists' in data
     assert 'item' in data
+
+
+def test_alerts_provider_smoke_test_dry_run():
+    r = client.post('/alerts/providers/smoke-test', json={'provider': 'noop', 'email': 'smoke@example.com', 'dry_run': True})
+    assert r.status_code == 200
+    data = r.json()
+    assert data['success'] is True
+    assert data['provider'] == 'noop'
+    assert data['mode'] == 'dry_run'
+    assert data['email'] == 'smoke@example.com'
+    assert 'provider_message_id' in data
