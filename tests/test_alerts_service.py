@@ -271,6 +271,57 @@ def test_validate_dispatch_provider_catalog_and_rejection():
     assert bad["reason"] == "unsupported-provider"
 
 
+
+
+def test_validate_dispatch_provider_resend_live_requires_env(monkeypatch):
+    from fdd_tracker.services.alerts import validate_dispatch_provider
+
+    monkeypatch.delenv("RESEND_API_KEY", raising=False)
+    monkeypatch.delenv("ALERTS_FROM_EMAIL", raising=False)
+
+    invalid = validate_dispatch_provider("resend", dry_run=False)
+    assert invalid["ok"] is False
+    assert invalid["reason"] == "missing-env"
+
+
+def test_dispatch_outbox_resend_live_success(monkeypatch, tmp_path):
+    from fdd_tracker.services import alerts
+
+    outbox = tmp_path / "alert_outbox.jsonl"
+    sent = tmp_path / "alert_outbox_sent.jsonl"
+
+    outbox.write_text('{"email":"live@example.com","subject":"x","body":"y","generated_at":"2026-01-01T00:00:00Z"}\n', encoding='utf-8')
+
+    monkeypatch.setenv("RESEND_API_KEY", "test-key")
+    monkeypatch.setenv("ALERTS_FROM_EMAIL", "alerts@example.com")
+
+    class _Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b'{"id":"re_123"}'
+
+    monkeypatch.setattr(alerts.urlrequest, "urlopen", lambda req, timeout=15: _Resp())
+
+    result = alerts.dispatch_outbox(
+        limit=10,
+        outbox_path=str(outbox),
+        sent_path=str(sent),
+        dry_run=False,
+        provider="resend",
+    )
+
+    assert result["dispatched"] == 1
+    assert result["failed"] == 0
+    sent_row = json.loads(sent.read_text(encoding='utf-8').strip())
+    assert sent_row["delivery_provider"] == "resend"
+    assert sent_row["delivery_mode"] == "live"
+    assert sent_row["provider_message_id"] == "re_123"
+
 def test_dispatch_outbox_rejects_unsupported_provider(tmp_path):
     outbox = tmp_path / "alert_outbox.jsonl"
     outbox.write_text('{"email":"x@example.com","subject":"x","body":"x","generated_at":"2026-01-01T00:00:00Z"}\n', encoding="utf-8")

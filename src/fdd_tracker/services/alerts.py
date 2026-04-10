@@ -5,6 +5,8 @@ import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib import error as urlerror
+from urllib import request as urlrequest
 
 from fdd_tracker.services.store import get_alert_feed, get_watchlist_emails, mark_alert_read
 
@@ -125,6 +127,12 @@ def get_dispatch_provider_catalog() -> dict:
             "ready": bool(os.getenv("BEEHIIV_API_KEY")),
             "description": "Reserved provider slot for future Beehiiv integration.",
         },
+        "resend": {
+            "supports_live": True,
+            "requires_env": ["RESEND_API_KEY", "ALERTS_FROM_EMAIL"],
+            "ready": bool(os.getenv("RESEND_API_KEY")) and bool(os.getenv("ALERTS_FROM_EMAIL")),
+            "description": "Resend email provider for live alert delivery.",
+        },
     }
     return {"default": "noop", "providers": providers}
 
@@ -218,10 +226,24 @@ def dispatch_outbox(
             row["failed_at"] = _now_iso()
             failed_lines.append(json.dumps(row) + "\n")
         else:
-            row["dispatched_at"] = _now_iso()
-            row["delivery_status"] = "simulated_sent" if dry_run else "sent"
-            row["provider_message_id"] = f"{provider_name}-{row.get('run_id') or 'adhoc'}-{int(datetime.now(timezone.utc).timestamp())}"
-            dispatched_lines.append(json.dumps(row) + "\n")
+            if dry_run:
+                row["dispatched_at"] = _now_iso()
+                row["delivery_status"] = "simulated_sent"
+                row["provider_message_id"] = (
+                    f"{provider_name}-{row.get('run_id') or 'adhoc'}-{int(datetime.now(timezone.utc).timestamp())}"
+                )
+                dispatched_lines.append(json.dumps(row) + "\n")
+            else:
+                live_result = _dispatch_live(provider_name=provider_name, payload=row)
+                if live_result["ok"]:
+                    row["dispatched_at"] = _now_iso()
+                    row["delivery_status"] = "sent"
+                    row["provider_message_id"] = live_result.get("provider_message_id")
+                    dispatched_lines.append(json.dumps(row) + "\n")
+                else:
+                    row["failure_reason"] = live_result.get("error", "provider dispatch failed")
+                    row["failed_at"] = _now_iso()
+                    failed_lines.append(json.dumps(row) + "\n")
 
     if dispatched_lines:
         sent.parent.mkdir(parents=True, exist_ok=True)
@@ -247,6 +269,47 @@ def dispatch_outbox(
         "provider": provider_name,
         "validation": provider_check,
     }
+
+
+def _dispatch_live(provider_name: str, payload: dict) -> dict:
+    if provider_name == "resend":
+        return _dispatch_via_resend(payload)
+    return {"ok": False, "error": f"live dispatch handler missing for provider={provider_name}"}
+
+
+def _dispatch_via_resend(payload: dict) -> dict:
+    api_key = os.getenv("RESEND_API_KEY")
+    from_email = os.getenv("ALERTS_FROM_EMAIL")
+    if not api_key or not from_email:
+        return {"ok": False, "error": "missing resend env vars"}
+
+    body = {
+        "from": from_email,
+        "to": [payload["email"]],
+        "subject": payload["subject"],
+        "text": payload["body"],
+    }
+    reply_to = os.getenv("ALERTS_REPLY_TO_EMAIL")
+    if reply_to:
+        body["reply_to"] = reply_to
+
+    req = urlrequest.Request(
+        url="https://api.resend.com/emails",
+        data=json.dumps(body).encode("utf-8"),
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+    )
+
+    try:
+        with urlrequest.urlopen(req, timeout=15) as resp:
+            raw = resp.read().decode("utf-8")
+            parsed = json.loads(raw or "{}")
+            return {"ok": True, "provider_message_id": parsed.get("id")}
+    except (urlerror.URLError, json.JSONDecodeError, TimeoutError) as exc:
+        return {"ok": False, "error": str(exc)}
 
 
 def run_digest_for_email(

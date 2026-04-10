@@ -110,6 +110,8 @@ Outbox/sent/failed records now include run metadata fields (`run_id`, `queued_at
 
 Provider routing is deterministic: unknown providers are rejected with `error.reason=unsupported-provider`, returns queue counts (`remaining`), and performs no queue mutation.
 
+Live email dispatch is now available via `provider="resend"` when `RESEND_API_KEY` and `ALERTS_FROM_EMAIL` are set.
+
 
 **Single-shot cron cycle (generate → dispatch → retry):**
 ```bash
