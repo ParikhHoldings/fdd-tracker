@@ -418,7 +418,8 @@ def test_alerts_cron_preflight_endpoint():
     assert 'dispatch' in data
     assert 'lock' in data
     assert data['dispatch']['validation']['ok'] is True
-    assert 'provider_health' in data['dispatch']
+    assert data['dispatch']['requested_provider'] == 'noop'
+    assert data['dispatch']['effective_provider'] == 'noop'
     assert data['dispatch']['provider_health']['provider'] == 'noop'
 
 
@@ -467,3 +468,13 @@ def test_alerts_outbox_dispatch_live_duplicate_idempotency_key_rejected():
     data = second.json()
     assert data['dispatched'] == 0
     assert data['error']['reason'] == 'live-dispatch-duplicate-idempotency-key'
+
+
+def test_alerts_cron_preflight_live_invalid_provider_fallback():
+    r = client.post('/alerts/cron/preflight', json={'dispatch_dry_run': False, 'dispatch_provider': 'not-real', 'lock_stale_after_seconds': 900})
+    assert r.status_code == 200
+    data = r.json()
+    assert data['dispatch']['fallback_applied'] is True
+    assert data['dispatch']['effective_provider'] == 'noop'
+    assert data['dispatch']['effective_dry_run'] is True
+    assert data['dispatch']['validation']['ok'] is True

@@ -557,3 +557,38 @@ def test_get_provider_health_resend_missing_env(monkeypatch):
     assert health['known'] is True
     assert health['ready'] is False
     assert 'RESEND_API_KEY' in health['missing_env']
+
+
+def test_resolve_dispatch_plan_fallbacks_to_noop_for_invalid_live_provider():
+    from fdd_tracker.services.alerts import resolve_dispatch_plan
+
+    plan = resolve_dispatch_plan(dispatch_provider='unknown-provider', dispatch_dry_run=False)
+    assert plan['fallback_applied'] is True
+    assert plan['effective_provider'] == 'noop'
+    assert plan['effective_dry_run'] is True
+    assert plan['validation']['ok'] is True
+
+
+def test_run_alerts_cron_tick_uses_fallback_dispatch_plan(tmp_path):
+    from fdd_tracker.services.alerts import run_alerts_cron_tick
+    from fdd_tracker.services.store import upsert_watchlist, seed_change_summary
+
+    db = str(tmp_path / 'test.db')
+    history = tmp_path / 'history.jsonl'
+
+    upsert_watchlist('fallback@example.com', 'chick-fil-a', db_path=db)
+    seed_change_summary('chick-fil-a', ['fees'], risk_level='high', db_path=db)
+
+    result = run_alerts_cron_tick(
+        db_path=db,
+        history_path=str(history),
+        dispatch_provider='unknown-provider',
+        dispatch_dry_run=False,
+        run_id='fallback-run',
+    )
+
+    assert result['status'] == 'executed'
+    assert result['dispatch_plan']['fallback_applied'] is True
+    assert result['dispatch_plan']['effective_provider'] == 'noop'
+    assert result['dispatched']['provider'] == 'noop'
+    assert result['dispatched']['dry_run'] is True

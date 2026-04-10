@@ -626,30 +626,53 @@ def release_cron_lock(run_id: str, lock_path: str | None = None) -> dict:
 
 
 
+
+
+def resolve_dispatch_plan(dispatch_provider: str = "noop", dispatch_dry_run: bool = True) -> dict:
+    provider_name = (dispatch_provider or "noop").strip().lower() or "noop"
+    provider_health = get_provider_health(provider_name)
+    validation = validate_dispatch_provider(provider=provider_name, dry_run=dispatch_dry_run)
+
+    plan = {
+        "requested_provider": provider_name,
+        "requested_dry_run": dispatch_dry_run,
+        "effective_provider": provider_name,
+        "effective_dry_run": dispatch_dry_run,
+        "fallback_applied": False,
+        "fallback_reason": None,
+        "provider_health": provider_health,
+        "validation": validation,
+    }
+
+    if validation.get("ok", False):
+        return plan
+
+    if not dispatch_dry_run:
+        plan["effective_provider"] = "noop"
+        plan["effective_dry_run"] = True
+        plan["fallback_applied"] = True
+        plan["fallback_reason"] = validation.get("reason", "invalid-live-provider")
+        plan["validation"] = validate_dispatch_provider(provider="noop", dry_run=True)
+        plan["provider_health"] = get_provider_health("noop")
+
+    return plan
+
 def get_alerts_cron_preflight(
     dispatch_provider: str = "noop",
     dispatch_dry_run: bool = True,
     lock_stale_after_seconds: int = 900,
     lock_path: str | None = None,
 ) -> dict:
-    provider_check = validate_dispatch_provider(provider=dispatch_provider, dry_run=dispatch_dry_run)
+    dispatch_plan = resolve_dispatch_plan(dispatch_provider=dispatch_provider, dispatch_dry_run=dispatch_dry_run)
     lock_file = Path(lock_path) if lock_path else _lock_path()
     now = datetime.now(timezone.utc)
     lock_row = _read_lock_row(lock_file)
     lock_present = lock_file.exists()
     lock_stale = _lock_is_stale(lock_row, stale_after_seconds=max(1, lock_stale_after_seconds), now=now) if lock_present else False
 
-    provider_name = (dispatch_provider or "noop").strip().lower() or "noop"
-    provider_health = get_provider_health(provider_name)
-
     return {
         "checked_at": _now_iso(),
-        "dispatch": {
-            "provider": provider_name,
-            "dry_run": dispatch_dry_run,
-            "validation": provider_check,
-            "provider_health": provider_health,
-        },
+        "dispatch": dispatch_plan,
         "lock": {
             "path": str(lock_file),
             "present": lock_present,
@@ -657,7 +680,7 @@ def get_alerts_cron_preflight(
             "stale_after_seconds": max(1, lock_stale_after_seconds),
             "metadata": lock_row,
         },
-        "ready_to_run": bool(provider_check.get("ok", False)) and (not lock_present or lock_stale),
+        "ready_to_run": bool(dispatch_plan.get("validation", {}).get("ok", False)) and (not lock_present or lock_stale),
     }
 
 
@@ -801,7 +824,12 @@ def run_alerts_cron_tick(
             db_path=db_path,
             run_id=run_id,
         )
-        dispatch = dispatch_outbox(limit=dispatch_limit, dry_run=dispatch_dry_run, provider=dispatch_provider)
+        dispatch_plan = resolve_dispatch_plan(dispatch_provider=dispatch_provider, dispatch_dry_run=dispatch_dry_run)
+        dispatch = dispatch_outbox(
+            limit=dispatch_limit,
+            dry_run=dispatch_plan["effective_dry_run"],
+            provider=dispatch_plan["effective_provider"],
+        )
         retry = retry_failed_outbox(limit=retry_limit)
 
         result = {
@@ -809,6 +837,7 @@ def run_alerts_cron_tick(
             "run_id": run_id,
             "ran_at": _now_iso(),
             "generated": generation,
+            "dispatch_plan": dispatch_plan,
             "dispatched": dispatch,
             "retried": retry,
             "lock": lock_result,
