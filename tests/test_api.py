@@ -408,3 +408,13 @@ def test_alerts_cron_recover_lock_endpoint():
     data = r.json()
     assert 'recovered' in data
     assert 'reason' in data
+
+
+def test_alerts_cron_preflight_endpoint():
+    r = client.post('/alerts/cron/preflight', json={'dispatch_dry_run': True, 'dispatch_provider': 'noop', 'lock_stale_after_seconds': 900})
+    assert r.status_code == 200
+    data = r.json()
+    assert 'ready_to_run' in data
+    assert 'dispatch' in data
+    assert 'lock' in data
+    assert data['dispatch']['validation']['ok'] is True

@@ -364,3 +364,28 @@ def test_run_alerts_cron_tick_with_dispatch_config(tmp_path):
     assert result["status"] == "executed"
     assert result["dispatched"]["provider"] == "noop"
     assert result["dispatched"]["dry_run"] is True
+
+
+def test_get_alerts_cron_preflight(tmp_path):
+    from fdd_tracker.services.alerts import get_alerts_cron_preflight
+
+    lock = tmp_path / "alerts_cron.lock"
+    lock.write_text('{"run_id":"active","acquired_at":"2999-01-01T00:00:00+00:00","pid":1}', encoding='utf-8')
+
+    ready = get_alerts_cron_preflight(
+        dispatch_provider='noop',
+        dispatch_dry_run=True,
+        lock_stale_after_seconds=900,
+        lock_path=str(lock),
+    )
+    assert ready['dispatch']['validation']['ok'] is True
+    assert ready['lock']['present'] is True
+    assert ready['ready_to_run'] is False
+
+    bad_provider = get_alerts_cron_preflight(
+        dispatch_provider='bad-provider',
+        dispatch_dry_run=True,
+        lock_stale_after_seconds=900,
+        lock_path=str(lock),
+    )
+    assert bad_provider['dispatch']['validation']['ok'] is False
