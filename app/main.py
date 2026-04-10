@@ -120,6 +120,7 @@ class AlertOutboxDispatchIn(BaseModel):
     limit: int = 100
     dry_run: bool = True
     provider: str = "noop"
+    confirm_live: bool = False
 
 
 class AlertProviderSmokeTestIn(BaseModel):
@@ -250,6 +251,19 @@ def alerts_provider_smoke_test(payload: AlertProviderSmokeTestIn) -> dict:
 def alerts_outbox_dispatch(payload: AlertOutboxDispatchIn) -> dict:
     limit = max(1, min(payload.limit, 500))
     provider = (payload.provider or "noop").strip() or "noop"
+    if not payload.dry_run and not payload.confirm_live:
+        return {
+            "dispatched": 0,
+            "failed": 0,
+            "remaining": None,
+            "dry_run": False,
+            "provider": provider,
+            "error": {
+                "ok": False,
+                "reason": "live-dispatch-confirmation-required",
+                "message": "Set confirm_live=true to run non-dry-run dispatch.",
+            },
+        }
     return dispatch_outbox(limit=limit, dry_run=payload.dry_run, provider=provider)
 
 

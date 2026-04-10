@@ -437,3 +437,12 @@ def test_alerts_provider_smoke_test_dry_run():
     assert data['mode'] == 'dry_run'
     assert data['email'] == 'smoke@example.com'
     assert 'provider_message_id' in data
+
+
+def test_alerts_outbox_dispatch_live_requires_confirmation():
+    r = client.post('/alerts/outbox/dispatch', json={'limit': 10, 'provider': 'resend', 'dry_run': False})
+    assert r.status_code == 200
+    data = r.json()
+    assert data['dispatched'] == 0
+    assert data['error']['reason'] == 'live-dispatch-confirmation-required'
+

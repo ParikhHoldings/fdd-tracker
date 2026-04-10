@@ -90,6 +90,7 @@ curl "http://localhost:8000/alerts/providers"
 curl -X POST http://localhost:8000/alerts/providers/smoke-test -H "Content-Type: application/json" -d "{\"provider\":\"noop\",\"email\":\"ops@example.com\",\"dry_run\":true}"
 curl "http://localhost:8000/alerts/outbox?limit=25"
 curl -X POST http://localhost:8000/alerts/outbox/dispatch   -H "Content-Type: application/json"   -d '{"limit":25,"dry_run":true,"provider":"noop"}'
+curl -X POST http://localhost:8000/alerts/outbox/dispatch   -H "Content-Type: application/json"   -d '{"limit":25,"dry_run":false,"provider":"resend","confirm_live":true}'
 ```
 
 
