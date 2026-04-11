@@ -951,11 +951,32 @@ def get_run_artifact_summary(
     failed_rows = [row for row in failed if row.get("run_id") == run_id]
     history_rows = [row for row in history if row.get("run_id") == run_id]
 
+    latest_history = max(
+        history_rows,
+        key=lambda row: row.get("ran_at") or "",
+        default=None,
+    )
+
     latest = {
         "queued_at": max((row.get("queued_at") for row in outbox_rows if row.get("queued_at")), default=None),
         "dispatched_at": max((row.get("dispatched_at") for row in sent_rows if row.get("dispatched_at")), default=None),
         "failed_at": max((row.get("failed_at") for row in failed_rows if row.get("failed_at")), default=None),
         "cron_ran_at": max((row.get("ran_at") for row in history_rows if row.get("ran_at")), default=None),
+    }
+
+    dispatch = (latest_history or {}).get("dispatched") or {}
+    dispatch_plan = (latest_history or {}).get("dispatch_plan") or {}
+    operational = {
+        "status": (latest_history or {}).get("status"),
+        "degraded": bool((latest_history or {}).get("degraded", False)),
+        "fallback_applied": bool(dispatch_plan.get("fallback_applied", False)),
+        "fallback_reason": dispatch_plan.get("fallback_reason"),
+        "effective_provider": dispatch_plan.get("effective_provider"),
+        "effective_dry_run": dispatch_plan.get("effective_dry_run"),
+        "requested_provider": dispatch_plan.get("requested_provider"),
+        "requested_dry_run": dispatch_plan.get("requested_dry_run"),
+        "dispatch_validation_ok": bool((dispatch.get("validation") or {}).get("ok", False)) if dispatch else None,
+        "dispatch_validation_reason": (dispatch.get("validation") or {}).get("reason") if dispatch else None,
     }
 
     outbox_path_resolved = str(Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl"))
@@ -978,6 +999,7 @@ def get_run_artifact_summary(
             "failed": failed_path_resolved,
             "history": history_path_resolved,
         },
+        "operational": operational,
         "exists": any([outbox_rows, sent_rows, failed_rows, history_rows]),
     }
 

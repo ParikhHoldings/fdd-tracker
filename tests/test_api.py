@@ -536,5 +536,6 @@ def test_alerts_run_summary_endpoint():
     data = r.json()
     assert data["run_id"] == run_id
     assert data["exists"] is True
-    assert "counts" in data and "latest" in data and "paths" in data
+    assert "counts" in data and "latest" in data and "paths" in data and "operational" in data
     assert all(k in data["paths"] for k in ["outbox", "sent", "failed", "history"])
+    assert all(k in data["operational"] for k in ["status", "degraded", "fallback_applied", "dispatch_validation_ok"])

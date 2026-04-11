@@ -685,7 +685,7 @@ def test_get_run_artifact_summary_counts_and_latest(tmp_path):
         encoding='utf-8',
     )
     history.write_text(
-        '{"run_id":"run-1","ran_at":"2026-04-11T08:04:00+00:00"}\n',
+        '{"run_id":"run-1","ran_at":"2026-04-11T08:04:00+00:00","status":"executed","degraded":false,"dispatch_plan":{"fallback_applied":false,"effective_provider":"noop","effective_dry_run":true,"requested_provider":"noop","requested_dry_run":true},"dispatched":{"validation":{"ok":true}}}\n',
         encoding='utf-8',
     )
 
@@ -710,3 +710,8 @@ def test_get_run_artifact_summary_counts_and_latest(tmp_path):
     assert result['paths']['sent'] == str(sent)
     assert result['paths']['failed'] == str(failed)
     assert result['paths']['history'] == str(history)
+    assert result['operational']['status'] == 'executed'
+    assert result['operational']['degraded'] is False
+    assert result['operational']['fallback_applied'] is False
+    assert result['operational']['effective_provider'] == 'noop'
+    assert result['operational']['dispatch_validation_ok'] is True

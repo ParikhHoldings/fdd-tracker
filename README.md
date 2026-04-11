@@ -91,7 +91,7 @@ curl -X POST http://localhost:8000/alerts/providers/smoke-test -H "Content-Type:
 curl "http://localhost:8000/alerts/outbox?limit=25"
 curl "http://localhost:8000/alerts/outbox/sent?limit=25&email=ops@example.com&run_id=nightly-2026-04-08"
 curl "http://localhost:8000/alerts/outbox/failed?limit=25&email=ops@example.com&run_id=nightly-2026-04-08"
-curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/summary"  # includes counts, latest timestamps, and artifact file paths
+curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/summary"  # includes counts, latest timestamps, artifact file paths, and operational fallback/validation metadata
 curl -X POST http://localhost:8000/alerts/outbox/dispatch   -H "Content-Type: application/json"   -d '{"limit":25,"dry_run":true,"provider":"noop"}'
 curl -X POST http://localhost:8000/alerts/outbox/dispatch   -H "Content-Type: application/json"   -d '{"limit":25,"dry_run":false,"provider":"resend","confirm_live":true,"idempotency_key":"run-2026-04-10-01","live_min_interval_seconds":60}'
 ```
