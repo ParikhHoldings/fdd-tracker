@@ -520,3 +520,20 @@ def test_alerts_outbox_failed_endpoint_filters():
     assert isinstance(data["items"], list)
     assert all(item.get("email") == email for item in data["items"])
     assert all(item.get("run_id") == "api-failed-run" for item in data["items"])
+
+
+def test_alerts_run_summary_endpoint():
+    email = f"runsummary-{uuid4().hex[:8]}@example.com"
+    run_id = "api-run-summary"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+
+    client.post("/alerts/digest/run", json={"email": email, "max_alerts": 10, "mark_read": False, "run_id": run_id})
+    client.post("/alerts/outbox/dispatch", json={"limit": 10, "dry_run": True, "provider": "noop"})
+
+    r = client.get(f"/alerts/runs/{run_id}/summary")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["run_id"] == run_id
+    assert data["exists"] is True
+    assert "counts" in data and "latest" in data

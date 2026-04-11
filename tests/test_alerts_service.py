@@ -661,3 +661,48 @@ def test_list_failed_outbox_filters_and_limit(tmp_path):
     filtered = list_failed_outbox(limit=10, email='x@example.com', failed_path=str(failed))
     assert len(filtered) == 2
     assert all(item['email'] == 'x@example.com' for item in filtered)
+
+
+def test_get_run_artifact_summary_counts_and_latest(tmp_path):
+    from fdd_tracker.services.alerts import get_run_artifact_summary
+
+    outbox = tmp_path / "alert_outbox.jsonl"
+    sent = tmp_path / "alert_outbox_sent.jsonl"
+    failed = tmp_path / "alert_outbox_failed.jsonl"
+    history = tmp_path / "alerts_cron_history.jsonl"
+
+    outbox.write_text(
+        '{"run_id":"run-1","queued_at":"2026-04-11T08:00:00+00:00"}\n'
+        '{"run_id":"run-2","queued_at":"2026-04-11T08:01:00+00:00"}\n',
+        encoding='utf-8',
+    )
+    sent.write_text(
+        '{"run_id":"run-1","dispatched_at":"2026-04-11T08:02:00+00:00"}\n',
+        encoding='utf-8',
+    )
+    failed.write_text(
+        '{"run_id":"run-1","failed_at":"2026-04-11T08:03:00+00:00"}\n',
+        encoding='utf-8',
+    )
+    history.write_text(
+        '{"run_id":"run-1","ran_at":"2026-04-11T08:04:00+00:00"}\n',
+        encoding='utf-8',
+    )
+
+    result = get_run_artifact_summary(
+        run_id='run-1',
+        outbox_path=str(outbox),
+        sent_path=str(sent),
+        failed_path=str(failed),
+        history_path=str(history),
+    )
+
+    assert result['exists'] is True
+    assert result['counts']['queued'] == 1
+    assert result['counts']['sent'] == 1
+    assert result['counts']['failed'] == 1
+    assert result['counts']['history'] == 1
+    assert result['latest']['queued_at'] == '2026-04-11T08:00:00+00:00'
+    assert result['latest']['dispatched_at'] == '2026-04-11T08:02:00+00:00'
+    assert result['latest']['failed_at'] == '2026-04-11T08:03:00+00:00'
+    assert result['latest']['cron_ran_at'] == '2026-04-11T08:04:00+00:00'

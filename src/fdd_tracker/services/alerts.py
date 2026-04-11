@@ -932,6 +932,44 @@ def list_cron_history(limit: int = 50, history_path: str | None = None) -> list[
 
 
 
+
+
+def get_run_artifact_summary(
+    run_id: str,
+    outbox_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
+    history_path: str | None = None,
+) -> dict:
+    outbox = list_outbox(limit=5000, outbox_path=outbox_path)
+    sent = list_sent_outbox(limit=5000, sent_path=sent_path)
+    failed = list_failed_outbox(limit=5000, failed_path=failed_path)
+    history = list_cron_history(limit=5000, history_path=history_path)
+
+    outbox_rows = [row for row in outbox if row.get("run_id") == run_id]
+    sent_rows = [row for row in sent if row.get("run_id") == run_id]
+    failed_rows = [row for row in failed if row.get("run_id") == run_id]
+    history_rows = [row for row in history if row.get("run_id") == run_id]
+
+    latest = {
+        "queued_at": max((row.get("queued_at") for row in outbox_rows if row.get("queued_at")), default=None),
+        "dispatched_at": max((row.get("dispatched_at") for row in sent_rows if row.get("dispatched_at")), default=None),
+        "failed_at": max((row.get("failed_at") for row in failed_rows if row.get("failed_at")), default=None),
+        "cron_ran_at": max((row.get("ran_at") for row in history_rows if row.get("ran_at")), default=None),
+    }
+
+    return {
+        "run_id": run_id,
+        "counts": {
+            "queued": len(outbox_rows),
+            "sent": len(sent_rows),
+            "failed": len(failed_rows),
+            "history": len(history_rows),
+        },
+        "latest": latest,
+        "exists": any([outbox_rows, sent_rows, failed_rows, history_rows]),
+    }
+
 def prune_jsonl_records(path: Path, keep_last: int) -> dict:
     if not path.exists():
         return {"path": str(path), "before": 0, "after": 0, "removed": 0}
