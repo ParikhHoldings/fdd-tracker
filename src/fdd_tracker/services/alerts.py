@@ -958,6 +958,11 @@ def get_run_artifact_summary(
         "cron_ran_at": max((row.get("ran_at") for row in history_rows if row.get("ran_at")), default=None),
     }
 
+    outbox_path_resolved = str(Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl"))
+    sent_path_resolved = str(Path(sent_path) if sent_path else _default_data_path("alert_outbox_sent.jsonl"))
+    failed_path_resolved = str(Path(failed_path) if failed_path else _default_data_path("alert_outbox_failed.jsonl"))
+    history_path_resolved = str(Path(history_path) if history_path else _history_path())
+
     return {
         "run_id": run_id,
         "counts": {
@@ -967,6 +972,12 @@ def get_run_artifact_summary(
             "history": len(history_rows),
         },
         "latest": latest,
+        "paths": {
+            "outbox": outbox_path_resolved,
+            "sent": sent_path_resolved,
+            "failed": failed_path_resolved,
+            "history": history_path_resolved,
+        },
         "exists": any([outbox_rows, sent_rows, failed_rows, history_rows]),
     }
 

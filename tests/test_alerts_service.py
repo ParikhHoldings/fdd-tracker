@@ -706,3 +706,7 @@ def test_get_run_artifact_summary_counts_and_latest(tmp_path):
     assert result['latest']['dispatched_at'] == '2026-04-11T08:02:00+00:00'
     assert result['latest']['failed_at'] == '2026-04-11T08:03:00+00:00'
     assert result['latest']['cron_ran_at'] == '2026-04-11T08:04:00+00:00'
+    assert result['paths']['outbox'] == str(outbox)
+    assert result['paths']['sent'] == str(sent)
+    assert result['paths']['failed'] == str(failed)
+    assert result['paths']['history'] == str(history)
