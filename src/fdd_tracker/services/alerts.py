@@ -915,6 +915,29 @@ def append_cron_history(row: dict, history_path: str | None = None) -> str:
 
 
 
+
+
+def list_run_events(
+    run_id: str,
+    history_path: str | None = None,
+) -> list[dict]:
+    rows = [row for row in list_cron_history(limit=5000, history_path=history_path) if row.get("run_id") == run_id]
+    events: list[dict] = []
+    for row in rows:
+        row_events = row.get("events") or []
+        for idx, event in enumerate(row_events):
+            events.append(
+                {
+                    "run_id": run_id,
+                    "ran_at": row.get("ran_at"),
+                    "status": row.get("status"),
+                    "degraded": bool(row.get("degraded", False)),
+                    "index": idx,
+                    **event,
+                }
+            )
+    return events
+
 def get_latest_cron_history_entry(history_path: str | None = None) -> dict:
     items = list_cron_history(limit=1, history_path=history_path)
     if not items:

@@ -539,3 +539,29 @@ def test_alerts_run_summary_endpoint():
     assert "counts" in data and "latest" in data and "paths" in data and "operational" in data
     assert all(k in data["paths"] for k in ["outbox", "sent", "failed", "history"])
     assert all(k in data["operational"] for k in ["status", "degraded", "fallback_applied", "dispatch_validation_ok"])
+
+
+def test_alerts_run_events_endpoint():
+    email = f"runevents-{uuid4().hex[:8]}@example.com"
+    run_id = "api-run-events"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+
+    client.post(
+        "/alerts/cron/tick",
+        json={
+            "max_alerts": 10,
+            "generate_mark_read": False,
+            "dispatch_limit": 10,
+            "retry_limit": 10,
+            "dispatch_dry_run": False,
+            "dispatch_provider": "unknown-provider",
+            "run_id": run_id,
+        },
+    )
+
+    r = client.get(f"/alerts/runs/{run_id}/events")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["run_id"] == run_id
+    assert isinstance(data["events"], list)

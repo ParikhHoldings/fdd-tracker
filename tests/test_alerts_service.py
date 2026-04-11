@@ -715,3 +715,20 @@ def test_get_run_artifact_summary_counts_and_latest(tmp_path):
     assert result['operational']['fallback_applied'] is False
     assert result['operational']['effective_provider'] == 'noop'
     assert result['operational']['dispatch_validation_ok'] is True
+
+
+def test_list_run_events_from_history(tmp_path):
+    from fdd_tracker.services.alerts import list_run_events
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    history.write_text(
+        '{"run_id":"run-ev","ran_at":"2026-04-11T09:00:00+00:00","status":"executed","degraded":true,"events":[{"kind":"dispatch-fallback","reason":"missing-env"},{"kind":"notify","channel":"ops"}]}\n'
+        '{"run_id":"other","ran_at":"2026-04-11T09:01:00+00:00","status":"executed","events":[{"kind":"x"}]}\n',
+        encoding='utf-8',
+    )
+
+    events = list_run_events(run_id='run-ev', history_path=str(history))
+    assert len(events) == 2
+    assert all(item['run_id'] == 'run-ev' for item in events)
+    assert events[0]['kind'] == 'dispatch-fallback'
+    assert events[0]['degraded'] is True
