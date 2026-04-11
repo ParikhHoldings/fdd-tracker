@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr
 
 from fdd_tracker.db import ensure_db
 from fdd_tracker.models import Filing
-from fdd_tracker.services.alerts import dispatch_outbox, enforce_live_dispatch_gate, get_alerts_cron_preflight, get_alerts_cron_status, get_dispatch_provider_catalog, get_latest_cron_history_entry, list_cron_history, list_outbox, prune_alert_artifacts, recover_alerts_cron_lock, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, run_provider_smoke_test
+from fdd_tracker.services.alerts import dispatch_outbox, enforce_live_dispatch_gate, get_alerts_cron_preflight, get_alerts_cron_status, get_dispatch_provider_catalog, get_latest_cron_history_entry, list_cron_history, list_failed_outbox, list_outbox, list_sent_outbox, prune_alert_artifacts, recover_alerts_cron_lock, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, run_provider_smoke_test
 from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestion
 from fdd_tracker.services.store import (
     delete_watchlist,
@@ -236,6 +236,22 @@ def alerts_outbox(limit: int = Query(default=100, ge=1, le=500)) -> dict:
     return {"items": list_outbox(limit=limit)}
 
 
+@app.get("/alerts/outbox/sent")
+def alerts_outbox_sent(
+    limit: int = Query(default=100, ge=1, le=500),
+    email: EmailStr | None = Query(default=None),
+    run_id: str | None = Query(default=None),
+) -> dict:
+    return {"items": list_sent_outbox(limit=limit, email=str(email) if email else None, run_id=run_id)}
+
+
+@app.get("/alerts/outbox/failed")
+def alerts_outbox_failed(
+    limit: int = Query(default=100, ge=1, le=500),
+    email: EmailStr | None = Query(default=None),
+    run_id: str | None = Query(default=None),
+) -> dict:
+    return {"items": list_failed_outbox(limit=limit, email=str(email) if email else None, run_id=run_id)}
 
 
 @app.get("/alerts/providers")

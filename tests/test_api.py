@@ -478,3 +478,45 @@ def test_alerts_cron_preflight_live_invalid_provider_fallback():
     assert data['dispatch']['effective_provider'] == 'noop'
     assert data['dispatch']['effective_dry_run'] is True
     assert data['dispatch']['validation']['ok'] is True
+
+
+def test_alerts_outbox_sent_endpoint_filters_by_email_and_run_id():
+    email = f"sent-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+    client.post("/alerts/digest/run", json={"email": email, "max_alerts": 10, "mark_read": False, "run_id": "api-sent-run"})
+    client.post("/alerts/outbox/dispatch", json={"limit": 10, "dry_run": True, "provider": "noop"})
+
+    r = client.get(f"/alerts/outbox/sent?email={email}&run_id=api-sent-run&limit=10")
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data["items"], list)
+    assert all(item.get("email") == email for item in data["items"])
+    assert all(item.get("run_id") == "api-sent-run" for item in data["items"])
+
+
+def test_alerts_outbox_failed_endpoint_filters():
+    email = f"failed-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+    client.post("/alerts/digest/run", json={"email": email, "max_alerts": 10, "mark_read": False, "run_id": "api-failed-run"})
+
+    # Force one failure by mutating outbox row directly via dispatch path expectation
+    import json as _json
+    from pathlib import Path as _Path
+    from fdd_tracker.services.alerts import _default_data_path
+
+    outbox = _Path(_default_data_path("alert_outbox.jsonl"))
+    rows = [_json.loads(line) for line in outbox.read_text(encoding="utf-8").splitlines() if line.strip()]
+    if rows:
+        rows[-1]["force_fail"] = True
+        outbox.write_text("\n".join(_json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+
+    client.post("/alerts/outbox/dispatch", json={"limit": 10, "dry_run": True, "provider": "noop"})
+
+    r = client.get(f"/alerts/outbox/failed?email={email}&run_id=api-failed-run&limit=10")
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data["items"], list)
+    assert all(item.get("email") == email for item in data["items"])
+    assert all(item.get("run_id") == "api-failed-run" for item in data["items"])

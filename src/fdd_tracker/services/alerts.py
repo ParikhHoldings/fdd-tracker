@@ -106,6 +106,45 @@ def list_outbox(limit: int = 100, outbox_path: str | None = None) -> list[dict]:
 
 
 
+def _list_jsonl_records(
+    path: Path,
+    limit: int = 100,
+    email: str | None = None,
+    run_id: str | None = None,
+) -> list[dict]:
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8") as f:
+        rows = [json.loads(line) for line in f if line.strip()]
+
+    if email:
+        rows = [row for row in rows if row.get("email") == email]
+    if run_id:
+        rows = [row for row in rows if row.get("run_id") == run_id]
+
+    return rows[-max(1, limit):]
+
+
+def list_sent_outbox(
+    limit: int = 100,
+    email: str | None = None,
+    run_id: str | None = None,
+    sent_path: str | None = None,
+) -> list[dict]:
+    path = Path(sent_path) if sent_path else _default_data_path("alert_outbox_sent.jsonl")
+    return _list_jsonl_records(path=path, limit=limit, email=email, run_id=run_id)
+
+
+def list_failed_outbox(
+    limit: int = 100,
+    email: str | None = None,
+    run_id: str | None = None,
+    failed_path: str | None = None,
+) -> list[dict]:
+    path = Path(failed_path) if failed_path else _default_data_path("alert_outbox_failed.jsonl")
+    return _list_jsonl_records(path=path, limit=limit, email=email, run_id=run_id)
+
+
 
 def get_dispatch_provider_catalog() -> dict:
     providers = {

@@ -617,3 +617,47 @@ def test_run_alerts_cron_tick_no_fallback_not_degraded(tmp_path):
     assert result['status'] == 'executed'
     assert result['degraded'] is False
     assert result['events'] == []
+
+
+def test_list_sent_outbox_filters_by_email_and_run_id(tmp_path):
+    from fdd_tracker.services.alerts import list_sent_outbox
+
+    sent = tmp_path / "alert_outbox_sent.jsonl"
+    sent.write_text(
+        '\n'.join([
+            '{"email":"a@example.com","run_id":"run-a","subject":"1"}',
+            '{"email":"b@example.com","run_id":"run-b","subject":"2"}',
+            '{"email":"a@example.com","run_id":"run-c","subject":"3"}',
+        ]) + '\n',
+        encoding='utf-8',
+    )
+
+    filtered_email = list_sent_outbox(limit=10, email='a@example.com', sent_path=str(sent))
+    assert len(filtered_email) == 2
+    assert all(item['email'] == 'a@example.com' for item in filtered_email)
+
+    filtered_run = list_sent_outbox(limit=10, run_id='run-b', sent_path=str(sent))
+    assert len(filtered_run) == 1
+    assert filtered_run[0]['run_id'] == 'run-b'
+
+
+def test_list_failed_outbox_filters_and_limit(tmp_path):
+    from fdd_tracker.services.alerts import list_failed_outbox
+
+    failed = tmp_path / "alert_outbox_failed.jsonl"
+    failed.write_text(
+        '\n'.join([
+            '{"email":"x@example.com","run_id":"r1","failure_reason":"x"}',
+            '{"email":"x@example.com","run_id":"r2","failure_reason":"y"}',
+            '{"email":"y@example.com","run_id":"r3","failure_reason":"z"}',
+        ]) + '\n',
+        encoding='utf-8',
+    )
+
+    latest_one = list_failed_outbox(limit=1, failed_path=str(failed))
+    assert len(latest_one) == 1
+    assert latest_one[0]['run_id'] == 'r3'
+
+    filtered = list_failed_outbox(limit=10, email='x@example.com', failed_path=str(failed))
+    assert len(filtered) == 2
+    assert all(item['email'] == 'x@example.com' for item in filtered)
