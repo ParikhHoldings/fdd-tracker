@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr
 
 from fdd_tracker.db import ensure_db
 from fdd_tracker.models import Filing
-from fdd_tracker.services.alerts import dispatch_outbox, enforce_live_dispatch_gate, get_alerts_cron_preflight, get_alerts_cron_status, get_dispatch_provider_catalog, get_latest_cron_history_entry, get_run_artifact_summary, list_cron_history, list_failed_outbox, list_outbox, list_run_events, list_sent_outbox, prune_alert_artifacts, recover_alerts_cron_lock, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, run_provider_smoke_test
+from fdd_tracker.services.alerts import dispatch_outbox, enforce_live_dispatch_gate, get_alerts_cron_preflight, get_alerts_cron_status, get_dispatch_provider_catalog, get_latest_cron_history_entry, get_latest_run_id, get_run_artifact_summary, list_cron_history, list_failed_outbox, list_outbox, list_run_events, list_sent_outbox, prune_alert_artifacts, recover_alerts_cron_lock, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, run_provider_smoke_test
 from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestion
 from fdd_tracker.services.store import (
     delete_watchlist,
@@ -341,14 +341,28 @@ def alerts_cron_history_latest() -> dict:
     return get_latest_cron_history_entry()
 
 
+@app.get("/alerts/runs/latest/summary")
+def alerts_latest_run_summary() -> dict:
+    run_id = get_latest_run_id()
+    if not run_id:
+        return {"exists": False, "run_id": None, "summary": None}
+    return {"exists": True, "run_id": run_id, "summary": get_run_artifact_summary(run_id=run_id)}
+
+
 @app.get("/alerts/runs/{run_id}/summary")
 def alerts_run_summary(run_id: str) -> dict:
     return get_run_artifact_summary(run_id=run_id)
 
 
 @app.get("/alerts/runs/{run_id}/events")
-def alerts_run_events(run_id: str) -> dict:
-    return {"run_id": run_id, "events": list_run_events(run_id=run_id)}
+def alerts_run_events(
+    run_id: str,
+    kind: str | None = Query(default=None, description="Comma-separated event kinds"),
+    status: str | None = Query(default=None, description="Comma-separated run statuses"),
+) -> dict:
+    kinds = [k.strip() for k in kind.split(",") if k.strip()] if kind else None
+    statuses = [s.strip() for s in status.split(",") if s.strip()] if status else None
+    return {"run_id": run_id, "events": list_run_events(run_id=run_id, kinds=kinds, statuses=statuses)}
 
 
 @app.get("/alerts/cron/history")

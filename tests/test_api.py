@@ -565,3 +565,52 @@ def test_alerts_run_events_endpoint():
     data = r.json()
     assert data["run_id"] == run_id
     assert isinstance(data["events"], list)
+
+
+def test_alerts_run_events_endpoint_filters():
+    email = f"runeventsf-{uuid4().hex[:8]}@example.com"
+    run_id = "api-run-events-filter"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+
+    client.post(
+        "/alerts/cron/tick",
+        json={
+            "max_alerts": 10,
+            "generate_mark_read": False,
+            "dispatch_limit": 10,
+            "retry_limit": 10,
+            "dispatch_dry_run": False,
+            "dispatch_provider": "unknown-provider",
+            "run_id": run_id,
+        },
+    )
+
+    r = client.get(f"/alerts/runs/{run_id}/events?kind=dispatch-fallback&status=executed")
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data["events"], list)
+    assert all(item.get("kind") == "dispatch-fallback" for item in data["events"])
+
+
+def test_alerts_latest_run_summary_endpoint():
+    run_id = f"latest-{uuid4().hex[:8]}"
+    client.post(
+        "/alerts/cron/tick",
+        json={
+            "max_alerts": 5,
+            "generate_mark_read": False,
+            "dispatch_limit": 5,
+            "retry_limit": 5,
+            "dispatch_dry_run": True,
+            "dispatch_provider": "noop",
+            "run_id": run_id,
+        },
+    )
+
+    r = client.get('/alerts/runs/latest/summary')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['exists'] is True
+    assert data['run_id'] is not None
+    assert isinstance(data['summary'], dict)

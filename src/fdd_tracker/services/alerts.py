@@ -920,12 +920,22 @@ def append_cron_history(row: dict, history_path: str | None = None) -> str:
 def list_run_events(
     run_id: str,
     history_path: str | None = None,
+    kinds: list[str] | None = None,
+    statuses: list[str] | None = None,
 ) -> list[dict]:
     rows = [row for row in list_cron_history(limit=5000, history_path=history_path) if row.get("run_id") == run_id]
     events: list[dict] = []
+    normalized_kinds = {k.strip().lower() for k in (kinds or []) if k and k.strip()}
+    normalized_statuses = {s.strip().lower() for s in (statuses or []) if s and s.strip()}
     for row in rows:
+        row_status = str(row.get("status") or "").lower()
+        if normalized_statuses and row_status not in normalized_statuses:
+            continue
         row_events = row.get("events") or []
         for idx, event in enumerate(row_events):
+            kind = str(event.get("kind") or "").lower()
+            if normalized_kinds and kind not in normalized_kinds:
+                continue
             events.append(
                 {
                     "run_id": run_id,
@@ -937,6 +947,14 @@ def list_run_events(
                 }
             )
     return events
+
+
+
+def get_latest_run_id(history_path: str | None = None) -> str | None:
+    latest = get_latest_cron_history_entry(history_path=history_path)
+    if not latest.get("exists"):
+        return None
+    return (latest.get("item") or {}).get("run_id")
 
 def get_latest_cron_history_entry(history_path: str | None = None) -> dict:
     items = list_cron_history(limit=1, history_path=history_path)

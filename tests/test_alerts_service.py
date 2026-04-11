@@ -732,3 +732,34 @@ def test_list_run_events_from_history(tmp_path):
     assert all(item['run_id'] == 'run-ev' for item in events)
     assert events[0]['kind'] == 'dispatch-fallback'
     assert events[0]['degraded'] is True
+
+
+def test_list_run_events_filters_kind_and_status(tmp_path):
+    from fdd_tracker.services.alerts import list_run_events
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    history.write_text(
+        '{"run_id":"run-filter","ran_at":"2026-04-11T09:00:00+00:00","status":"executed","degraded":true,"events":[{"kind":"dispatch-fallback","reason":"missing-env"},{"kind":"notify"}]}\n'
+        '{"run_id":"run-filter","ran_at":"2026-04-11T09:02:00+00:00","status":"skipped_locked","events":[{"kind":"lock-skip"}]}\n',
+        encoding='utf-8',
+    )
+
+    only_fallback = list_run_events(
+        run_id='run-filter',
+        history_path=str(history),
+        kinds=['dispatch-fallback'],
+        statuses=['executed'],
+    )
+    assert len(only_fallback) == 1
+    assert only_fallback[0]['kind'] == 'dispatch-fallback'
+    assert only_fallback[0]['status'] == 'executed'
+
+
+def test_get_latest_run_id(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, get_latest_run_id
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history({"run_id": "r1", "ran_at": "2026-04-11T09:00:00+00:00"}, history_path=str(history))
+    append_cron_history({"run_id": "r2", "ran_at": "2026-04-11T09:01:00+00:00"}, history_path=str(history))
+
+    assert get_latest_run_id(history_path=str(history)) == 'r2'
