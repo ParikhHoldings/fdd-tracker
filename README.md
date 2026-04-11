@@ -122,7 +122,7 @@ curl -X POST http://localhost:8000/alerts/cron/tick \
   -d '{"max_alerts":25,"generate_mark_read":false,"dispatch_limit":100,"retry_limit":100,"dispatch_dry_run":true,"dispatch_provider":"noop","run_id":"nightly-2026-04-08","lock_stale_after_seconds":900}'
 ```
 
-The cron tick is lock-guarded with `data/alerts_cron.lock` and now includes preflight + lock-recovery endpoints for deterministic run-readiness checks and stale lock cleanup. Preflight responses include provider health and dispatch planning metadata (`requested_*`, `effective_*`, `fallback_applied`) so schedulers can verify or auto-fallback before running live mode. It also accepts `dispatch_dry_run`/`dispatch_provider` so scheduler runs can be deterministic in test mode or explicitly provider-routed.
+The cron tick is lock-guarded with `data/alerts_cron.lock` and now includes preflight + lock-recovery endpoints for deterministic run-readiness checks and stale lock cleanup. Preflight responses include provider health and dispatch planning metadata (`requested_*`, `effective_*`, `fallback_applied`) so schedulers can verify or auto-fallback before running live mode. Tick responses/history also flag `degraded=true` with `events` entries when dispatch fallback is triggered. It also accepts `dispatch_dry_run`/`dispatch_provider` so scheduler runs can be deterministic in test mode or explicitly provider-routed.
 - If another run is active, the endpoint returns `status="skipped_locked"` and writes that event to cron history.
 - Stale lock recovery is automatic after `lock_stale_after_seconds` (default 900 seconds).
 

@@ -588,7 +588,32 @@ def test_run_alerts_cron_tick_uses_fallback_dispatch_plan(tmp_path):
     )
 
     assert result['status'] == 'executed'
+    assert result['degraded'] is True
+    assert any(e['kind'] == 'dispatch-fallback' for e in result['events'])
     assert result['dispatch_plan']['fallback_applied'] is True
     assert result['dispatch_plan']['effective_provider'] == 'noop'
     assert result['dispatched']['provider'] == 'noop'
     assert result['dispatched']['dry_run'] is True
+
+
+def test_run_alerts_cron_tick_no_fallback_not_degraded(tmp_path):
+    from fdd_tracker.services.alerts import run_alerts_cron_tick
+    from fdd_tracker.services.store import upsert_watchlist, seed_change_summary
+
+    db = str(tmp_path / 'test.db')
+    history = tmp_path / 'history.jsonl'
+
+    upsert_watchlist('ok@example.com', 'chick-fil-a', db_path=db)
+    seed_change_summary('chick-fil-a', ['fees'], risk_level='high', db_path=db)
+
+    result = run_alerts_cron_tick(
+        db_path=db,
+        history_path=str(history),
+        dispatch_provider='noop',
+        dispatch_dry_run=True,
+        run_id='no-fallback-run',
+    )
+
+    assert result['status'] == 'executed'
+    assert result['degraded'] is False
+    assert result['events'] == []

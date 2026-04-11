@@ -832,10 +832,25 @@ def run_alerts_cron_tick(
         )
         retry = retry_failed_outbox(limit=retry_limit)
 
+        fallback_events = []
+        degraded = False
+        if dispatch_plan.get("fallback_applied"):
+            degraded = True
+            fallback_events.append({
+                "kind": "dispatch-fallback",
+                "requested_provider": dispatch_plan.get("requested_provider"),
+                "effective_provider": dispatch_plan.get("effective_provider"),
+                "requested_dry_run": dispatch_plan.get("requested_dry_run"),
+                "effective_dry_run": dispatch_plan.get("effective_dry_run"),
+                "reason": dispatch_plan.get("fallback_reason"),
+            })
+
         result = {
             "status": "executed",
             "run_id": run_id,
             "ran_at": _now_iso(),
+            "degraded": degraded,
+            "events": fallback_events,
             "generated": generation,
             "dispatch_plan": dispatch_plan,
             "dispatched": dispatch,
