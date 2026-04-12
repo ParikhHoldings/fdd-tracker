@@ -631,6 +631,15 @@ def test_alerts_recent_runs_integrity_summary_endpoint():
     assert "top_issues" in data
 
 
+def test_alerts_recent_runs_integrity_failures_endpoint():
+    r = client.get("/alerts/runs/integrity/failures?limit=10")
+    assert r.status_code == 200
+    data = r.json()
+    assert "count" in data
+    assert "reports" in data
+    assert isinstance(data["reports"], list)
+
+
 def test_alerts_run_events_endpoint():
     email = f"runevents-{uuid4().hex[:8]}@example.com"
     run_id = "api-run-events"

@@ -803,6 +803,19 @@ def test_summarize_recent_run_integrity(tmp_path):
     assert isinstance(summary["top_issues"], list)
 
 
+def test_list_failing_run_integrity_reports(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, get_run_integrity_report, list_failing_run_integrity_reports
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history({"run_id": "ok-run", "status": "executed", "ran_at": "2026-04-11T08:00:00+00:00", "events": []}, history_path=str(history))
+    _ = get_run_integrity_report(run_id="missing-run", history_path=str(history))
+
+    failing = list_failing_run_integrity_reports(limit=10, history_path=str(history))
+    assert "count" in failing
+    assert "reports" in failing
+    assert isinstance(failing["reports"], list)
+
+
 def test_list_run_events_from_history(tmp_path):
     from fdd_tracker.services.alerts import list_run_events
 
