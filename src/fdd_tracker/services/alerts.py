@@ -1071,6 +1071,52 @@ def get_run_artifact_summary(
         "exists": any([outbox_rows, sent_rows, failed_rows, history_rows]),
     }
 
+
+def get_run_integrity_report(run_id: str, history_path: str | None = None) -> dict:
+    summary = get_run_artifact_summary(run_id=run_id, history_path=history_path)
+    events = list_run_events(run_id=run_id, history_path=history_path)
+
+    counts = summary.get("counts", {})
+    queued = int(counts.get("queued", 0))
+    sent = int(counts.get("sent", 0))
+    failed = int(counts.get("failed", 0))
+    history_count = int(counts.get("history", 0))
+
+    fallback_events = [event for event in events if str(event.get("kind", "")).lower() == "dispatch-fallback"]
+    degraded = bool((summary.get("operational") or {}).get("degraded", False))
+
+    issues: list[str] = []
+    if not summary.get("exists", False):
+        issues.append("run-not-found")
+    if history_count == 0:
+        issues.append("missing-history")
+    if queued == 0 and (sent > 0 or failed > 0):
+        issues.append("delivery-without-queued")
+    if sent + failed > queued and queued > 0:
+        issues.append("delivery-count-exceeds-queued")
+    if degraded and not fallback_events:
+        issues.append("degraded-without-fallback-event")
+
+    return {
+        "run_id": run_id,
+        "ok": len(issues) == 0,
+        "issues": issues,
+        "checks": {
+            "exists": bool(summary.get("exists", False)),
+            "history_present": history_count > 0,
+            "delivery_leq_queued": (sent + failed) <= queued if queued > 0 else (sent + failed) == 0,
+            "degraded_has_fallback_event": (not degraded) or bool(fallback_events),
+        },
+        "summary": summary,
+    }
+
+
+def get_latest_run_integrity_report(history_path: str | None = None) -> dict:
+    run_id = get_latest_run_id(history_path=history_path)
+    if not run_id:
+        return {"exists": False, "run_id": None, "report": None}
+    return {"exists": True, "run_id": run_id, "report": get_run_integrity_report(run_id=run_id, history_path=history_path)}
+
 def prune_jsonl_records(path: Path, keep_last: int) -> dict:
     if not path.exists():
         return {"path": str(path), "before": 0, "after": 0, "removed": 0}

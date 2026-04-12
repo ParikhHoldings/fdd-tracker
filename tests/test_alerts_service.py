@@ -717,6 +717,40 @@ def test_get_run_artifact_summary_counts_and_latest(tmp_path):
     assert result['operational']['dispatch_validation_ok'] is True
 
 
+def test_get_run_integrity_report_ok_and_latest(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, get_latest_run_integrity_report, get_run_integrity_report
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history(
+        {
+            "run_id": "integrity-ok",
+            "status": "executed",
+            "ran_at": "2026-04-11T08:04:00+00:00",
+            "degraded": True,
+            "events": [{"kind": "dispatch-fallback", "reason": "invalid-provider"}],
+        },
+        history_path=str(history),
+    )
+
+    report = get_run_integrity_report(run_id="integrity-ok", history_path=str(history))
+    assert report["ok"] is True
+    assert report["issues"] == []
+
+    latest = get_latest_run_integrity_report(history_path=str(history))
+    assert latest["exists"] is True
+    assert latest["run_id"] == "integrity-ok"
+    assert latest["report"]["ok"] is True
+
+
+def test_get_run_integrity_report_flags_issues(tmp_path):
+    from fdd_tracker.services.alerts import get_run_integrity_report
+
+    report = get_run_integrity_report(run_id="does-not-exist", history_path=str(tmp_path / "history.jsonl"))
+    assert report["ok"] is False
+    assert "run-not-found" in report["issues"]
+    assert "missing-history" in report["issues"]
+
+
 def test_list_run_events_from_history(tmp_path):
     from fdd_tracker.services.alerts import list_run_events
 
