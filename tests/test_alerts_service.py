@@ -797,7 +797,10 @@ def test_summarize_recent_run_integrity(tmp_path):
     assert summary["count"] == 2
     assert summary["ok_count"] == 2
     assert summary["failing_count"] == 0
+    assert summary["failing_rate"] == 0.0
     assert summary["degraded_count"] == 1
+    assert summary["degraded_rate"] == 0.5
+    assert isinstance(summary["top_issues"], list)
 
 
 def test_list_run_events_from_history(tmp_path):

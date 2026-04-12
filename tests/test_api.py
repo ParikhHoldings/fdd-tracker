@@ -624,8 +624,11 @@ def test_alerts_recent_runs_integrity_summary_endpoint():
     assert "count" in data
     assert "ok_count" in data
     assert "failing_count" in data
+    assert "failing_rate" in data
     assert "degraded_count" in data
+    assert "degraded_rate" in data
     assert "issue_counts" in data
+    assert "top_issues" in data
 
 
 def test_alerts_run_events_endpoint():

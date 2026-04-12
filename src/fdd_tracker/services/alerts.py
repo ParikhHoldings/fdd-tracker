@@ -1170,14 +1170,23 @@ def summarize_recent_run_integrity(
 
     total = len(reports)
     failing = total - ok_count
+    failing_rate = (failing / total) if total else 0.0
+    degraded_rate = (degraded_count / total) if total else 0.0
+    top_issues = [
+        {"issue": issue, "count": count}
+        for issue, count in sorted(issue_counts.items(), key=lambda item: (-item[1], item[0]))
+    ]
 
     return {
         "count": total,
         "status_filter": recent.get("status_filter"),
         "ok_count": ok_count,
         "failing_count": failing,
+        "failing_rate": round(failing_rate, 4),
         "degraded_count": degraded_count,
+        "degraded_rate": round(degraded_rate, 4),
         "issue_counts": issue_counts,
+        "top_issues": top_issues,
     }
 
 def prune_jsonl_records(path: Path, keep_last: int) -> dict:
