@@ -816,6 +816,18 @@ def test_list_failing_run_integrity_reports(tmp_path):
     assert isinstance(failing["reports"], list)
 
 
+def test_get_integrity_dashboard_snapshot(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, get_integrity_dashboard_snapshot
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history({"run_id": "dash-1", "status": "executed", "ran_at": "2026-04-11T08:00:00+00:00", "events": []}, history_path=str(history))
+
+    snap = get_integrity_dashboard_snapshot(limit=10, history_path=str(history))
+    assert "summary" in snap
+    assert "failures" in snap
+    assert "latest" in snap
+
+
 def test_list_run_events_from_history(tmp_path):
     from fdd_tracker.services.alerts import list_run_events
 

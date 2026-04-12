@@ -1203,6 +1203,17 @@ def list_failing_run_integrity_reports(
         "reports": failing,
     }
 
+
+def get_integrity_dashboard_snapshot(limit: int = 25, status: str | None = None, history_path: str | None = None) -> dict:
+    summary = summarize_recent_run_integrity(limit=limit, status=status, history_path=history_path)
+    failures = list_failing_run_integrity_reports(limit=limit, status=status, history_path=history_path)
+    latest = get_latest_run_integrity_report(history_path=history_path)
+    return {
+        "summary": summary,
+        "failures": failures,
+        "latest": latest,
+    }
+
 def prune_jsonl_records(path: Path, keep_last: int) -> dict:
     if not path.exists():
         return {"path": str(path), "before": 0, "after": 0, "removed": 0}
