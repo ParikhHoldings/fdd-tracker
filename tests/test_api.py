@@ -600,6 +600,34 @@ def test_alerts_recent_runs_integrity_endpoint():
     assert isinstance(data["reports"], list)
 
 
+def test_alerts_recent_runs_integrity_summary_endpoint():
+    email = f"recentintegritysummary-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+
+    client.post(
+        "/alerts/cron/tick",
+        json={
+            "max_alerts": 10,
+            "generate_mark_read": False,
+            "dispatch_limit": 10,
+            "retry_limit": 10,
+            "dispatch_dry_run": False,
+            "dispatch_provider": "unknown-provider",
+            "run_id": "api-recent-integrity-summary",
+        },
+    )
+
+    r = client.get("/alerts/runs/integrity/summary?limit=10")
+    assert r.status_code == 200
+    data = r.json()
+    assert "count" in data
+    assert "ok_count" in data
+    assert "failing_count" in data
+    assert "degraded_count" in data
+    assert "issue_counts" in data
+
+
 def test_alerts_run_events_endpoint():
     email = f"runevents-{uuid4().hex[:8]}@example.com"
     run_id = "api-run-events"

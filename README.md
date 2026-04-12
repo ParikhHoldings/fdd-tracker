@@ -94,6 +94,7 @@ curl "http://localhost:8000/alerts/outbox/failed?limit=25&email=ops@example.com&
 curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/summary"  # includes counts, latest timestamps, artifact file paths, and operational fallback/validation metadata
 curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/integrity" # run integrity checks for operational consistency
 curl "http://localhost:8000/alerts/runs/integrity?limit=10&status=executed" # integrity overview across recent runs
+curl "http://localhost:8000/alerts/runs/integrity/summary?limit=25" # aggregate integrity counts/issues across recent runs
 curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/events"   # per-run event timeline for fallback/degraded triage
 curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/events?kind=dispatch-fallback&status=executed"
 curl "http://localhost:8000/alerts/runs/latest/summary"

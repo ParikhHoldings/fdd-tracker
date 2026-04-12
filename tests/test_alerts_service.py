@@ -768,6 +768,38 @@ def test_list_recent_run_integrity_reports_with_status_filter(tmp_path):
     assert all(r["summary"]["operational"]["status"] == "executed" for r in executed_only["reports"])
 
 
+def test_summarize_recent_run_integrity(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, summarize_recent_run_integrity
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history(
+        {
+            "run_id": "sum-a",
+            "status": "executed",
+            "ran_at": "2026-04-11T08:00:00+00:00",
+            "degraded": True,
+            "events": [{"kind": "dispatch-fallback", "reason": "invalid-provider"}],
+        },
+        history_path=str(history),
+    )
+    append_cron_history(
+        {
+            "run_id": "sum-b",
+            "status": "executed",
+            "ran_at": "2026-04-11T08:01:00+00:00",
+            "degraded": False,
+            "events": [],
+        },
+        history_path=str(history),
+    )
+
+    summary = summarize_recent_run_integrity(limit=10, history_path=str(history))
+    assert summary["count"] == 2
+    assert summary["ok_count"] == 2
+    assert summary["failing_count"] == 0
+    assert summary["degraded_count"] == 1
+
+
 def test_list_run_events_from_history(tmp_path):
     from fdd_tracker.services.alerts import list_run_events
 
