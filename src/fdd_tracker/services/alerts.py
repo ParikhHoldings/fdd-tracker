@@ -922,6 +922,8 @@ def list_run_events(
     history_path: str | None = None,
     kinds: list[str] | None = None,
     statuses: list[str] | None = None,
+    limit: int | None = None,
+    offset: int = 0,
 ) -> list[dict]:
     rows = [row for row in list_cron_history(limit=5000, history_path=history_path) if row.get("run_id") == run_id]
     events: list[dict] = []
@@ -946,8 +948,33 @@ def list_run_events(
                     **event,
                 }
             )
-    return events
 
+    start = max(0, offset)
+    if limit is None:
+        return events[start:]
+    return events[start : start + max(1, limit)]
+
+
+
+def list_latest_run_events(
+    history_path: str | None = None,
+    kinds: list[str] | None = None,
+    statuses: list[str] | None = None,
+    limit: int | None = None,
+    offset: int = 0,
+) -> dict:
+    run_id = get_latest_run_id(history_path=history_path)
+    if not run_id:
+        return {"exists": False, "run_id": None, "events": []}
+    events = list_run_events(
+        run_id=run_id,
+        history_path=history_path,
+        kinds=kinds,
+        statuses=statuses,
+        limit=limit,
+        offset=offset,
+    )
+    return {"exists": True, "run_id": run_id, "events": events}
 
 
 def get_latest_run_id(history_path: str | None = None) -> str | None:

@@ -763,3 +763,32 @@ def test_get_latest_run_id(tmp_path):
     append_cron_history({"run_id": "r2", "ran_at": "2026-04-11T09:01:00+00:00"}, history_path=str(history))
 
     assert get_latest_run_id(history_path=str(history)) == 'r2'
+
+
+def test_list_run_events_pagination(tmp_path):
+    from fdd_tracker.services.alerts import list_run_events
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    history.write_text(
+        '{"run_id":"run-page","ran_at":"2026-04-11T09:00:00+00:00","status":"executed","events":[{"kind":"a"},{"kind":"b"},{"kind":"c"}]}\n',
+        encoding='utf-8',
+    )
+
+    rows = list_run_events(run_id='run-page', history_path=str(history), limit=2, offset=1)
+    assert len(rows) == 2
+    assert rows[0]['kind'] == 'b'
+    assert rows[1]['kind'] == 'c'
+
+
+def test_list_latest_run_events(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, list_latest_run_events
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history({"run_id": "r1", "ran_at": "2026-04-11T09:00:00+00:00", "events": [{"kind": "x"}]}, history_path=str(history))
+    append_cron_history({"run_id": "r2", "ran_at": "2026-04-11T09:01:00+00:00", "events": [{"kind": "y"}]}, history_path=str(history))
+
+    latest = list_latest_run_events(history_path=str(history))
+    assert latest['exists'] is True
+    assert latest['run_id'] == 'r2'
+    assert len(latest['events']) == 1
+    assert latest['events'][0]['kind'] == 'y'

@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr
 
 from fdd_tracker.db import ensure_db
 from fdd_tracker.models import Filing
-from fdd_tracker.services.alerts import dispatch_outbox, enforce_live_dispatch_gate, get_alerts_cron_preflight, get_alerts_cron_status, get_dispatch_provider_catalog, get_latest_cron_history_entry, get_latest_run_id, get_run_artifact_summary, list_cron_history, list_failed_outbox, list_outbox, list_run_events, list_sent_outbox, prune_alert_artifacts, recover_alerts_cron_lock, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, run_provider_smoke_test
+from fdd_tracker.services.alerts import dispatch_outbox, enforce_live_dispatch_gate, get_alerts_cron_preflight, get_alerts_cron_status, get_dispatch_provider_catalog, get_latest_cron_history_entry, get_latest_run_id, get_run_artifact_summary, list_cron_history, list_failed_outbox, list_latest_run_events, list_outbox, list_run_events, list_sent_outbox, prune_alert_artifacts, recover_alerts_cron_lock, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, run_provider_smoke_test
 from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestion
 from fdd_tracker.services.store import (
     delete_watchlist,
@@ -354,15 +354,32 @@ def alerts_run_summary(run_id: str) -> dict:
     return get_run_artifact_summary(run_id=run_id)
 
 
+@app.get("/alerts/runs/latest/events")
+def alerts_latest_run_events(
+    kind: str | None = Query(default=None, description="Comma-separated event kinds"),
+    status: str | None = Query(default=None, description="Comma-separated run statuses"),
+    limit: int | None = Query(default=None, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> dict:
+    kinds = [k.strip() for k in kind.split(",") if k.strip()] if kind else None
+    statuses = [s.strip() for s in status.split(",") if s.strip()] if status else None
+    return list_latest_run_events(kinds=kinds, statuses=statuses, limit=limit, offset=offset)
+
+
 @app.get("/alerts/runs/{run_id}/events")
 def alerts_run_events(
     run_id: str,
     kind: str | None = Query(default=None, description="Comma-separated event kinds"),
     status: str | None = Query(default=None, description="Comma-separated run statuses"),
+    limit: int | None = Query(default=None, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
 ) -> dict:
     kinds = [k.strip() for k in kind.split(",") if k.strip()] if kind else None
     statuses = [s.strip() for s in status.split(",") if s.strip()] if status else None
-    return {"run_id": run_id, "events": list_run_events(run_id=run_id, kinds=kinds, statuses=statuses)}
+    return {
+        "run_id": run_id,
+        "events": list_run_events(run_id=run_id, kinds=kinds, statuses=statuses, limit=limit, offset=offset),
+    }
 
 
 @app.get("/alerts/cron/history")
