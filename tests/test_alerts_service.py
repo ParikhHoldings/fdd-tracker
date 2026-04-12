@@ -751,6 +751,23 @@ def test_get_run_integrity_report_flags_issues(tmp_path):
     assert "missing-history" in report["issues"]
 
 
+def test_list_recent_run_integrity_reports_with_status_filter(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, list_recent_run_integrity_reports
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history({"run_id": "run-a", "status": "executed", "ran_at": "2026-04-11T08:00:00+00:00", "events": []}, history_path=str(history))
+    append_cron_history({"run_id": "run-b", "status": "skipped_locked", "ran_at": "2026-04-11T08:01:00+00:00", "events": []}, history_path=str(history))
+    append_cron_history({"run_id": "run-c", "status": "executed", "ran_at": "2026-04-11T08:02:00+00:00", "events": []}, history_path=str(history))
+
+    all_reports = list_recent_run_integrity_reports(limit=2, history_path=str(history))
+    assert all_reports["count"] == 2
+    assert all_reports["reports"][0]["run_id"] == "run-c"
+
+    executed_only = list_recent_run_integrity_reports(limit=10, status="executed", history_path=str(history))
+    assert executed_only["count"] == 2
+    assert all(r["summary"]["operational"]["status"] == "executed" for r in executed_only["reports"])
+
+
 def test_list_run_events_from_history(tmp_path):
     from fdd_tracker.services.alerts import list_run_events
 

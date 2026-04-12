@@ -1117,6 +1117,36 @@ def get_latest_run_integrity_report(history_path: str | None = None) -> dict:
         return {"exists": False, "run_id": None, "report": None}
     return {"exists": True, "run_id": run_id, "report": get_run_integrity_report(run_id=run_id, history_path=history_path)}
 
+
+def list_recent_run_integrity_reports(
+    limit: int = 10,
+    status: str | None = None,
+    history_path: str | None = None,
+) -> dict:
+    rows = list_cron_history(limit=max(1, min(limit * 5, 5000)), history_path=history_path)
+    status_filter = (status or "").strip().lower() or None
+
+    run_ids: list[str] = []
+    seen: set[str] = set()
+    for row in reversed(rows):
+        run_id = row.get("run_id")
+        if not run_id or run_id in seen:
+            continue
+        row_status = str(row.get("status") or "").lower()
+        if status_filter and row_status != status_filter:
+            continue
+        seen.add(run_id)
+        run_ids.append(run_id)
+        if len(run_ids) >= max(1, limit):
+            break
+
+    reports = [get_run_integrity_report(run_id=run_id, history_path=history_path) for run_id in run_ids]
+    return {
+        "count": len(reports),
+        "status_filter": status_filter,
+        "reports": reports,
+    }
+
 def prune_jsonl_records(path: Path, keep_last: int) -> dict:
     if not path.exists():
         return {"path": str(path), "before": 0, "after": 0, "removed": 0}
