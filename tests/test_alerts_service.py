@@ -751,6 +751,40 @@ def test_get_run_integrity_report_flags_issues(tmp_path):
     assert "missing-history" in report["issues"]
 
 
+def test_get_run_integrity_report_flags_missing_delivery_metadata(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, get_run_integrity_report
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    sent = tmp_path / "alert_outbox_sent.jsonl"
+    failed = tmp_path / "alert_outbox_failed.jsonl"
+
+    append_cron_history(
+        {"run_id": "meta-missing", "status": "executed", "ran_at": "2026-04-11T08:00:00+00:00", "events": []},
+        history_path=str(history),
+    )
+    sent.write_text(
+        '{"run_id":"meta-missing","email":"x@example.com","subject":"x","body":"x","generated_at":"2026-04-11T08:00:00+00:00"}\n',
+        encoding="utf-8",
+    )
+    failed.write_text(
+        '{"run_id":"meta-missing","email":"y@example.com","subject":"y","body":"y","generated_at":"2026-04-11T08:00:00+00:00"}\n',
+        encoding="utf-8",
+    )
+
+    report = get_run_integrity_report(
+        run_id="meta-missing",
+        history_path=str(history),
+        sent_path=str(sent),
+        failed_path=str(failed),
+    )
+
+    assert report["ok"] is False
+    assert "sent-missing-delivery-metadata" in report["issues"]
+    assert "failed-missing-failure-metadata" in report["issues"]
+    assert report["checks"]["sent_rows_have_delivery_metadata"] is False
+    assert report["checks"]["failed_rows_have_failure_metadata"] is False
+
+
 def test_list_recent_run_integrity_reports_with_status_filter(tmp_path):
     from fdd_tracker.services.alerts import append_cron_history, list_recent_run_integrity_reports
 

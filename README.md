@@ -92,7 +92,7 @@ curl "http://localhost:8000/alerts/outbox?limit=25"
 curl "http://localhost:8000/alerts/outbox/sent?limit=25&email=ops@example.com&run_id=nightly-2026-04-08"
 curl "http://localhost:8000/alerts/outbox/failed?limit=25&email=ops@example.com&run_id=nightly-2026-04-08"
 curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/summary"  # includes counts, latest timestamps, artifact file paths, and operational fallback/validation metadata
-curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/integrity" # run integrity checks for operational consistency
+curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/integrity" # run integrity checks for operational consistency (includes sent/failed delivery metadata validation)
 curl "http://localhost:8000/alerts/runs/integrity?limit=10&status=executed" # integrity overview across recent runs
 curl "http://localhost:8000/alerts/runs/integrity/summary?limit=25" # aggregate integrity counts, rates, and top issues across recent runs
 curl "http://localhost:8000/alerts/runs/integrity/failures?limit=25" # failing run integrity reports only

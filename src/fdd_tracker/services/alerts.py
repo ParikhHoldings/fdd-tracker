@@ -1072,9 +1072,21 @@ def get_run_artifact_summary(
     }
 
 
-def get_run_integrity_report(run_id: str, history_path: str | None = None) -> dict:
-    summary = get_run_artifact_summary(run_id=run_id, history_path=history_path)
+def get_run_integrity_report(
+    run_id: str,
+    history_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
+) -> dict:
+    summary = get_run_artifact_summary(
+        run_id=run_id,
+        history_path=history_path,
+        sent_path=sent_path,
+        failed_path=failed_path,
+    )
     events = list_run_events(run_id=run_id, history_path=history_path)
+    sent_rows = list_sent_outbox(limit=5000, run_id=run_id, sent_path=sent_path)
+    failed_rows = list_failed_outbox(limit=5000, run_id=run_id, failed_path=failed_path)
 
     counts = summary.get("counts", {})
     queued = int(counts.get("queued", 0))
@@ -1096,6 +1108,10 @@ def get_run_integrity_report(run_id: str, history_path: str | None = None) -> di
         issues.append("delivery-count-exceeds-queued")
     if degraded and not fallback_events:
         issues.append("degraded-without-fallback-event")
+    if any(not row.get("delivery_status") or not row.get("dispatched_at") for row in sent_rows):
+        issues.append("sent-missing-delivery-metadata")
+    if any(not row.get("failure_reason") or not row.get("failed_at") for row in failed_rows):
+        issues.append("failed-missing-failure-metadata")
 
     return {
         "run_id": run_id,
@@ -1106,22 +1122,43 @@ def get_run_integrity_report(run_id: str, history_path: str | None = None) -> di
             "history_present": history_count > 0,
             "delivery_leq_queued": (sent + failed) <= queued if queued > 0 else (sent + failed) == 0,
             "degraded_has_fallback_event": (not degraded) or bool(fallback_events),
+            "sent_rows_have_delivery_metadata": all(
+                row.get("delivery_status") and row.get("dispatched_at") for row in sent_rows
+            ),
+            "failed_rows_have_failure_metadata": all(
+                row.get("failure_reason") and row.get("failed_at") for row in failed_rows
+            ),
         },
         "summary": summary,
     }
 
 
-def get_latest_run_integrity_report(history_path: str | None = None) -> dict:
+def get_latest_run_integrity_report(
+    history_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
+) -> dict:
     run_id = get_latest_run_id(history_path=history_path)
     if not run_id:
         return {"exists": False, "run_id": None, "report": None}
-    return {"exists": True, "run_id": run_id, "report": get_run_integrity_report(run_id=run_id, history_path=history_path)}
+    return {
+        "exists": True,
+        "run_id": run_id,
+        "report": get_run_integrity_report(
+            run_id=run_id,
+            history_path=history_path,
+            sent_path=sent_path,
+            failed_path=failed_path,
+        ),
+    }
 
 
 def list_recent_run_integrity_reports(
     limit: int = 10,
     status: str | None = None,
     history_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
 ) -> dict:
     rows = list_cron_history(limit=max(1, min(limit * 5, 5000)), history_path=history_path)
     status_filter = (status or "").strip().lower() or None
@@ -1140,7 +1177,15 @@ def list_recent_run_integrity_reports(
         if len(run_ids) >= max(1, limit):
             break
 
-    reports = [get_run_integrity_report(run_id=run_id, history_path=history_path) for run_id in run_ids]
+    reports = [
+        get_run_integrity_report(
+            run_id=run_id,
+            history_path=history_path,
+            sent_path=sent_path,
+            failed_path=failed_path,
+        )
+        for run_id in run_ids
+    ]
     return {
         "count": len(reports),
         "status_filter": status_filter,
