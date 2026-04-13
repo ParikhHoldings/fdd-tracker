@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from datetime import date
 from fastapi import FastAPI, Query
 from pydantic import BaseModel, EmailStr
@@ -21,7 +22,13 @@ from fdd_tracker.services.store import (
     upsert_watchlist,
 )
 
-app = FastAPI(title="FDD Tracker API", version="0.2.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    ensure_db()
+    yield
+
+
+app = FastAPI(title="FDD Tracker API", version="0.2.0", lifespan=lifespan)
 
 FRANCHISES = [
     {"slug": "chick-fil-a", "name": "Chick-fil-A", "category": "QSR"},
@@ -44,11 +51,6 @@ class FilingIn(BaseModel):
 
 class IngestRequest(BaseModel):
     states: list[str] | None = None
-
-
-@app.on_event("startup")
-def startup() -> None:
-    ensure_db()
 
 
 @app.get("/health")
