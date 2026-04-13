@@ -104,6 +104,8 @@ curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/events"   # per-run e
 curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/events?kind=dispatch-fallback&status=executed"
 curl "http://localhost:8000/alerts/runs/latest/summary"
 curl "http://localhost:8000/alerts/runs/latest/integrity"
+curl "http://localhost:8000/alerts/runs/latest/integrity/issues"
+curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/integrity/issues" # run-level issue details + recommended remediation
 curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/events?kind=dispatch-fallback&status=executed&limit=10&offset=0"
 curl "http://localhost:8000/alerts/runs/latest/events?kind=dispatch-fallback"
 curl -X POST http://localhost:8000/alerts/outbox/dispatch   -H "Content-Type: application/json"   -d '{"limit":25,"dry_run":true,"provider":"noop"}'

@@ -678,6 +678,24 @@ def test_alerts_runs_integrity_trends_endpoint():
     assert isinstance(data["trend"], list)
 
 
+def test_alerts_latest_run_integrity_issues_endpoint():
+    r = client.get("/alerts/runs/latest/integrity/issues")
+    assert r.status_code == 200
+    data = r.json()
+    assert "exists" in data
+    assert "run_id" in data
+
+
+def test_alerts_run_integrity_issues_endpoint():
+    run_id = "does-not-exist"
+    r = client.get(f"/alerts/runs/{run_id}/integrity/issues")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["run_id"] == run_id
+    assert "issue_count" in data
+    assert isinstance(data["issues"], list)
+
+
 def test_alerts_run_events_endpoint():
     email = f"runevents-{uuid4().hex[:8]}@example.com"
     run_id = "api-run-events"

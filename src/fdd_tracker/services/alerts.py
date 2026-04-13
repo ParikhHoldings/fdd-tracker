@@ -1153,6 +1153,85 @@ def get_latest_run_integrity_report(
     }
 
 
+def get_run_integrity_issue_details(
+    run_id: str,
+    history_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
+) -> dict:
+    report = get_run_integrity_report(
+        run_id=run_id,
+        history_path=history_path,
+        sent_path=sent_path,
+        failed_path=failed_path,
+    )
+
+    summary = report.get("summary", {})
+    counts = summary.get("counts", {})
+    checks = report.get("checks", {})
+    issue_rows: list[dict] = []
+
+    action_map = {
+        "run-not-found": "Verify run_id source and ensure cron history artifact retention has not pruned this run.",
+        "missing-history": "Confirm cron tick writes history rows and verify alerts_cron_history.jsonl is writable.",
+        "delivery-without-queued": "Inspect outbox retention/rotation and run_id propagation to ensure queue rows are preserved.",
+        "delivery-count-exceeds-queued": "Validate dispatch/retry idempotency and ensure queue accounting uses one row per send attempt.",
+        "degraded-without-fallback-event": "Ensure degraded dispatch paths always append dispatch-fallback event entries.",
+        "sent-missing-delivery-metadata": "Backfill sent rows with delivery_status and dispatched_at, then audit dispatch write path.",
+        "failed-missing-failure-metadata": "Backfill failed rows with failure_reason and failed_at, then audit failure write path.",
+    }
+
+    evidence = {
+        "queued": int(counts.get("queued", 0)),
+        "sent": int(counts.get("sent", 0)),
+        "failed": int(counts.get("failed", 0)),
+        "history": int(counts.get("history", 0)),
+        "checks": checks,
+    }
+
+    for issue in report.get("issues", []):
+        issue_rows.append(
+            {
+                "issue": issue,
+                "severity": "high" if issue in {"run-not-found", "missing-history", "delivery-count-exceeds-queued"} else "medium",
+                "recommended_action": action_map.get(issue, "Review run artifacts and dispatch pipeline for this issue."),
+                "evidence": evidence,
+            }
+        )
+
+    return {
+        "run_id": run_id,
+        "ok": report.get("ok", False),
+        "issue_count": len(issue_rows),
+        "issues": issue_rows,
+    }
+
+
+def get_latest_run_integrity_issue_details(
+    history_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
+) -> dict:
+    latest = get_latest_run_integrity_report(
+        history_path=history_path,
+        sent_path=sent_path,
+        failed_path=failed_path,
+    )
+    if not latest.get("exists"):
+        return {"exists": False, "run_id": None, "details": None}
+    run_id = latest.get("run_id")
+    return {
+        "exists": True,
+        "run_id": run_id,
+        "details": get_run_integrity_issue_details(
+            run_id=run_id,
+            history_path=history_path,
+            sent_path=sent_path,
+            failed_path=failed_path,
+        ),
+    }
+
+
 def list_recent_run_integrity_reports(
     limit: int = 10,
     status: str | None = None,

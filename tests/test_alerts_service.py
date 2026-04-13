@@ -785,6 +785,36 @@ def test_get_run_integrity_report_flags_missing_delivery_metadata(tmp_path):
     assert report["checks"]["failed_rows_have_failure_metadata"] is False
 
 
+def test_get_run_integrity_issue_details(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, get_run_integrity_issue_details
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history(
+        {"run_id": "issue-run", "status": "executed", "ran_at": "2026-04-11T08:00:00+00:00", "events": []},
+        history_path=str(history),
+    )
+
+    details = get_run_integrity_issue_details(run_id="issue-run", history_path=str(history))
+    assert details["run_id"] == "issue-run"
+    assert "issue_count" in details
+    assert isinstance(details["issues"], list)
+
+
+def test_get_latest_run_integrity_issue_details(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, get_latest_run_integrity_issue_details
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history(
+        {"run_id": "latest-issues", "status": "executed", "ran_at": "2026-04-11T08:00:00+00:00", "events": []},
+        history_path=str(history),
+    )
+
+    latest = get_latest_run_integrity_issue_details(history_path=str(history))
+    assert latest["exists"] is True
+    assert latest["run_id"] == "latest-issues"
+    assert latest["details"]["run_id"] == "latest-issues"
+
+
 def test_list_recent_run_integrity_reports_with_status_filter(tmp_path):
     from fdd_tracker.services.alerts import append_cron_history, list_recent_run_integrity_reports
 
