@@ -657,6 +657,16 @@ def test_alerts_runs_integrity_dashboard_markdown_endpoint():
     assert "# Alert Integrity Dashboard" in data["markdown"]
 
 
+def test_alerts_runs_integrity_dashboard_telegram_endpoint():
+    r = client.get("/alerts/runs/integrity/dashboard/telegram?limit=10&max_chars=120")
+    assert r.status_code == 200
+    data = r.json()
+    assert "chunks" in data
+    assert "chunk_count" in data
+    assert data["chunk_count"] >= 1
+    assert all(len(chunk) <= 120 for chunk in data["chunks"])
+
+
 def test_alerts_runs_integrity_trends_endpoint():
     r = client.get("/alerts/runs/integrity/trends?limit=50")
     assert r.status_code == 200

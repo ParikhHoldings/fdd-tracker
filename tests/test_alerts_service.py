@@ -839,6 +839,18 @@ def test_render_integrity_dashboard_markdown(tmp_path):
     assert "## Latest Run" in md
 
 
+def test_render_integrity_dashboard_telegram_chunks(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, render_integrity_dashboard_telegram_chunks
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history({"run_id": "tg-1", "status": "executed", "ran_at": "2026-04-11T08:00:00+00:00", "events": []}, history_path=str(history))
+
+    result = render_integrity_dashboard_telegram_chunks(limit=10, history_path=str(history), max_chars=120)
+    assert result["chunk_count"] >= 1
+    assert all(len(chunk) <= 120 for chunk in result["chunks"])
+    assert "Alert Integrity Dashboard" in result["chunks"][0]
+
+
 def test_summarize_integrity_trends(tmp_path):
     from fdd_tracker.services.alerts import append_cron_history, summarize_integrity_trends
 

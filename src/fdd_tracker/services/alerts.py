@@ -1247,6 +1247,47 @@ def render_integrity_dashboard_markdown(limit: int = 25, status: str | None = No
     return "\n".join(lines)
 
 
+def render_integrity_dashboard_telegram_chunks(
+    limit: int = 25,
+    status: str | None = None,
+    history_path: str | None = None,
+    max_chars: int = 3500,
+) -> dict:
+    max_chars = max(100, min(max_chars, 4096))
+    markdown = render_integrity_dashboard_markdown(limit=limit, status=status, history_path=history_path)
+
+    chunks: list[str] = []
+    current: list[str] = []
+    current_len = 0
+    for line in markdown.split("\n"):
+        if len(line) > max_chars:
+            if current:
+                chunks.append("\n".join(current))
+                current = []
+                current_len = 0
+            for i in range(0, len(line), max_chars):
+                chunks.append(line[i : i + max_chars])
+            continue
+        line_len = len(line) + (1 if current else 0)
+        if current and (current_len + line_len) > max_chars:
+            chunks.append("\n".join(current))
+            current = [line]
+            current_len = len(line)
+            continue
+        current.append(line)
+        current_len += line_len
+
+    if current:
+        chunks.append("\n".join(current))
+
+    return {
+        "total_chars": len(markdown),
+        "max_chars": max_chars,
+        "chunk_count": len(chunks),
+        "chunks": chunks,
+    }
+
+
 def summarize_integrity_trends(
     limit: int = 200,
     status: str | None = None,
