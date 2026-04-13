@@ -1214,6 +1214,38 @@ def get_integrity_dashboard_snapshot(limit: int = 25, status: str | None = None,
         "latest": latest,
     }
 
+
+def render_integrity_dashboard_markdown(limit: int = 25, status: str | None = None, history_path: str | None = None) -> str:
+    snapshot = get_integrity_dashboard_snapshot(limit=limit, status=status, history_path=history_path)
+    summary = snapshot.get("summary", {})
+    failures = snapshot.get("failures", {})
+    latest = snapshot.get("latest", {})
+
+    lines = [
+        "# Alert Integrity Dashboard",
+        "",
+        f"- Runs analyzed: {summary.get('count', 0)}",
+        f"- Healthy runs: {summary.get('ok_count', 0)}",
+        f"- Failing runs: {summary.get('failing_count', 0)} ({summary.get('failing_rate', 0)})",
+        f"- Degraded runs: {summary.get('degraded_count', 0)} ({summary.get('degraded_rate', 0)})",
+        f"- Total issues: {summary.get('issue_total', 0)}",
+        "",
+        "## Latest Run",
+        f"- Run ID: {latest.get('run_id', 'n/a')}",
+        f"- OK: {latest.get('ok', False)}",
+        f"- Degraded: {latest.get('degraded', False)}",
+        "",
+        "## Top Issues",
+    ]
+
+    for issue in summary.get("top_issues", [])[:5]:
+        lines.append(f"- {issue.get('issue')}: {issue.get('count')}")
+    if not summary.get("top_issues"):
+        lines.append("- none")
+
+    lines += ["", "## Failing Reports", f"- Count: {failures.get('count', 0)}"]
+    return "\n".join(lines)
+
 def prune_jsonl_records(path: Path, keep_last: int) -> dict:
     if not path.exists():
         return {"path": str(path), "before": 0, "after": 0, "removed": 0}

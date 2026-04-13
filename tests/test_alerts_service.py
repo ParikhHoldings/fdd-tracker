@@ -828,6 +828,17 @@ def test_get_integrity_dashboard_snapshot(tmp_path):
     assert "latest" in snap
 
 
+def test_render_integrity_dashboard_markdown(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, render_integrity_dashboard_markdown
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history({"run_id": "md-1", "status": "executed", "ran_at": "2026-04-11T08:00:00+00:00", "events": []}, history_path=str(history))
+
+    md = render_integrity_dashboard_markdown(limit=10, history_path=str(history))
+    assert "# Alert Integrity Dashboard" in md
+    assert "## Latest Run" in md
+
+
 def test_list_run_events_from_history(tmp_path):
     from fdd_tracker.services.alerts import list_run_events
 

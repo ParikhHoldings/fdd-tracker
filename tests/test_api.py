@@ -649,6 +649,14 @@ def test_alerts_runs_integrity_dashboard_endpoint():
     assert "latest" in data
 
 
+def test_alerts_runs_integrity_dashboard_markdown_endpoint():
+    r = client.get("/alerts/runs/integrity/dashboard/markdown?limit=10")
+    assert r.status_code == 200
+    data = r.json()
+    assert "markdown" in data
+    assert "# Alert Integrity Dashboard" in data["markdown"]
+
+
 def test_alerts_run_events_endpoint():
     email = f"runevents-{uuid4().hex[:8]}@example.com"
     run_id = "api-run-events"
