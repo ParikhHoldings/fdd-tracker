@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fdd_tracker.db import get_conn
 from fdd_tracker.models import ChangeSummary, Filing
@@ -103,7 +103,7 @@ def get_recent_changes(franchise_slug: str, limit: int = 20, db_path: str | None
 def seed_change_summary(franchise_slug: str, categories: list[str], risk_level: str = "medium", db_path: str | None = None):
     summary = ChangeSummary(
         franchise_slug=franchise_slug,
-        generated_at=datetime.utcnow(),
+        generated_at=datetime.now(timezone.utc),
         categories=categories,
         highlights=["seeded"],
         risk_level=risk_level,

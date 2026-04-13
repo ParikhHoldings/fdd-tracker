@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pydantic import BaseModel, Field
 
 
@@ -20,7 +20,7 @@ class Filing(BaseModel):
 
 class ChangeSummary(BaseModel):
     franchise_slug: str
-    generated_at: datetime = Field(default_factory=datetime.utcnow)
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     categories: list[str] = Field(default_factory=list)
     highlights: list[str] = Field(default_factory=list)
     risk_level: str = "medium"
