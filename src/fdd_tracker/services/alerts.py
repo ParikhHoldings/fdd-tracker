@@ -1246,6 +1246,53 @@ def render_integrity_dashboard_markdown(limit: int = 25, status: str | None = No
     lines += ["", "## Failing Reports", f"- Count: {failures.get('count', 0)}"]
     return "\n".join(lines)
 
+
+def summarize_integrity_trends(
+    limit: int = 200,
+    status: str | None = None,
+    history_path: str | None = None,
+) -> dict:
+    recent = list_recent_run_integrity_reports(limit=limit, status=status, history_path=history_path)
+    reports = recent.get("reports", [])
+
+    buckets: dict[str, dict[str, int]] = {}
+    unknown_bucket = "unknown"
+    for report in reports:
+        ran_at = (((report.get("summary") or {}).get("latest") or {}).get("cron_ran_at"))
+        bucket = unknown_bucket
+        if ran_at:
+            try:
+                dt = datetime.fromisoformat(str(ran_at).replace("Z", "+00:00"))
+                bucket = dt.date().isoformat()
+            except ValueError:
+                bucket = unknown_bucket
+
+        entry = buckets.setdefault(bucket, {"total": 0, "ok": 0, "failing": 0, "degraded": 0})
+        entry["total"] += 1
+        if report.get("ok", False):
+            entry["ok"] += 1
+        else:
+            entry["failing"] += 1
+        if (((report.get("summary") or {}).get("operational") or {}).get("degraded", False)):
+            entry["degraded"] += 1
+
+    trend = [
+        {
+            "bucket": bucket,
+            "total": counts["total"],
+            "ok": counts["ok"],
+            "failing": counts["failing"],
+            "degraded": counts["degraded"],
+        }
+        for bucket, counts in sorted(buckets.items(), key=lambda item: item[0])
+    ]
+
+    return {
+        "count": len(reports),
+        "status_filter": recent.get("status_filter"),
+        "trend": trend,
+    }
+
 def prune_jsonl_records(path: Path, keep_last: int) -> dict:
     if not path.exists():
         return {"path": str(path), "before": 0, "after": 0, "removed": 0}

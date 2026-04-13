@@ -839,6 +839,37 @@ def test_render_integrity_dashboard_markdown(tmp_path):
     assert "## Latest Run" in md
 
 
+def test_summarize_integrity_trends(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, summarize_integrity_trends
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history(
+        {
+            "run_id": "trend-ok",
+            "status": "executed",
+            "ran_at": "2026-04-12T01:00:00+00:00",
+            "events": [],
+            "degraded": False,
+        },
+        history_path=str(history),
+    )
+    append_cron_history(
+        {
+            "run_id": "trend-degraded",
+            "status": "executed",
+            "ran_at": "2026-04-12T02:00:00+00:00",
+            "events": [],
+            "degraded": True,
+        },
+        history_path=str(history),
+    )
+
+    trend = summarize_integrity_trends(limit=20, history_path=str(history))
+    assert trend["count"] >= 2
+    assert isinstance(trend["trend"], list)
+    assert any(bucket["bucket"] == "2026-04-12" for bucket in trend["trend"])
+
+
 def test_list_run_events_from_history(tmp_path):
     from fdd_tracker.services.alerts import list_run_events
 
