@@ -1176,6 +1176,7 @@ def summarize_recent_run_integrity(
         {"issue": issue, "count": count}
         for issue, count in sorted(issue_counts.items(), key=lambda item: (-item[1], item[0]))
     ]
+    issue_total = int(sum(issue_counts.values()))
 
     return {
         "count": total,
@@ -1185,6 +1186,7 @@ def summarize_recent_run_integrity(
         "failing_rate": round(failing_rate, 4),
         "degraded_count": degraded_count,
         "degraded_rate": round(degraded_rate, 4),
+        "issue_total": issue_total,
         "issue_counts": issue_counts,
         "top_issues": top_issues,
     }
@@ -1220,6 +1222,11 @@ def render_integrity_dashboard_markdown(limit: int = 25, status: str | None = No
     summary = snapshot.get("summary", {})
     failures = snapshot.get("failures", {})
     latest = snapshot.get("latest", {})
+    latest_report = latest.get("report") or {}
+    latest_summary = latest_report.get("summary") or {}
+    latest_operational = latest_summary.get("operational") or {}
+    latest_ok = bool(latest_report.get("ok", False)) if latest.get("exists") else False
+    latest_degraded = bool(latest_operational.get("degraded", False)) if latest.get("exists") else False
 
     lines = [
         "# Alert Integrity Dashboard",
@@ -1232,8 +1239,8 @@ def render_integrity_dashboard_markdown(limit: int = 25, status: str | None = No
         "",
         "## Latest Run",
         f"- Run ID: {latest.get('run_id', 'n/a')}",
-        f"- OK: {latest.get('ok', False)}",
-        f"- Degraded: {latest.get('degraded', False)}",
+        f"- OK: {latest_ok}",
+        f"- Degraded: {latest_degraded}",
         "",
         "## Top Issues",
     ]
@@ -1280,11 +1287,14 @@ def render_integrity_dashboard_telegram_chunks(
     if current:
         chunks.append("\n".join(current))
 
+    indexed_chunks = [f"[{idx}/{len(chunks)}]\n{chunk}" for idx, chunk in enumerate(chunks, start=1)]
+
     return {
         "total_chars": len(markdown),
         "max_chars": max_chars,
         "chunk_count": len(chunks),
         "chunks": chunks,
+        "chunks_with_index": indexed_chunks,
     }
 
 

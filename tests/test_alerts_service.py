@@ -800,6 +800,7 @@ def test_summarize_recent_run_integrity(tmp_path):
     assert summary["failing_rate"] == 0.0
     assert summary["degraded_count"] == 1
     assert summary["degraded_rate"] == 0.5
+    assert summary["issue_total"] == 0
     assert isinstance(summary["top_issues"], list)
 
 
@@ -837,6 +838,8 @@ def test_render_integrity_dashboard_markdown(tmp_path):
     md = render_integrity_dashboard_markdown(limit=10, history_path=str(history))
     assert "# Alert Integrity Dashboard" in md
     assert "## Latest Run" in md
+    assert "- Run ID: md-1" in md
+    assert "- OK: True" in md
 
 
 def test_render_integrity_dashboard_telegram_chunks(tmp_path):
@@ -849,6 +852,7 @@ def test_render_integrity_dashboard_telegram_chunks(tmp_path):
     assert result["chunk_count"] >= 1
     assert all(len(chunk) <= 120 for chunk in result["chunks"])
     assert "Alert Integrity Dashboard" in result["chunks"][0]
+    assert result["chunks_with_index"][0].startswith("[1/")
 
 
 def test_summarize_integrity_trends(tmp_path):

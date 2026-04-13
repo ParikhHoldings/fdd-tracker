@@ -662,9 +662,11 @@ def test_alerts_runs_integrity_dashboard_telegram_endpoint():
     assert r.status_code == 200
     data = r.json()
     assert "chunks" in data
+    assert "chunks_with_index" in data
     assert "chunk_count" in data
     assert data["chunk_count"] >= 1
     assert all(len(chunk) <= 120 for chunk in data["chunks"])
+    assert data["chunks_with_index"][0].startswith("[1/")
 
 
 def test_alerts_runs_integrity_trends_endpoint():
