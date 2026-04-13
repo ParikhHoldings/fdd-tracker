@@ -814,3 +814,21 @@ def test_alerts_latest_run_events_endpoint():
     assert data['exists'] is True
     assert data['run_id'] is not None
     assert isinstance(data['events'], list)
+
+
+def test_alerts_latest_run_integrity_issues_markdown_endpoint():
+    r = client.get("/alerts/runs/latest/integrity/issues/markdown")
+    assert r.status_code == 200
+    data = r.json()
+    assert "exists" in data
+    assert "run_id" in data
+
+
+def test_alerts_run_integrity_issues_markdown_endpoint():
+    run_id = "does-not-exist"
+    r = client.get(f"/alerts/runs/{run_id}/integrity/issues/markdown")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["run_id"] == run_id
+    assert "markdown" in data
+    assert "Run Integrity Issues" in data["markdown"]

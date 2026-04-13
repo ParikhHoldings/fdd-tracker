@@ -1422,6 +1422,77 @@ def render_integrity_dashboard_telegram_chunks(
     }
 
 
+
+
+def render_run_integrity_issues_markdown(
+    run_id: str,
+    history_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
+) -> str:
+    details = get_run_integrity_issue_details(
+        run_id=run_id,
+        history_path=history_path,
+        sent_path=sent_path,
+        failed_path=failed_path,
+    )
+
+    lines = [
+        f"# Run Integrity Issues — {run_id}",
+        "",
+        f"- OK: {details.get('ok', False)}",
+        f"- Issue count: {details.get('issue_count', 0)}",
+        "",
+    ]
+
+    issues = details.get("issues") or []
+    if not issues:
+        lines.append("- No integrity issues detected for this run.")
+        return "\n".join(lines)
+
+    lines.append("## Issues")
+    for idx, issue in enumerate(issues, start=1):
+        evidence = issue.get("evidence") or {}
+        lines += [
+            f"{idx}. **{issue.get('issue', 'unknown')}** ({issue.get('severity', 'unknown')})",
+            f"   - Recommended action: {issue.get('recommended_action', 'Review run artifacts.')}",
+            (
+                "   - Evidence: "
+                f"queued={evidence.get('queued', 0)}, "
+                f"sent={evidence.get('sent', 0)}, "
+                f"failed={evidence.get('failed', 0)}, "
+                f"history={evidence.get('history', 0)}"
+            ),
+        ]
+
+    return "\n".join(lines)
+
+
+def render_latest_run_integrity_issues_markdown(
+    history_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
+) -> dict:
+    latest = get_latest_run_integrity_report(
+        history_path=history_path,
+        sent_path=sent_path,
+        failed_path=failed_path,
+    )
+    if not latest.get("exists"):
+        return {"exists": False, "run_id": None, "markdown": None}
+
+    run_id = str(latest.get("run_id"))
+    return {
+        "exists": True,
+        "run_id": run_id,
+        "markdown": render_run_integrity_issues_markdown(
+            run_id=run_id,
+            history_path=history_path,
+            sent_path=sent_path,
+            failed_path=failed_path,
+        ),
+    }
+
 def summarize_integrity_trends(
     limit: int = 200,
     status: str | None = None,

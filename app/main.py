@@ -7,7 +7,7 @@ from pydantic import BaseModel, EmailStr
 
 from fdd_tracker.db import ensure_db
 from fdd_tracker.models import Filing
-from fdd_tracker.services.alerts import dispatch_outbox, enforce_live_dispatch_gate, get_alerts_cron_preflight, get_alerts_cron_status, get_dispatch_provider_catalog, get_integrity_dashboard_snapshot, get_latest_cron_history_entry, get_latest_run_id, get_latest_run_integrity_issue_details, get_latest_run_integrity_report, get_run_artifact_summary, get_run_integrity_issue_details, get_run_integrity_report, list_cron_history, list_failing_run_integrity_reports, list_failed_outbox, list_latest_run_events, list_outbox, list_recent_run_integrity_reports, list_run_events, list_sent_outbox, prune_alert_artifacts, recover_alerts_cron_lock, render_integrity_dashboard_markdown, render_integrity_dashboard_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, run_provider_smoke_test, summarize_integrity_trends, summarize_recent_run_integrity
+from fdd_tracker.services.alerts import dispatch_outbox, enforce_live_dispatch_gate, get_alerts_cron_preflight, get_alerts_cron_status, get_dispatch_provider_catalog, get_integrity_dashboard_snapshot, get_latest_cron_history_entry, get_latest_run_id, get_latest_run_integrity_issue_details, get_latest_run_integrity_report, get_run_artifact_summary, get_run_integrity_issue_details, get_run_integrity_report, list_cron_history, list_failing_run_integrity_reports, list_failed_outbox, list_latest_run_events, list_outbox, list_recent_run_integrity_reports, list_run_events, list_sent_outbox, prune_alert_artifacts, recover_alerts_cron_lock, render_integrity_dashboard_markdown, render_integrity_dashboard_telegram_chunks, render_latest_run_integrity_issues_markdown, render_run_integrity_issues_markdown, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, run_provider_smoke_test, summarize_integrity_trends, summarize_recent_run_integrity
 from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestion
 from fdd_tracker.services.store import (
     delete_watchlist,
@@ -361,6 +361,12 @@ def alerts_latest_run_integrity_issues() -> dict:
     return get_latest_run_integrity_issue_details()
 
 
+
+
+@app.get("/alerts/runs/latest/integrity/issues/markdown")
+def alerts_latest_run_integrity_issues_markdown() -> dict:
+    return render_latest_run_integrity_issues_markdown()
+
 @app.get("/alerts/runs/integrity")
 def alerts_recent_runs_integrity(
     limit: int = Query(default=10, ge=1, le=100),
@@ -432,6 +438,12 @@ def alerts_run_integrity(run_id: str) -> dict:
 def alerts_run_integrity_issues(run_id: str) -> dict:
     return get_run_integrity_issue_details(run_id=run_id)
 
+
+
+
+@app.get("/alerts/runs/{run_id}/integrity/issues/markdown")
+def alerts_run_integrity_issues_markdown(run_id: str) -> dict:
+    return {"run_id": run_id, "markdown": render_run_integrity_issues_markdown(run_id=run_id)}
 
 @app.get("/alerts/runs/latest/events")
 def alerts_latest_run_events(

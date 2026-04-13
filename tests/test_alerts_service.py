@@ -1025,3 +1025,32 @@ def test_list_latest_run_events(tmp_path):
     assert latest['run_id'] == 'r2'
     assert len(latest['events']) == 1
     assert latest['events'][0]['kind'] == 'y'
+
+
+def test_render_run_integrity_issues_markdown(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, render_run_integrity_issues_markdown
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history(
+        {"run_id": "md-run", "status": "executed", "ran_at": "2026-04-11T08:00:00+00:00", "events": []},
+        history_path=str(history),
+    )
+
+    markdown = render_run_integrity_issues_markdown(run_id="md-run", history_path=str(history))
+    assert "# Run Integrity Issues — md-run" in markdown
+    assert "Issue count:" in markdown
+
+
+def test_render_latest_run_integrity_issues_markdown(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, render_latest_run_integrity_issues_markdown
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history(
+        {"run_id": "md-latest", "status": "executed", "ran_at": "2026-04-11T08:00:00+00:00", "events": []},
+        history_path=str(history),
+    )
+
+    latest = render_latest_run_integrity_issues_markdown(history_path=str(history))
+    assert latest["exists"] is True
+    assert latest["run_id"] == "md-latest"
+    assert "Run Integrity Issues" in latest["markdown"]
