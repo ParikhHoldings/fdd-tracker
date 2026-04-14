@@ -832,3 +832,21 @@ def test_alerts_run_integrity_issues_markdown_endpoint():
     assert data["run_id"] == run_id
     assert "markdown" in data
     assert "Run Integrity Issues" in data["markdown"]
+
+
+def test_alerts_latest_run_integrity_issues_telegram_endpoint():
+    r = client.get("/alerts/runs/latest/integrity/issues/telegram?max_chars=120")
+    assert r.status_code == 200
+    data = r.json()
+    assert "chunk_count" in data
+    assert "chunks" in data
+    assert all(len(chunk) <= 120 for chunk in data.get("chunks", []))
+
+
+def test_alerts_run_integrity_issues_telegram_endpoint():
+    r = client.get("/alerts/runs/does-not-exist/integrity/issues/telegram?max_chars=120")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["run_id"] == "does-not-exist"
+    assert "chunks" in data
+    assert data["chunk_count"] >= 1

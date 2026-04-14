@@ -1054,3 +1054,34 @@ def test_render_latest_run_integrity_issues_markdown(tmp_path):
     assert latest["exists"] is True
     assert latest["run_id"] == "md-latest"
     assert "Run Integrity Issues" in latest["markdown"]
+
+
+def test_render_run_integrity_issues_telegram_chunks(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, render_run_integrity_issues_telegram_chunks
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history(
+        {"run_id": "tg-run", "status": "executed", "ran_at": "2026-04-11T08:00:00+00:00", "events": []},
+        history_path=str(history),
+    )
+
+    payload = render_run_integrity_issues_telegram_chunks(run_id="tg-run", history_path=str(history), max_chars=120)
+    assert payload["run_id"] == "tg-run"
+    assert payload["chunk_count"] >= 1
+    assert all(len(chunk) <= 120 for chunk in payload["chunks"])
+    assert payload["chunks_with_index"][0].startswith("[1/")
+
+
+def test_render_latest_run_integrity_issues_telegram_chunks(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, render_latest_run_integrity_issues_telegram_chunks
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history(
+        {"run_id": "tg-latest", "status": "executed", "ran_at": "2026-04-11T08:00:00+00:00", "events": []},
+        history_path=str(history),
+    )
+
+    payload = render_latest_run_integrity_issues_telegram_chunks(history_path=str(history), max_chars=120)
+    assert payload["exists"] is True
+    assert payload["run_id"] == "tg-latest"
+    assert payload["chunk_count"] >= 1
