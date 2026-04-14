@@ -1575,6 +1575,96 @@ def build_latest_run_incident_payload(
     }
 
 
+def render_run_incident_markdown(
+    run_id: str,
+    history_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
+    event_kinds: list[str] | None = None,
+    event_statuses: list[str] | None = None,
+    event_limit: int | None = None,
+    event_offset: int = 0,
+) -> str:
+    payload = build_run_incident_payload(
+        run_id=run_id,
+        history_path=history_path,
+        sent_path=sent_path,
+        failed_path=failed_path,
+        event_kinds=event_kinds,
+        event_statuses=event_statuses,
+        event_limit=event_limit,
+        event_offset=event_offset,
+    )
+    summary = payload.get("summary") or {}
+    integrity = payload.get("integrity") or {}
+    issues = (payload.get("issues") or {}).get("issues") or []
+    events = payload.get("events") or []
+
+    lines = [
+        f"# Run Incident — {run_id}",
+        "",
+        "## Summary",
+        f"- Exists: {summary.get('exists')}",
+        f"- Queued: {(summary.get('counts') or {}).get('queued', 0)}",
+        f"- Sent: {(summary.get('counts') or {}).get('sent', 0)}",
+        f"- Failed: {(summary.get('counts') or {}).get('failed', 0)}",
+        f"- Status: {(summary.get('operational') or {}).get('status')}",
+        f"- Degraded: {(summary.get('operational') or {}).get('degraded')}",
+        "",
+        "## Integrity",
+        f"- OK: {integrity.get('ok')}",
+        f"- Issue count: {len(issues)}",
+        "",
+        "## Issues",
+    ]
+
+    if issues:
+        for idx, issue in enumerate(issues, start=1):
+            lines.append(f"{idx}. {issue.get('issue')} (severity={issue.get('severity')})")
+            lines.append(f"   action: {issue.get('recommended_action')}")
+    else:
+        lines.append("- none")
+
+    lines.extend(["", "## Events"])
+    if events:
+        for idx, event in enumerate(events, start=1):
+            lines.append(
+                f"{idx}. {event.get('kind')} | status={event.get('status')} | degraded={event.get('degraded')} | ran_at={event.get('ran_at')}"
+            )
+    else:
+        lines.append("- none")
+
+    return "\n".join(lines)
+
+
+def render_latest_run_incident_markdown(
+    history_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
+    event_kinds: list[str] | None = None,
+    event_statuses: list[str] | None = None,
+    event_limit: int | None = None,
+    event_offset: int = 0,
+) -> dict:
+    run_id = get_latest_run_id(history_path=history_path)
+    if not run_id:
+        return {"exists": False, "run_id": None, "markdown": ""}
+    return {
+        "exists": True,
+        "run_id": run_id,
+        "markdown": render_run_incident_markdown(
+            run_id=run_id,
+            history_path=history_path,
+            sent_path=sent_path,
+            failed_path=failed_path,
+            event_kinds=event_kinds,
+            event_statuses=event_statuses,
+            event_limit=event_limit,
+            event_offset=event_offset,
+        ),
+    }
+
+
 def list_recent_run_integrity_reports(
     limit: int = 10,
     status: str | None = None,

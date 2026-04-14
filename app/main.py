@@ -7,7 +7,7 @@ from pydantic import BaseModel, EmailStr
 
 from fdd_tracker.db import ensure_db
 from fdd_tracker.models import Filing
-from fdd_tracker.services.alerts import build_latest_run_incident_payload, build_run_incident_payload, dispatch_outbox, enforce_live_dispatch_gate, get_alerts_cron_preflight, get_alerts_cron_status, get_dispatch_provider_catalog, get_integrity_dashboard_snapshot, get_latest_cron_history_entry, get_latest_run_id, get_latest_run_integrity_issue_details, get_latest_run_integrity_report, get_run_artifact_summary, get_run_integrity_issue_details, get_run_integrity_report, list_cron_history, list_failing_run_integrity_reports, list_failed_outbox, list_latest_run_events, list_outbox, list_recent_run_integrity_reports, list_run_events, list_sent_outbox, prune_alert_artifacts, recover_alerts_cron_lock, render_integrity_dashboard_markdown, render_integrity_dashboard_telegram_chunks, render_latest_run_events_csv, render_latest_run_integrity_issues_csv, render_latest_run_integrity_issues_markdown, render_latest_run_integrity_issues_telegram_chunks, render_run_events_csv, render_run_integrity_issues_csv, render_run_integrity_issues_markdown, render_run_integrity_issues_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, run_provider_smoke_test, summarize_integrity_trends, summarize_recent_run_integrity
+from fdd_tracker.services.alerts import build_latest_run_incident_payload, build_run_incident_payload, dispatch_outbox, enforce_live_dispatch_gate, get_alerts_cron_preflight, get_alerts_cron_status, get_dispatch_provider_catalog, get_integrity_dashboard_snapshot, get_latest_cron_history_entry, get_latest_run_id, get_latest_run_integrity_issue_details, get_latest_run_integrity_report, get_run_artifact_summary, get_run_integrity_issue_details, get_run_integrity_report, list_cron_history, list_failing_run_integrity_reports, list_failed_outbox, list_latest_run_events, list_outbox, list_recent_run_integrity_reports, list_run_events, list_sent_outbox, prune_alert_artifacts, recover_alerts_cron_lock, render_integrity_dashboard_markdown, render_integrity_dashboard_telegram_chunks, render_latest_run_events_csv, render_latest_run_incident_markdown, render_latest_run_integrity_issues_csv, render_latest_run_integrity_issues_markdown, render_latest_run_integrity_issues_telegram_chunks, render_run_events_csv, render_run_incident_markdown, render_run_integrity_issues_csv, render_run_integrity_issues_markdown, render_run_integrity_issues_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, run_provider_smoke_test, summarize_integrity_trends, summarize_recent_run_integrity
 from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestion
 from fdd_tracker.services.store import (
     delete_watchlist,
@@ -476,6 +476,18 @@ def alerts_latest_run_incident(
     return build_latest_run_incident_payload(event_kinds=kinds, event_statuses=statuses, event_limit=limit, event_offset=offset)
 
 
+@app.get("/alerts/runs/latest/incident/markdown")
+def alerts_latest_run_incident_markdown(
+    kind: str | None = Query(default=None, description="Comma-separated event kinds"),
+    status: str | None = Query(default=None, description="Comma-separated run statuses"),
+    limit: int | None = Query(default=None, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> dict:
+    kinds = [k.strip() for k in kind.split(",") if k.strip()] if kind else None
+    statuses = [s.strip() for s in status.split(",") if s.strip()] if status else None
+    return render_latest_run_incident_markdown(event_kinds=kinds, event_statuses=statuses, event_limit=limit, event_offset=offset)
+
+
 @app.get("/alerts/runs/{run_id}/incident")
 def alerts_run_incident(
     run_id: str,
@@ -493,6 +505,28 @@ def alerts_run_incident(
         event_limit=limit,
         event_offset=offset,
     )
+
+
+@app.get("/alerts/runs/{run_id}/incident/markdown")
+def alerts_run_incident_markdown(
+    run_id: str,
+    kind: str | None = Query(default=None, description="Comma-separated event kinds"),
+    status: str | None = Query(default=None, description="Comma-separated run statuses"),
+    limit: int | None = Query(default=None, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> dict:
+    kinds = [k.strip() for k in kind.split(",") if k.strip()] if kind else None
+    statuses = [s.strip() for s in status.split(",") if s.strip()] if status else None
+    return {
+        "run_id": run_id,
+        "markdown": render_run_incident_markdown(
+            run_id=run_id,
+            event_kinds=kinds,
+            event_statuses=statuses,
+            event_limit=limit,
+            event_offset=offset,
+        ),
+    }
 
 
 @app.get("/alerts/runs/latest/events")

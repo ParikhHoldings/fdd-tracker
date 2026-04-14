@@ -987,3 +987,47 @@ def test_alerts_latest_run_incident_endpoint():
     assert data["exists"] is True
     assert data["run_id"] is not None
     assert "incident" in data and isinstance(data["incident"], dict)
+
+
+def test_alerts_run_incident_markdown_endpoint():
+    run_id = f"incident-md-{uuid4().hex[:8]}"
+    client.post(
+        "/alerts/cron/tick",
+        json={
+            "max_alerts": 5,
+            "generate_mark_read": False,
+            "dispatch_limit": 5,
+            "retry_limit": 5,
+            "dispatch_dry_run": False,
+            "dispatch_provider": "unknown-provider",
+            "run_id": run_id,
+        },
+    )
+    r = client.get(f"/alerts/runs/{run_id}/incident/markdown?kind=dispatch-fallback")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["run_id"] == run_id
+    assert "markdown" in data
+    assert f"# Run Incident — {run_id}" in data["markdown"]
+
+
+def test_alerts_latest_run_incident_markdown_endpoint():
+    run_id = f"latest-incident-md-{uuid4().hex[:8]}"
+    client.post(
+        "/alerts/cron/tick",
+        json={
+            "max_alerts": 5,
+            "generate_mark_read": False,
+            "dispatch_limit": 5,
+            "retry_limit": 5,
+            "dispatch_dry_run": False,
+            "dispatch_provider": "unknown-provider",
+            "run_id": run_id,
+        },
+    )
+    r = client.get("/alerts/runs/latest/incident/markdown?kind=dispatch-fallback")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["exists"] is True
+    assert data["run_id"] is not None
+    assert "markdown" in data

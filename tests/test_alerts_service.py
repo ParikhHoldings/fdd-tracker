@@ -1136,6 +1136,33 @@ def test_build_run_incident_payload_and_latest(tmp_path):
     assert latest["incident"]["run_id"] == "incident-run"
 
 
+def test_render_run_incident_markdown_and_latest(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, render_latest_run_incident_markdown, render_run_incident_markdown
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history(
+        {
+            "run_id": "incident-md",
+            "status": "executed",
+            "ran_at": "2026-04-11T09:00:00+00:00",
+            "degraded": True,
+            "events": [{"kind": "dispatch-fallback", "reason": "missing-env"}],
+        },
+        history_path=str(history),
+    )
+
+    markdown = render_run_incident_markdown(run_id="incident-md", history_path=str(history))
+    assert "# Run Incident — incident-md" in markdown
+    assert "## Summary" in markdown
+    assert "## Integrity" in markdown
+    assert "## Events" in markdown
+
+    latest = render_latest_run_incident_markdown(history_path=str(history))
+    assert latest["exists"] is True
+    assert latest["run_id"] == "incident-md"
+    assert "# Run Incident — incident-md" in latest["markdown"]
+
+
 def test_render_run_integrity_issues_markdown(tmp_path):
     from fdd_tracker.services.alerts import append_cron_history, render_run_integrity_issues_markdown
 
