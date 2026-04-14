@@ -1075,3 +1075,47 @@ def test_alerts_latest_run_incident_telegram_endpoint():
     assert data["exists"] is True
     assert data["run_id"] is not None
     assert data["chunk_count"] >= 1
+
+
+def test_alerts_run_incident_csv_endpoint():
+    run_id = f"incident-csv-{uuid4().hex[:8]}"
+    client.post(
+        "/alerts/cron/tick",
+        json={
+            "max_alerts": 5,
+            "generate_mark_read": False,
+            "dispatch_limit": 5,
+            "retry_limit": 5,
+            "dispatch_dry_run": False,
+            "dispatch_provider": "unknown-provider",
+            "run_id": run_id,
+        },
+    )
+    r = client.get(f"/alerts/runs/{run_id}/incident/csv?kind=dispatch-fallback")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["run_id"] == run_id
+    assert "csv" in data
+    assert "run_id,summary_exists" in data["csv"]
+
+
+def test_alerts_latest_run_incident_csv_endpoint():
+    run_id = f"latest-incident-csv-{uuid4().hex[:8]}"
+    client.post(
+        "/alerts/cron/tick",
+        json={
+            "max_alerts": 5,
+            "generate_mark_read": False,
+            "dispatch_limit": 5,
+            "retry_limit": 5,
+            "dispatch_dry_run": False,
+            "dispatch_provider": "unknown-provider",
+            "run_id": run_id,
+        },
+    )
+    r = client.get("/alerts/runs/latest/incident/csv?kind=dispatch-fallback")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["exists"] is True
+    assert data["run_id"] is not None
+    assert "csv" in data

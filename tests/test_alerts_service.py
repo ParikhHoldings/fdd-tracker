@@ -1193,6 +1193,31 @@ def test_render_run_incident_telegram_chunks_and_latest(tmp_path):
     assert latest["chunk_count"] >= 1
 
 
+def test_render_run_incident_csv_and_latest(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, render_latest_run_incident_csv, render_run_incident_csv
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history(
+        {
+            "run_id": "incident-csv",
+            "status": "executed",
+            "ran_at": "2026-04-11T11:00:00+00:00",
+            "degraded": True,
+            "events": [{"kind": "dispatch-fallback", "reason": "missing-env"}],
+        },
+        history_path=str(history),
+    )
+
+    csv_text = render_run_incident_csv(run_id="incident-csv", history_path=str(history))
+    assert "run_id,summary_exists,queued,sent,failed,status,degraded" in csv_text
+    assert "incident-csv" in csv_text
+
+    latest = render_latest_run_incident_csv(history_path=str(history))
+    assert latest["exists"] is True
+    assert latest["run_id"] == "incident-csv"
+    assert "incident-csv" in latest["csv"]
+
+
 def test_render_run_integrity_issues_markdown(tmp_path):
     from fdd_tracker.services.alerts import append_cron_history, render_run_integrity_issues_markdown
 

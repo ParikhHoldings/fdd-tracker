@@ -1754,6 +1754,127 @@ def render_latest_run_incident_telegram_chunks(
     return payload
 
 
+def render_run_incident_csv(
+    run_id: str,
+    history_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
+    event_kinds: list[str] | None = None,
+    event_statuses: list[str] | None = None,
+    event_limit: int | None = None,
+    event_offset: int = 0,
+) -> str:
+    payload = build_run_incident_payload(
+        run_id=run_id,
+        history_path=history_path,
+        sent_path=sent_path,
+        failed_path=failed_path,
+        event_kinds=event_kinds,
+        event_statuses=event_statuses,
+        event_limit=event_limit,
+        event_offset=event_offset,
+    )
+    summary = payload.get("summary") or {}
+    counts = summary.get("counts") or {}
+    operational = summary.get("operational") or {}
+    integrity = payload.get("integrity") or {}
+    issues = (payload.get("issues") or {}).get("issues") or []
+    events = payload.get("events") or []
+
+    output = StringIO()
+    fieldnames = [
+        "run_id",
+        "summary_exists",
+        "queued",
+        "sent",
+        "failed",
+        "status",
+        "degraded",
+        "integrity_ok",
+        "integrity_issue_count",
+        "issue",
+        "issue_severity",
+        "issue_recommended_action",
+        "event_kind",
+        "event_status",
+        "event_degraded",
+        "event_ran_at",
+    ]
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+
+    if not issues and not events:
+        writer.writerow(
+            {
+                "run_id": run_id,
+                "summary_exists": summary.get("exists"),
+                "queued": counts.get("queued", 0),
+                "sent": counts.get("sent", 0),
+                "failed": counts.get("failed", 0),
+                "status": operational.get("status"),
+                "degraded": operational.get("degraded"),
+                "integrity_ok": integrity.get("ok"),
+                "integrity_issue_count": len(issues),
+            }
+        )
+        return output.getvalue()
+
+    issue_rows = issues or [None]
+    event_rows = events or [None]
+    for issue in issue_rows:
+        for event in event_rows:
+            writer.writerow(
+                {
+                    "run_id": run_id,
+                    "summary_exists": summary.get("exists"),
+                    "queued": counts.get("queued", 0),
+                    "sent": counts.get("sent", 0),
+                    "failed": counts.get("failed", 0),
+                    "status": operational.get("status"),
+                    "degraded": operational.get("degraded"),
+                    "integrity_ok": integrity.get("ok"),
+                    "integrity_issue_count": len(issues),
+                    "issue": (issue or {}).get("issue") if issue else None,
+                    "issue_severity": (issue or {}).get("severity") if issue else None,
+                    "issue_recommended_action": (issue or {}).get("recommended_action") if issue else None,
+                    "event_kind": (event or {}).get("kind") if event else None,
+                    "event_status": (event or {}).get("status") if event else None,
+                    "event_degraded": (event or {}).get("degraded") if event else None,
+                    "event_ran_at": (event or {}).get("ran_at") if event else None,
+                }
+            )
+    return output.getvalue()
+
+
+def render_latest_run_incident_csv(
+    history_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
+    event_kinds: list[str] | None = None,
+    event_statuses: list[str] | None = None,
+    event_limit: int | None = None,
+    event_offset: int = 0,
+) -> dict:
+    run_id = get_latest_run_id(history_path=history_path)
+    if not run_id:
+        return {"exists": False, "run_id": None, "csv": ""}
+
+    return {
+        "exists": True,
+        "run_id": run_id,
+        "csv": render_run_incident_csv(
+            run_id=run_id,
+            history_path=history_path,
+            sent_path=sent_path,
+            failed_path=failed_path,
+            event_kinds=event_kinds,
+            event_statuses=event_statuses,
+            event_limit=event_limit,
+            event_offset=event_offset,
+        ),
+    }
+
+
 def list_recent_run_integrity_reports(
     limit: int = 10,
     status: str | None = None,
