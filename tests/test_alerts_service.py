@@ -854,6 +854,25 @@ def test_render_latest_run_integrity_issue_formats(tmp_path):
     assert chunks["chunk_count"] >= 1
 
 
+def test_render_run_integrity_issues_csv_and_latest_csv(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, render_latest_run_integrity_issues_csv, render_run_integrity_issues_csv
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history(
+        {"run_id": "issues-csv", "status": "executed", "ran_at": "2026-04-11T08:00:00+00:00", "events": []},
+        history_path=str(history),
+    )
+
+    csv_text = render_run_integrity_issues_csv(run_id="issues-csv", history_path=str(history))
+    assert "run_id,ok,issue_count,issue,severity,recommended_action,evidence" in csv_text
+    assert "issues-csv" in csv_text
+
+    latest = render_latest_run_integrity_issues_csv(history_path=str(history))
+    assert latest["exists"] is True
+    assert latest["run_id"] == "issues-csv"
+    assert "run_id,ok,issue_count" in latest["csv"]
+
+
 def test_list_recent_run_integrity_reports_with_status_filter(tmp_path):
     from fdd_tracker.services.alerts import append_cron_history, list_recent_run_integrity_reports
 

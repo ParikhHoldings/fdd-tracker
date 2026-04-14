@@ -1438,6 +1438,74 @@ def render_latest_run_integrity_issues_telegram_chunks(
     return payload
 
 
+def render_run_integrity_issues_csv(
+    run_id: str,
+    history_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
+) -> str:
+    details = get_run_integrity_issue_details(
+        run_id=run_id,
+        history_path=history_path,
+        sent_path=sent_path,
+        failed_path=failed_path,
+    )
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=["run_id", "ok", "issue_count", "issue", "severity", "recommended_action", "evidence"],
+    )
+    writer.writeheader()
+    issues = details.get("issues") or []
+    if not issues:
+        writer.writerow(
+            {
+                "run_id": run_id,
+                "ok": True,
+                "issue_count": 0,
+                "issue": "",
+                "severity": "",
+                "recommended_action": "",
+                "evidence": "",
+            }
+        )
+        return output.getvalue()
+
+    for issue in issues:
+        writer.writerow(
+            {
+                "run_id": run_id,
+                "ok": False,
+                "issue_count": details.get("issue_count", len(issues)),
+                "issue": issue.get("issue"),
+                "severity": issue.get("severity"),
+                "recommended_action": issue.get("recommended_action"),
+                "evidence": json.dumps(issue.get("evidence") or {}, ensure_ascii=False),
+            }
+        )
+    return output.getvalue()
+
+
+def render_latest_run_integrity_issues_csv(
+    history_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
+) -> dict:
+    run_id = get_latest_run_id(history_path=history_path)
+    if not run_id:
+        return {"exists": False, "run_id": None, "csv": ""}
+    return {
+        "exists": True,
+        "run_id": run_id,
+        "csv": render_run_integrity_issues_csv(
+            run_id=run_id,
+            history_path=history_path,
+            sent_path=sent_path,
+            failed_path=failed_path,
+        ),
+    }
+
+
 def list_recent_run_integrity_reports(
     limit: int = 10,
     status: str | None = None,
