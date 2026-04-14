@@ -1163,6 +1163,36 @@ def test_render_run_incident_markdown_and_latest(tmp_path):
     assert "# Run Incident — incident-md" in latest["markdown"]
 
 
+def test_render_run_incident_telegram_chunks_and_latest(tmp_path):
+    from fdd_tracker.services.alerts import (
+        append_cron_history,
+        render_latest_run_incident_telegram_chunks,
+        render_run_incident_telegram_chunks,
+    )
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history(
+        {
+            "run_id": "incident-tg",
+            "status": "executed",
+            "ran_at": "2026-04-11T10:00:00+00:00",
+            "degraded": True,
+            "events": [{"kind": "dispatch-fallback", "reason": "missing-env"}],
+        },
+        history_path=str(history),
+    )
+
+    chunks = render_run_incident_telegram_chunks(run_id="incident-tg", history_path=str(history), max_chars=200)
+    assert chunks["run_id"] == "incident-tg"
+    assert chunks["chunk_count"] >= 1
+    assert chunks["chunks_with_index"][0].startswith("[1/")
+
+    latest = render_latest_run_incident_telegram_chunks(history_path=str(history), max_chars=200)
+    assert latest["exists"] is True
+    assert latest["run_id"] == "incident-tg"
+    assert latest["chunk_count"] >= 1
+
+
 def test_render_run_integrity_issues_markdown(tmp_path):
     from fdd_tracker.services.alerts import append_cron_history, render_run_integrity_issues_markdown
 

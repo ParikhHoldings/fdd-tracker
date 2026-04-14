@@ -1665,6 +1665,95 @@ def render_latest_run_incident_markdown(
     }
 
 
+def render_run_incident_telegram_chunks(
+    run_id: str,
+    history_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
+    event_kinds: list[str] | None = None,
+    event_statuses: list[str] | None = None,
+    event_limit: int | None = None,
+    event_offset: int = 0,
+    max_chars: int = 3500,
+) -> dict:
+    max_chars = max(100, min(max_chars, 4096))
+    markdown = render_run_incident_markdown(
+        run_id=run_id,
+        history_path=history_path,
+        sent_path=sent_path,
+        failed_path=failed_path,
+        event_kinds=event_kinds,
+        event_statuses=event_statuses,
+        event_limit=event_limit,
+        event_offset=event_offset,
+    )
+
+    chunks: list[str] = []
+    current: list[str] = []
+    current_len = 0
+    for line in markdown.split("\n"):
+        if len(line) > max_chars:
+            if current:
+                chunks.append("\n".join(current))
+                current = []
+                current_len = 0
+            for i in range(0, len(line), max_chars):
+                chunks.append(line[i : i + max_chars])
+            continue
+
+        line_len = len(line) + (1 if current else 0)
+        if current and (current_len + line_len) > max_chars:
+            chunks.append("\n".join(current))
+            current = [line]
+            current_len = len(line)
+            continue
+
+        current.append(line)
+        current_len += line_len
+
+    if current:
+        chunks.append("\n".join(current))
+
+    indexed_chunks = [f"[{idx}/{len(chunks)}]\n{chunk}" for idx, chunk in enumerate(chunks, start=1)]
+    return {
+        "run_id": run_id,
+        "total_chars": len(markdown),
+        "max_chars": max_chars,
+        "chunk_count": len(chunks),
+        "chunks": chunks,
+        "chunks_with_index": indexed_chunks,
+    }
+
+
+def render_latest_run_incident_telegram_chunks(
+    history_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
+    event_kinds: list[str] | None = None,
+    event_statuses: list[str] | None = None,
+    event_limit: int | None = None,
+    event_offset: int = 0,
+    max_chars: int = 3500,
+) -> dict:
+    run_id = get_latest_run_id(history_path=history_path)
+    if not run_id:
+        return {"exists": False, "run_id": None, "chunk_count": 0, "chunks": [], "chunks_with_index": []}
+
+    payload = render_run_incident_telegram_chunks(
+        run_id=run_id,
+        history_path=history_path,
+        sent_path=sent_path,
+        failed_path=failed_path,
+        event_kinds=event_kinds,
+        event_statuses=event_statuses,
+        event_limit=event_limit,
+        event_offset=event_offset,
+        max_chars=max_chars,
+    )
+    payload["exists"] = True
+    return payload
+
+
 def list_recent_run_integrity_reports(
     limit: int = 10,
     status: str | None = None,
