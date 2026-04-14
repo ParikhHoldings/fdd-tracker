@@ -1111,6 +1111,31 @@ def test_render_run_events_csv_and_latest_csv(tmp_path):
     assert "dispatch-fallback" in latest["csv"]
 
 
+def test_build_run_incident_payload_and_latest(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, build_latest_run_incident_payload, build_run_incident_payload
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history(
+        {
+            "run_id": "incident-run",
+            "status": "executed",
+            "ran_at": "2026-04-11T09:00:00+00:00",
+            "degraded": True,
+            "events": [{"kind": "dispatch-fallback", "reason": "missing-env"}],
+        },
+        history_path=str(history),
+    )
+
+    payload = build_run_incident_payload(run_id="incident-run", history_path=str(history))
+    assert payload["run_id"] == "incident-run"
+    assert "summary" in payload and "integrity" in payload and "issues" in payload and "events" in payload
+
+    latest = build_latest_run_incident_payload(history_path=str(history))
+    assert latest["exists"] is True
+    assert latest["run_id"] == "incident-run"
+    assert latest["incident"]["run_id"] == "incident-run"
+
+
 def test_render_run_integrity_issues_markdown(tmp_path):
     from fdd_tracker.services.alerts import append_cron_history, render_run_integrity_issues_markdown
 

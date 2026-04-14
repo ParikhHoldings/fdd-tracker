@@ -116,6 +116,8 @@ curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/events?kind=dispatch-
 curl "http://localhost:8000/alerts/runs/latest/events?kind=dispatch-fallback"
 curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/events/csv?kind=dispatch-fallback"
 curl "http://localhost:8000/alerts/runs/latest/events/csv?kind=dispatch-fallback"
+curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/incident?kind=dispatch-fallback"
+curl "http://localhost:8000/alerts/runs/latest/incident?kind=dispatch-fallback"
 curl -X POST http://localhost:8000/alerts/outbox/dispatch   -H "Content-Type: application/json"   -d '{"limit":25,"dry_run":true,"provider":"noop"}'
 curl -X POST http://localhost:8000/alerts/outbox/dispatch   -H "Content-Type: application/json"   -d '{"limit":25,"dry_run":false,"provider":"resend","confirm_live":true,"idempotency_key":"run-2026-04-10-01","live_min_interval_seconds":60}'
 ```

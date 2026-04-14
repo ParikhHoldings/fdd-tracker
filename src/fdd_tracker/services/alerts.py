@@ -1506,6 +1506,75 @@ def render_latest_run_integrity_issues_csv(
     }
 
 
+def build_run_incident_payload(
+    run_id: str,
+    history_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
+    event_kinds: list[str] | None = None,
+    event_statuses: list[str] | None = None,
+    event_limit: int | None = None,
+    event_offset: int = 0,
+) -> dict:
+    return {
+        "run_id": run_id,
+        "summary": get_run_artifact_summary(
+            run_id=run_id,
+            history_path=history_path,
+            sent_path=sent_path,
+            failed_path=failed_path,
+        ),
+        "integrity": get_run_integrity_report(
+            run_id=run_id,
+            history_path=history_path,
+            sent_path=sent_path,
+            failed_path=failed_path,
+        ),
+        "issues": get_run_integrity_issue_details(
+            run_id=run_id,
+            history_path=history_path,
+            sent_path=sent_path,
+            failed_path=failed_path,
+        ),
+        "events": list_run_events(
+            run_id=run_id,
+            history_path=history_path,
+            kinds=event_kinds,
+            statuses=event_statuses,
+            limit=event_limit,
+            offset=event_offset,
+        ),
+    }
+
+
+def build_latest_run_incident_payload(
+    history_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
+    event_kinds: list[str] | None = None,
+    event_statuses: list[str] | None = None,
+    event_limit: int | None = None,
+    event_offset: int = 0,
+) -> dict:
+    run_id = get_latest_run_id(history_path=history_path)
+    if not run_id:
+        return {"exists": False, "run_id": None, "incident": None}
+    return {
+        "exists": True,
+        "run_id": run_id,
+        "incident": build_run_incident_payload(
+            run_id=run_id,
+            history_path=history_path,
+            sent_path=sent_path,
+            failed_path=failed_path,
+            event_kinds=event_kinds,
+            event_statuses=event_statuses,
+            event_limit=event_limit,
+            event_offset=event_offset,
+        ),
+    }
+
+
 def list_recent_run_integrity_reports(
     limit: int = 10,
     status: str | None = None,
