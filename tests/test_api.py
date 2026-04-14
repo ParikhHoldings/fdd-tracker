@@ -816,6 +816,52 @@ def test_alerts_latest_run_events_endpoint():
     assert isinstance(data['events'], list)
 
 
+def test_alerts_run_events_csv_endpoint():
+    run_id = f"events-csv-{uuid4().hex[:8]}"
+    client.post(
+        "/alerts/cron/tick",
+        json={
+            "max_alerts": 5,
+            "generate_mark_read": False,
+            "dispatch_limit": 5,
+            "retry_limit": 5,
+            "dispatch_dry_run": False,
+            "dispatch_provider": "unknown-provider",
+            "run_id": run_id,
+        },
+    )
+
+    r = client.get(f"/alerts/runs/{run_id}/events/csv?kind=dispatch-fallback")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["run_id"] == run_id
+    assert "csv" in data
+    assert "dispatch-fallback" in data["csv"]
+
+
+def test_alerts_latest_run_events_csv_endpoint():
+    run_id = f"latest-events-csv-{uuid4().hex[:8]}"
+    client.post(
+        "/alerts/cron/tick",
+        json={
+            "max_alerts": 5,
+            "generate_mark_read": False,
+            "dispatch_limit": 5,
+            "retry_limit": 5,
+            "dispatch_dry_run": False,
+            "dispatch_provider": "unknown-provider",
+            "run_id": run_id,
+        },
+    )
+
+    r = client.get("/alerts/runs/latest/events/csv?kind=dispatch-fallback")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["exists"] is True
+    assert data["run_id"] is not None
+    assert "csv" in data
+
+
 def test_alerts_run_integrity_issues_markdown_endpoint():
     run_id = "missing-run-md"
     r = client.get(f"/alerts/runs/{run_id}/integrity/issues/markdown")

@@ -112,6 +112,8 @@ curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/integrity/issues/mark
 curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/integrity/issues/telegram?max_chars=3500"
 curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/events?kind=dispatch-fallback&status=executed&limit=10&offset=0"
 curl "http://localhost:8000/alerts/runs/latest/events?kind=dispatch-fallback"
+curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/events/csv?kind=dispatch-fallback"
+curl "http://localhost:8000/alerts/runs/latest/events/csv?kind=dispatch-fallback"
 curl -X POST http://localhost:8000/alerts/outbox/dispatch   -H "Content-Type: application/json"   -d '{"limit":25,"dry_run":true,"provider":"noop"}'
 curl -X POST http://localhost:8000/alerts/outbox/dispatch   -H "Content-Type: application/json"   -d '{"limit":25,"dry_run":false,"provider":"resend","confirm_live":true,"idempotency_key":"run-2026-04-10-01","live_min_interval_seconds":60}'
 ```

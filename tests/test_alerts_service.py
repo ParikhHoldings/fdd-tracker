@@ -1066,6 +1066,32 @@ def test_list_latest_run_events(tmp_path):
     assert latest['events'][0]['kind'] == 'y'
 
 
+def test_render_run_events_csv_and_latest_csv(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, render_latest_run_events_csv, render_run_events_csv
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history(
+        {
+            "run_id": "csv-run",
+            "ran_at": "2026-04-11T09:00:00+00:00",
+            "status": "executed",
+            "degraded": True,
+            "events": [{"kind": "dispatch-fallback", "reason": "missing-env", "requested_provider": "resend", "effective_provider": "noop"}],
+        },
+        history_path=str(history),
+    )
+
+    csv_text = render_run_events_csv(run_id="csv-run", history_path=str(history))
+    assert "run_id,ran_at,status,degraded,index,kind" in csv_text
+    assert "csv-run" in csv_text
+    assert "dispatch-fallback" in csv_text
+
+    latest = render_latest_run_events_csv(history_path=str(history))
+    assert latest["exists"] is True
+    assert latest["run_id"] == "csv-run"
+    assert "dispatch-fallback" in latest["csv"]
+
+
 def test_render_run_integrity_issues_markdown(tmp_path):
     from fdd_tracker.services.alerts import append_cron_history, render_run_integrity_issues_markdown
 

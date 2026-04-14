@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 import os
+import csv
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib import error as urlerror
 from urllib import request as urlrequest
+from io import StringIO
 
 from fdd_tracker.services.store import get_alert_feed, get_watchlist_emails, mark_alert_read
 
@@ -975,6 +977,71 @@ def list_latest_run_events(
         offset=offset,
     )
     return {"exists": True, "run_id": run_id, "events": events}
+
+
+def render_run_events_csv(
+    run_id: str,
+    history_path: str | None = None,
+    kinds: list[str] | None = None,
+    statuses: list[str] | None = None,
+    limit: int | None = None,
+    offset: int = 0,
+) -> str:
+    events = list_run_events(
+        run_id=run_id,
+        history_path=history_path,
+        kinds=kinds,
+        statuses=statuses,
+        limit=limit,
+        offset=offset,
+    )
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=["run_id", "ran_at", "status", "degraded", "index", "kind", "reason", "requested_provider", "effective_provider", "requested_dry_run", "effective_dry_run"],
+    )
+    writer.writeheader()
+    for event in events:
+        writer.writerow(
+            {
+                "run_id": event.get("run_id"),
+                "ran_at": event.get("ran_at"),
+                "status": event.get("status"),
+                "degraded": event.get("degraded"),
+                "index": event.get("index"),
+                "kind": event.get("kind"),
+                "reason": event.get("reason"),
+                "requested_provider": event.get("requested_provider"),
+                "effective_provider": event.get("effective_provider"),
+                "requested_dry_run": event.get("requested_dry_run"),
+                "effective_dry_run": event.get("effective_dry_run"),
+            }
+        )
+    return output.getvalue()
+
+
+def render_latest_run_events_csv(
+    history_path: str | None = None,
+    kinds: list[str] | None = None,
+    statuses: list[str] | None = None,
+    limit: int | None = None,
+    offset: int = 0,
+) -> dict:
+    run_id = get_latest_run_id(history_path=history_path)
+    if not run_id:
+        return {"exists": False, "run_id": None, "csv": ""}
+    return {
+        "exists": True,
+        "run_id": run_id,
+        "csv": render_run_events_csv(
+            run_id=run_id,
+            history_path=history_path,
+            kinds=kinds,
+            statuses=statuses,
+            limit=limit,
+            offset=offset,
+        ),
+    }
 
 
 def get_latest_run_id(history_path: str | None = None) -> str | None:
