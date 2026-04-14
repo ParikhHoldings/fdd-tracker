@@ -360,9 +360,6 @@ def alerts_latest_run_integrity() -> dict:
 def alerts_latest_run_integrity_issues() -> dict:
     return get_latest_run_integrity_issue_details()
 
-
-
-
 @app.get("/alerts/runs/latest/integrity/issues/markdown")
 def alerts_latest_run_integrity_issues_markdown() -> dict:
     return render_latest_run_integrity_issues_markdown()
@@ -444,9 +441,6 @@ def alerts_run_integrity(run_id: str) -> dict:
 @app.get("/alerts/runs/{run_id}/integrity/issues")
 def alerts_run_integrity_issues(run_id: str) -> dict:
     return get_run_integrity_issue_details(run_id=run_id)
-
-
-
 
 @app.get("/alerts/runs/{run_id}/integrity/issues/markdown")
 def alerts_run_integrity_issues_markdown(run_id: str) -> dict:

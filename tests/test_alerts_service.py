@@ -815,6 +815,45 @@ def test_get_latest_run_integrity_issue_details(tmp_path):
     assert latest["details"]["run_id"] == "latest-issues"
 
 
+def test_render_run_integrity_issues_markdown_and_telegram(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, render_run_integrity_issues_markdown, render_run_integrity_issues_telegram_chunks
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history(
+        {"run_id": "issues-md", "status": "executed", "ran_at": "2026-04-11T08:00:00+00:00", "events": []},
+        history_path=str(history),
+    )
+
+    markdown = render_run_integrity_issues_markdown(run_id="issues-md", history_path=str(history))
+    assert "# Run Integrity Issues — issues-md" in markdown
+    assert "Issue count" in markdown
+
+    chunks = render_run_integrity_issues_telegram_chunks(run_id="issues-md", history_path=str(history), max_chars=120)
+    assert chunks["chunk_count"] >= 1
+    assert all(len(chunk) <= 120 for chunk in chunks["chunks"])
+    assert chunks["chunks_with_index"][0].startswith("[1/")
+
+
+def test_render_latest_run_integrity_issue_formats(tmp_path):
+    from fdd_tracker.services.alerts import append_cron_history, render_latest_run_integrity_issues_markdown, render_latest_run_integrity_issues_telegram_chunks
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history(
+        {"run_id": "issues-latest", "status": "executed", "ran_at": "2026-04-11T08:00:00+00:00", "events": []},
+        history_path=str(history),
+    )
+
+    markdown = render_latest_run_integrity_issues_markdown(history_path=str(history))
+    assert markdown["exists"] is True
+    assert markdown["run_id"] == "issues-latest"
+    assert "# Run Integrity Issues — issues-latest" in markdown["markdown"]
+
+    chunks = render_latest_run_integrity_issues_telegram_chunks(history_path=str(history), max_chars=120)
+    assert chunks["exists"] is True
+    assert chunks["run_id"] == "issues-latest"
+    assert chunks["chunk_count"] >= 1
+
+
 def test_list_recent_run_integrity_reports_with_status_filter(tmp_path):
     from fdd_tracker.services.alerts import append_cron_history, list_recent_run_integrity_reports
 

@@ -816,37 +816,52 @@ def test_alerts_latest_run_events_endpoint():
     assert isinstance(data['events'], list)
 
 
-def test_alerts_latest_run_integrity_issues_markdown_endpoint():
-    r = client.get("/alerts/runs/latest/integrity/issues/markdown")
-    assert r.status_code == 200
-    data = r.json()
-    assert "exists" in data
-    assert "run_id" in data
-
-
 def test_alerts_run_integrity_issues_markdown_endpoint():
-    run_id = "does-not-exist"
+    run_id = "missing-run-md"
     r = client.get(f"/alerts/runs/{run_id}/integrity/issues/markdown")
     assert r.status_code == 200
     data = r.json()
     assert data["run_id"] == run_id
     assert "markdown" in data
-    assert "Run Integrity Issues" in data["markdown"]
-
-
-def test_alerts_latest_run_integrity_issues_telegram_endpoint():
-    r = client.get("/alerts/runs/latest/integrity/issues/telegram?max_chars=120")
-    assert r.status_code == 200
-    data = r.json()
-    assert "chunk_count" in data
-    assert "chunks" in data
-    assert all(len(chunk) <= 120 for chunk in data.get("chunks", []))
+    assert f"# Run Integrity Issues — {run_id}" in data["markdown"]
 
 
 def test_alerts_run_integrity_issues_telegram_endpoint():
-    r = client.get("/alerts/runs/does-not-exist/integrity/issues/telegram?max_chars=120")
+    run_id = "missing-run-tg"
+    r = client.get(f"/alerts/runs/{run_id}/integrity/issues/telegram?max_chars=120")
     assert r.status_code == 200
     data = r.json()
-    assert data["run_id"] == "does-not-exist"
-    assert "chunks" in data
+    assert data["run_id"] == run_id
     assert data["chunk_count"] >= 1
+    assert all(len(chunk) <= 120 for chunk in data["chunks"])
+    assert data["chunks_with_index"][0].startswith("[1/")
+
+
+def test_alerts_latest_run_integrity_issues_markdown_and_telegram_endpoints():
+    run_id = f"latest-issues-{uuid4().hex[:8]}"
+    client.post(
+        "/alerts/cron/tick",
+        json={
+            "max_alerts": 5,
+            "generate_mark_read": False,
+            "dispatch_limit": 5,
+            "retry_limit": 5,
+            "dispatch_dry_run": True,
+            "dispatch_provider": "noop",
+            "run_id": run_id,
+        },
+    )
+
+    md = client.get("/alerts/runs/latest/integrity/issues/markdown")
+    assert md.status_code == 200
+    md_data = md.json()
+    assert md_data["exists"] is True
+    assert md_data["run_id"] is not None
+    assert "markdown" in md_data
+
+    tg = client.get("/alerts/runs/latest/integrity/issues/telegram?max_chars=120")
+    assert tg.status_code == 200
+    tg_data = tg.json()
+    assert tg_data["exists"] is True
+    assert tg_data["run_id"] is not None
+    assert tg_data["chunk_count"] >= 1
