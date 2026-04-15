@@ -386,10 +386,12 @@ def test_alerts_digest_preview_all_summary_endpoint():
     client.post("/watchlists", json={"email": email_b, "franchise_slug": "orangetheory"})
     seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
 
-    r = client.get("/alerts/digest/preview/all/summary?max_alerts=10")
+    r = client.get("/alerts/digest/preview/all/summary?max_alerts=10&top_n=1")
     assert r.status_code == 200
     data = r.json()
     assert data["emails_scanned"] >= 2
+    assert data["top_n"] == 1
+    assert len(data["top_unread_emails"]) <= 1
     assert "unread_alert_total" in data
     assert "top_unread_emails" in data and isinstance(data["top_unread_emails"], list)
 
@@ -399,14 +401,16 @@ def test_alerts_digest_preview_all_summary_markdown_and_telegram_endpoints():
     client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
     seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
 
-    md = client.get("/alerts/digest/preview/all/summary/markdown?max_alerts=10")
+    md = client.get("/alerts/digest/preview/all/summary/markdown?max_alerts=10&top_n=1")
     assert md.status_code == 200
     assert "markdown" in md.json()
     assert "Digest Preview All-Email Summary" in md.json()["markdown"]
+    assert "Top Unread Emails (1)" in md.json()["markdown"]
 
-    tg = client.get("/alerts/digest/preview/all/summary/telegram?max_alerts=10&max_chars=200")
+    tg = client.get("/alerts/digest/preview/all/summary/telegram?max_alerts=10&top_n=1&max_chars=200")
     assert tg.status_code == 200
     tgd = tg.json()
+    assert tgd["top_n"] == 1
     assert tgd["chunk_count"] >= 1
     assert tgd["chunks_with_index"][0].startswith("[1/")
 
@@ -416,15 +420,16 @@ def test_alerts_digest_preview_all_summary_csv_and_packet_endpoints():
     client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
     seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
 
-    csv_r = client.get("/alerts/digest/preview/all/summary/csv?max_alerts=10")
+    csv_r = client.get("/alerts/digest/preview/all/summary/csv?max_alerts=10&top_n=1")
     assert csv_r.status_code == 200
     assert "csv" in csv_r.json()
-    assert "emails_scanned,returned,unread_only" in csv_r.json()["csv"]
+    assert "top_n" in csv_r.json()["csv"]
 
-    packet_r = client.get("/alerts/digest/preview/all/summary/packet?max_alerts=10&max_chars=200")
+    packet_r = client.get("/alerts/digest/preview/all/summary/packet?max_alerts=10&top_n=1&max_chars=200")
     assert packet_r.status_code == 200
     pkt = packet_r.json()
     assert "summary" in pkt
+    assert pkt["summary"]["top_n"] == 1
     assert "markdown" in pkt
     assert "csv" in pkt
     assert "telegram" in pkt

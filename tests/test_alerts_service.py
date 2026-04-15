@@ -91,18 +91,26 @@ def test_build_digest_previews_for_all_emails(tmp_path):
     assert summary["unread_alert_total"] >= 1
     assert isinstance(summary["top_unread_emails"], list)
 
-    markdown = render_digest_preview_all_summary_markdown(max_alerts=10, unread_only=False, db_path=db)
-    assert "# Digest Preview All-Email Summary" in markdown
+    summary_top1 = summarize_digest_previews_for_all_emails(max_alerts=10, unread_only=False, top_n=1, db_path=db)
+    assert summary_top1["top_n"] == 1
+    assert len(summary_top1["top_unread_emails"]) <= 1
 
-    telegram = render_digest_preview_all_summary_telegram_chunks(max_alerts=10, unread_only=False, db_path=db, max_chars=200)
+    markdown = render_digest_preview_all_summary_markdown(max_alerts=10, unread_only=False, top_n=1, db_path=db)
+    assert "# Digest Preview All-Email Summary" in markdown
+    assert "Top Unread Emails (1)" in markdown
+
+    telegram = render_digest_preview_all_summary_telegram_chunks(max_alerts=10, unread_only=False, top_n=1, db_path=db, max_chars=200)
     assert telegram["chunk_count"] >= 1
+    assert telegram["top_n"] == 1
     assert telegram["chunks_with_index"][0].startswith("[1/")
 
-    csv_text = render_digest_preview_all_summary_csv(max_alerts=10, unread_only=False, db_path=db)
-    assert "emails_scanned,returned,unread_only" in csv_text
+    csv_text = render_digest_preview_all_summary_csv(max_alerts=10, unread_only=False, top_n=1, db_path=db)
+    assert "emails_scanned,returned,unread_only,emails_with_unread" in csv_text
+    assert "top_n" in csv_text
 
-    packet = build_digest_preview_all_summary_packet(max_alerts=10, unread_only=False, db_path=db, max_chars=200)
+    packet = build_digest_preview_all_summary_packet(max_alerts=10, unread_only=False, top_n=1, db_path=db, max_chars=200)
     assert "summary" in packet
+    assert packet["summary"]["top_n"] == 1
     assert "markdown" in packet
     assert "csv" in packet
     assert "telegram" in packet and packet["telegram"]["chunk_count"] >= 1

@@ -330,17 +330,19 @@ def alerts_digest_preview_all_packet(
 def alerts_digest_preview_all_summary(
     max_alerts: int = Query(default=25, ge=1, le=200),
     unread_only: bool = Query(default=False),
+    top_n: int = Query(default=10, ge=1, le=100),
 ) -> dict:
-    return summarize_digest_previews_for_all_emails(max_alerts=max_alerts, unread_only=unread_only)
+    return summarize_digest_previews_for_all_emails(max_alerts=max_alerts, unread_only=unread_only, top_n=top_n)
 
 
 @app.get("/alerts/digest/preview/all/summary/markdown")
 def alerts_digest_preview_all_summary_markdown(
     max_alerts: int = Query(default=25, ge=1, le=200),
     unread_only: bool = Query(default=False),
+    top_n: int = Query(default=10, ge=1, le=100),
 ) -> dict:
     return {
-        "markdown": render_digest_preview_all_summary_markdown(max_alerts=max_alerts, unread_only=unread_only),
+        "markdown": render_digest_preview_all_summary_markdown(max_alerts=max_alerts, unread_only=unread_only, top_n=top_n),
     }
 
 
@@ -348,11 +350,13 @@ def alerts_digest_preview_all_summary_markdown(
 def alerts_digest_preview_all_summary_telegram(
     max_alerts: int = Query(default=25, ge=1, le=200),
     unread_only: bool = Query(default=False),
+    top_n: int = Query(default=10, ge=1, le=100),
     max_chars: int = Query(default=3500, ge=100, le=4096),
 ) -> dict:
     return render_digest_preview_all_summary_telegram_chunks(
         max_alerts=max_alerts,
         unread_only=unread_only,
+        top_n=top_n,
         max_chars=max_chars,
     )
 
@@ -361,9 +365,10 @@ def alerts_digest_preview_all_summary_telegram(
 def alerts_digest_preview_all_summary_csv(
     max_alerts: int = Query(default=25, ge=1, le=200),
     unread_only: bool = Query(default=False),
+    top_n: int = Query(default=10, ge=1, le=100),
 ) -> dict:
     return {
-        "csv": render_digest_preview_all_summary_csv(max_alerts=max_alerts, unread_only=unread_only),
+        "csv": render_digest_preview_all_summary_csv(max_alerts=max_alerts, unread_only=unread_only, top_n=top_n),
     }
 
 
@@ -371,11 +376,13 @@ def alerts_digest_preview_all_summary_csv(
 def alerts_digest_preview_all_summary_packet(
     max_alerts: int = Query(default=25, ge=1, le=200),
     unread_only: bool = Query(default=False),
+    top_n: int = Query(default=10, ge=1, le=100),
     max_chars: int = Query(default=3500, ge=100, le=4096),
 ) -> dict:
     return build_digest_preview_all_summary_packet(
         max_alerts=max_alerts,
         unread_only=unread_only,
+        top_n=top_n,
         max_chars=max_chars,
     )
 

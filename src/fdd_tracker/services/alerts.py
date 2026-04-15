@@ -411,6 +411,7 @@ def build_digest_previews_all_packet(
 def summarize_digest_previews_for_all_emails(
     max_alerts: int = 25,
     unread_only: bool = False,
+    top_n: int = 10,
     db_path: str | None = None,
 ) -> dict:
     payload = build_digest_previews_for_all_emails(max_alerts=max_alerts, unread_only=unread_only, db_path=db_path)
@@ -418,6 +419,7 @@ def summarize_digest_previews_for_all_emails(
 
     unread_total = int(sum(int(item.get("unread_count") or 0) for item in previews))
     emails_with_unread = int(sum(1 for item in previews if item.get("has_unread")))
+    top_n = max(1, min(top_n, 100))
     top_unread = sorted(
         (
             {
@@ -427,7 +429,7 @@ def summarize_digest_previews_for_all_emails(
             for item in previews
         ),
         key=lambda row: (-row["unread_count"], row["email"] or ""),
-    )[:10]
+    )[:top_n]
 
     return {
         "emails_scanned": payload.get("emails_scanned", 0),
@@ -436,6 +438,7 @@ def summarize_digest_previews_for_all_emails(
         "emails_with_unread": emails_with_unread,
         "emails_without_unread": max(0, int(payload.get("returned", 0)) - emails_with_unread),
         "unread_alert_total": unread_total,
+        "top_n": top_n,
         "top_unread_emails": top_unread,
     }
 
@@ -443,11 +446,13 @@ def summarize_digest_previews_for_all_emails(
 def render_digest_preview_all_summary_markdown(
     max_alerts: int = 25,
     unread_only: bool = False,
+    top_n: int = 10,
     db_path: str | None = None,
 ) -> str:
     summary = summarize_digest_previews_for_all_emails(
         max_alerts=max_alerts,
         unread_only=unread_only,
+        top_n=top_n,
         db_path=db_path,
     )
     lines = [
@@ -460,7 +465,7 @@ def render_digest_preview_all_summary_markdown(
         f"- Emails without unread: {summary.get('emails_without_unread', 0)}",
         f"- Total unread alerts: {summary.get('unread_alert_total', 0)}",
         "",
-        "## Top Unread Emails",
+        f"## Top Unread Emails ({summary.get('top_n', top_n)})",
     ]
     top = summary.get("top_unread_emails") or []
     if top:
@@ -474,12 +479,14 @@ def render_digest_preview_all_summary_markdown(
 def render_digest_preview_all_summary_telegram_chunks(
     max_alerts: int = 25,
     unread_only: bool = False,
+    top_n: int = 10,
     db_path: str | None = None,
     max_chars: int = 3500,
 ) -> dict:
     markdown = render_digest_preview_all_summary_markdown(
         max_alerts=max_alerts,
         unread_only=unread_only,
+        top_n=top_n,
         db_path=db_path,
     )
     max_chars = max(100, min(max_chars, 4096))
@@ -512,6 +519,7 @@ def render_digest_preview_all_summary_telegram_chunks(
     return {
         "max_alerts": max_alerts,
         "unread_only": unread_only,
+        "top_n": top_n,
         "total_chars": len(markdown),
         "max_chars": max_chars,
         "chunk_count": len(chunks),
@@ -523,11 +531,13 @@ def render_digest_preview_all_summary_telegram_chunks(
 def render_digest_preview_all_summary_csv(
     max_alerts: int = 25,
     unread_only: bool = False,
+    top_n: int = 10,
     db_path: str | None = None,
 ) -> str:
     summary = summarize_digest_previews_for_all_emails(
         max_alerts=max_alerts,
         unread_only=unread_only,
+        top_n=top_n,
         db_path=db_path,
     )
     output = StringIO()
@@ -538,6 +548,7 @@ def render_digest_preview_all_summary_csv(
         "emails_with_unread",
         "emails_without_unread",
         "unread_alert_total",
+        "top_n",
         "top_unread_email",
         "top_unread_count",
     ]
@@ -554,6 +565,7 @@ def render_digest_preview_all_summary_csv(
                 "emails_with_unread": summary.get("emails_with_unread", 0),
                 "emails_without_unread": summary.get("emails_without_unread", 0),
                 "unread_alert_total": summary.get("unread_alert_total", 0),
+                "top_n": summary.get("top_n", top_n),
             }
         )
         return output.getvalue()
@@ -567,6 +579,7 @@ def render_digest_preview_all_summary_csv(
                 "emails_with_unread": summary.get("emails_with_unread", 0),
                 "emails_without_unread": summary.get("emails_without_unread", 0),
                 "unread_alert_total": summary.get("unread_alert_total", 0),
+                "top_n": summary.get("top_n", top_n),
                 "top_unread_email": item.get("email"),
                 "top_unread_count": item.get("unread_count", 0),
             }
@@ -577,6 +590,7 @@ def render_digest_preview_all_summary_csv(
 def build_digest_preview_all_summary_packet(
     max_alerts: int = 25,
     unread_only: bool = False,
+    top_n: int = 10,
     db_path: str | None = None,
     max_chars: int = 3500,
 ) -> dict:
@@ -584,21 +598,25 @@ def build_digest_preview_all_summary_packet(
         "summary": summarize_digest_previews_for_all_emails(
             max_alerts=max_alerts,
             unread_only=unread_only,
+            top_n=top_n,
             db_path=db_path,
         ),
         "markdown": render_digest_preview_all_summary_markdown(
             max_alerts=max_alerts,
             unread_only=unread_only,
+            top_n=top_n,
             db_path=db_path,
         ),
         "csv": render_digest_preview_all_summary_csv(
             max_alerts=max_alerts,
             unread_only=unread_only,
+            top_n=top_n,
             db_path=db_path,
         ),
         "telegram": render_digest_preview_all_summary_telegram_chunks(
             max_alerts=max_alerts,
             unread_only=unread_only,
+            top_n=top_n,
             db_path=db_path,
             max_chars=max_chars,
         ),
