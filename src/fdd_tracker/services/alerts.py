@@ -368,6 +368,91 @@ def render_digest_preview_all_summary_telegram_chunks(
     }
 
 
+def render_digest_preview_all_summary_csv(
+    max_alerts: int = 25,
+    unread_only: bool = False,
+    db_path: str | None = None,
+) -> str:
+    summary = summarize_digest_previews_for_all_emails(
+        max_alerts=max_alerts,
+        unread_only=unread_only,
+        db_path=db_path,
+    )
+    output = StringIO()
+    fieldnames = [
+        "emails_scanned",
+        "returned",
+        "unread_only",
+        "emails_with_unread",
+        "emails_without_unread",
+        "unread_alert_total",
+        "top_unread_email",
+        "top_unread_count",
+    ]
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+
+    top = summary.get("top_unread_emails") or []
+    if not top:
+        writer.writerow(
+            {
+                "emails_scanned": summary.get("emails_scanned", 0),
+                "returned": summary.get("returned", 0),
+                "unread_only": summary.get("unread_only", False),
+                "emails_with_unread": summary.get("emails_with_unread", 0),
+                "emails_without_unread": summary.get("emails_without_unread", 0),
+                "unread_alert_total": summary.get("unread_alert_total", 0),
+            }
+        )
+        return output.getvalue()
+
+    for item in top:
+        writer.writerow(
+            {
+                "emails_scanned": summary.get("emails_scanned", 0),
+                "returned": summary.get("returned", 0),
+                "unread_only": summary.get("unread_only", False),
+                "emails_with_unread": summary.get("emails_with_unread", 0),
+                "emails_without_unread": summary.get("emails_without_unread", 0),
+                "unread_alert_total": summary.get("unread_alert_total", 0),
+                "top_unread_email": item.get("email"),
+                "top_unread_count": item.get("unread_count", 0),
+            }
+        )
+    return output.getvalue()
+
+
+def build_digest_preview_all_summary_packet(
+    max_alerts: int = 25,
+    unread_only: bool = False,
+    db_path: str | None = None,
+    max_chars: int = 3500,
+) -> dict:
+    return {
+        "summary": summarize_digest_previews_for_all_emails(
+            max_alerts=max_alerts,
+            unread_only=unread_only,
+            db_path=db_path,
+        ),
+        "markdown": render_digest_preview_all_summary_markdown(
+            max_alerts=max_alerts,
+            unread_only=unread_only,
+            db_path=db_path,
+        ),
+        "csv": render_digest_preview_all_summary_csv(
+            max_alerts=max_alerts,
+            unread_only=unread_only,
+            db_path=db_path,
+        ),
+        "telegram": render_digest_preview_all_summary_telegram_chunks(
+            max_alerts=max_alerts,
+            unread_only=unread_only,
+            db_path=db_path,
+            max_chars=max_chars,
+        ),
+    }
+
+
 def write_digest_outbox(payload: DigestPayload, outbox_path: str | None = None, run_id: str | None = None) -> str:
     path = Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl")
     path.parent.mkdir(parents=True, exist_ok=True)

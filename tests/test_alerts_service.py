@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_packet, build_digest_previews_for_all_emails, dispatch_outbox, list_cron_history, list_outbox, prune_alert_artifacts, render_digest_preview_all_summary_markdown, render_digest_preview_all_summary_telegram_chunks, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, summarize_digest_previews_for_all_emails
+from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_all_summary_packet, build_digest_preview_packet, build_digest_previews_for_all_emails, dispatch_outbox, list_cron_history, list_outbox, prune_alert_artifacts, render_digest_preview_all_summary_csv, render_digest_preview_all_summary_markdown, render_digest_preview_all_summary_telegram_chunks, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, summarize_digest_previews_for_all_emails
 from fdd_tracker.services.store import get_alert_feed, seed_change_summary, upsert_watchlist
 
 
@@ -97,6 +97,15 @@ def test_build_digest_previews_for_all_emails(tmp_path):
     telegram = render_digest_preview_all_summary_telegram_chunks(max_alerts=10, unread_only=False, db_path=db, max_chars=200)
     assert telegram["chunk_count"] >= 1
     assert telegram["chunks_with_index"][0].startswith("[1/")
+
+    csv_text = render_digest_preview_all_summary_csv(max_alerts=10, unread_only=False, db_path=db)
+    assert "emails_scanned,returned,unread_only" in csv_text
+
+    packet = build_digest_preview_all_summary_packet(max_alerts=10, unread_only=False, db_path=db, max_chars=200)
+    assert "summary" in packet
+    assert "markdown" in packet
+    assert "csv" in packet
+    assert "telegram" in packet and packet["telegram"]["chunk_count"] >= 1
 
 
 

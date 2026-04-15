@@ -380,6 +380,26 @@ def test_alerts_digest_preview_all_summary_markdown_and_telegram_endpoints():
     assert tgd["chunks_with_index"][0].startswith("[1/")
 
 
+def test_alerts_digest_preview_all_summary_csv_and_packet_endpoints():
+    email = f"digestpreview-allsum-packet-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+
+    csv_r = client.get("/alerts/digest/preview/all/summary/csv?max_alerts=10")
+    assert csv_r.status_code == 200
+    assert "csv" in csv_r.json()
+    assert "emails_scanned,returned,unread_only" in csv_r.json()["csv"]
+
+    packet_r = client.get("/alerts/digest/preview/all/summary/packet?max_alerts=10&max_chars=200")
+    assert packet_r.status_code == 200
+    pkt = packet_r.json()
+    assert "summary" in pkt
+    assert "markdown" in pkt
+    assert "csv" in pkt
+    assert "telegram" in pkt
+    assert pkt["telegram"]["chunk_count"] >= 1
+
+
 
 def test_alerts_outbox_endpoints():
     email = f"outbox-{uuid4().hex[:8]}@example.com"
