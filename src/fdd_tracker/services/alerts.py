@@ -80,6 +80,31 @@ def build_digest_payload(email: str, max_alerts: int = 25, db_path: str | None =
     )
 
 
+def build_digest_preview(email: str, max_alerts: int = 25, db_path: str | None = None) -> dict:
+    """Build a deterministic digest preview payload without mutating outbox/read state."""
+    payload = build_digest_payload(email=email, max_alerts=max_alerts, db_path=db_path)
+    if payload is None:
+        return {
+            "email": email,
+            "has_unread": False,
+            "unread_count": 0,
+            "subject": None,
+            "body": None,
+            "alerts": [],
+        }
+
+    alerts = get_alert_feed(email=email, limit=max_alerts, unread_only=True, db_path=db_path)
+    return {
+        "email": email,
+        "has_unread": True,
+        "unread_count": payload.unread_count,
+        "subject": payload.subject,
+        "body": payload.body,
+        "generated_at": payload.generated_at,
+        "alerts": alerts,
+    }
+
+
 def write_digest_outbox(payload: DigestPayload, outbox_path: str | None = None, run_id: str | None = None) -> str:
     path = Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl")
     path.parent.mkdir(parents=True, exist_ok=True)

@@ -245,6 +245,35 @@ def test_alerts_digest_run_for_all_watchlist_emails():
     assert isinstance(data["results"], list)
 
 
+def test_alerts_digest_preview_endpoint_with_unread_alerts():
+    email = f"digestpreview-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+
+    r = client.get(f"/alerts/digest/preview?email={email}&max_alerts=10")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["email"] == email
+    assert data["has_unread"] is True
+    assert data["unread_count"] >= 1
+    assert "FDD Tracker:" in data["subject"]
+    assert isinstance(data["alerts"], list)
+    assert len(data["alerts"]) >= 1
+
+
+def test_alerts_digest_preview_endpoint_when_empty():
+    email = f"digestpreview-empty-{uuid4().hex[:8]}@example.com"
+    r = client.get(f"/alerts/digest/preview?email={email}&max_alerts=10")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["email"] == email
+    assert data["has_unread"] is False
+    assert data["unread_count"] == 0
+    assert data["subject"] is None
+    assert data["body"] is None
+    assert data["alerts"] == []
+
+
 
 def test_alerts_outbox_endpoints():
     email = f"outbox-{uuid4().hex[:8]}@example.com"

@@ -138,6 +138,9 @@ curl -X POST http://localhost:8000/alerts/digest/run \
   -H "Content-Type: application/json" \
   -d '{"email":"you@example.com","max_alerts":25,"mark_read":false,"run_id":"nightly-2026-04-08"}'
 
+# Preview digest payload (no side effects)
+curl "http://localhost:8000/alerts/digest/preview?email=you@example.com&max_alerts=25"
+
 # All watchlist emails
 curl -X POST http://localhost:8000/alerts/digest/run \
   -H "Content-Type: application/json" \
