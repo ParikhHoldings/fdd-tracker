@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from fdd_tracker.services.alerts import build_digest_preview, dispatch_outbox, list_cron_history, list_outbox, prune_alert_artifacts, render_digest_preview_markdown, render_digest_preview_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
+from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_packet, dispatch_outbox, list_cron_history, list_outbox, prune_alert_artifacts, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
 from fdd_tracker.services.store import get_alert_feed, seed_change_summary, upsert_watchlist
 
 
@@ -58,6 +58,17 @@ def test_digest_preview_renderers(tmp_path):
     tg = render_digest_preview_telegram_chunks("preview@example.com", max_alerts=10, db_path=db, max_chars=200)
     assert tg["chunk_count"] >= 1
     assert tg["chunks_with_index"][0].startswith("[1/")
+
+    csv_text = render_digest_preview_csv("preview@example.com", max_alerts=10, db_path=db)
+    assert "email,has_unread,unread_count" in csv_text
+    assert "preview@example.com" in csv_text
+
+    packet = build_digest_preview_packet("preview@example.com", max_alerts=10, db_path=db, max_chars=200)
+    assert packet["email"] == "preview@example.com"
+    assert "preview" in packet
+    assert "markdown" in packet
+    assert "csv" in packet
+    assert "telegram" in packet and packet["telegram"]["chunk_count"] >= 1
 
 
 

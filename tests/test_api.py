@@ -300,6 +300,34 @@ def test_alerts_digest_preview_telegram_endpoint():
     assert data["chunks_with_index"][0].startswith("[1/")
 
 
+def test_alerts_digest_preview_csv_endpoint():
+    email = f"digestpreview-csv-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+
+    r = client.get(f"/alerts/digest/preview/csv?email={email}&max_alerts=10")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["email"] == email
+    assert "csv" in data
+    assert "email,has_unread,unread_count" in data["csv"]
+
+
+def test_alerts_digest_preview_packet_endpoint():
+    email = f"digestpreview-packet-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+
+    r = client.get(f"/alerts/digest/preview/packet?email={email}&max_alerts=10&max_chars=200")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["email"] == email
+    assert "preview" in data
+    assert "markdown" in data
+    assert "csv" in data
+    assert "telegram" in data and data["telegram"]["chunk_count"] >= 1
+
+
 
 def test_alerts_outbox_endpoints():
     email = f"outbox-{uuid4().hex[:8]}@example.com"

@@ -169,6 +169,76 @@ def render_digest_preview_telegram_chunks(
     }
 
 
+def render_digest_preview_csv(email: str, max_alerts: int = 25, db_path: str | None = None) -> str:
+    preview = build_digest_preview(email=email, max_alerts=max_alerts, db_path=db_path)
+    alerts = preview.get("alerts") or []
+
+    output = StringIO()
+    fieldnames = [
+        "email",
+        "has_unread",
+        "unread_count",
+        "subject",
+        "generated_at",
+        "franchise_slug",
+        "risk_level",
+        "generated_alert_at",
+        "highlights",
+        "categories",
+    ]
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+
+    if not alerts:
+        writer.writerow(
+            {
+                "email": email,
+                "has_unread": preview.get("has_unread", False),
+                "unread_count": preview.get("unread_count", 0),
+                "subject": preview.get("subject"),
+                "generated_at": preview.get("generated_at"),
+            }
+        )
+        return output.getvalue()
+
+    for alert in alerts:
+        writer.writerow(
+            {
+                "email": email,
+                "has_unread": preview.get("has_unread", False),
+                "unread_count": preview.get("unread_count", 0),
+                "subject": preview.get("subject"),
+                "generated_at": preview.get("generated_at"),
+                "franchise_slug": alert.get("franchise_slug"),
+                "risk_level": alert.get("risk_level"),
+                "generated_alert_at": alert.get("generated_at"),
+                "highlights": "; ".join(alert.get("highlights") or []),
+                "categories": ", ".join(alert.get("categories") or []),
+            }
+        )
+    return output.getvalue()
+
+
+def build_digest_preview_packet(
+    email: str,
+    max_alerts: int = 25,
+    db_path: str | None = None,
+    max_chars: int = 3500,
+) -> dict:
+    return {
+        "email": email,
+        "preview": build_digest_preview(email=email, max_alerts=max_alerts, db_path=db_path),
+        "markdown": render_digest_preview_markdown(email=email, max_alerts=max_alerts, db_path=db_path),
+        "csv": render_digest_preview_csv(email=email, max_alerts=max_alerts, db_path=db_path),
+        "telegram": render_digest_preview_telegram_chunks(
+            email=email,
+            max_alerts=max_alerts,
+            db_path=db_path,
+            max_chars=max_chars,
+        ),
+    }
+
+
 def write_digest_outbox(payload: DigestPayload, outbox_path: str | None = None, run_id: str | None = None) -> str:
     path = Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl")
     path.parent.mkdir(parents=True, exist_ok=True)
