@@ -105,6 +105,70 @@ def build_digest_preview(email: str, max_alerts: int = 25, db_path: str | None =
     }
 
 
+def render_digest_preview_markdown(email: str, max_alerts: int = 25, db_path: str | None = None) -> str:
+    preview = build_digest_preview(email=email, max_alerts=max_alerts, db_path=db_path)
+    lines = [
+        f"# Digest Preview — {email}",
+        "",
+        f"- Has unread: {preview.get('has_unread', False)}",
+        f"- Unread count: {preview.get('unread_count', 0)}",
+    ]
+
+    if preview.get("subject"):
+        lines.append(f"- Subject: {preview.get('subject')}")
+    if preview.get("generated_at"):
+        lines.append(f"- Generated at: {preview.get('generated_at')}")
+
+    lines.extend(["", "## Body", preview.get("body") or "(no unread alerts)"])
+    return "\n".join(lines)
+
+
+def render_digest_preview_telegram_chunks(
+    email: str,
+    max_alerts: int = 25,
+    db_path: str | None = None,
+    max_chars: int = 3500,
+) -> dict:
+    markdown = render_digest_preview_markdown(email=email, max_alerts=max_alerts, db_path=db_path)
+    max_chars = max(100, min(max_chars, 4096))
+
+    chunks: list[str] = []
+    current: list[str] = []
+    current_len = 0
+    for line in markdown.split("\n"):
+        if len(line) > max_chars:
+            if current:
+                chunks.append("\n".join(current))
+                current = []
+                current_len = 0
+            for i in range(0, len(line), max_chars):
+                chunks.append(line[i : i + max_chars])
+            continue
+
+        line_len = len(line) + (1 if current else 0)
+        if current and (current_len + line_len) > max_chars:
+            chunks.append("\n".join(current))
+            current = [line]
+            current_len = len(line)
+            continue
+
+        current.append(line)
+        current_len += line_len
+
+    if current:
+        chunks.append("\n".join(current))
+
+    indexed_chunks = [f"[{idx}/{len(chunks)}]\n{chunk}" for idx, chunk in enumerate(chunks, start=1)]
+    return {
+        "email": email,
+        "total_chars": len(markdown),
+        "max_chars": max_chars,
+        "chunk_count": len(chunks),
+        "chunks": chunks,
+        "chunks_with_index": indexed_chunks,
+    }
+
+
 def write_digest_outbox(payload: DigestPayload, outbox_path: str | None = None, run_id: str | None = None) -> str:
     path = Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl")
     path.parent.mkdir(parents=True, exist_ok=True)

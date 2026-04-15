@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from fdd_tracker.services.alerts import dispatch_outbox, list_cron_history, list_outbox, prune_alert_artifacts, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
+from fdd_tracker.services.alerts import build_digest_preview, dispatch_outbox, list_cron_history, list_outbox, prune_alert_artifacts, render_digest_preview_markdown, render_digest_preview_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
 from fdd_tracker.services.store import get_alert_feed, seed_change_summary, upsert_watchlist
 
 
@@ -41,6 +41,23 @@ def test_run_digest_for_all_emails(tmp_path):
     assert result["emails_scanned"] == 2
     assert result["digests_sent"] == 2
     assert len(result["results"]) == 2
+
+
+def test_digest_preview_renderers(tmp_path):
+    db = str(tmp_path / "test.db")
+    upsert_watchlist("preview@example.com", "chick-fil-a", db_path=db)
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high", db_path=db)
+
+    preview = build_digest_preview("preview@example.com", max_alerts=10, db_path=db)
+    assert preview["has_unread"] is True
+
+    markdown = render_digest_preview_markdown("preview@example.com", max_alerts=10, db_path=db)
+    assert "# Digest Preview" in markdown
+    assert "Unread count" in markdown
+
+    tg = render_digest_preview_telegram_chunks("preview@example.com", max_alerts=10, db_path=db, max_chars=200)
+    assert tg["chunk_count"] >= 1
+    assert tg["chunks_with_index"][0].startswith("[1/")
 
 
 

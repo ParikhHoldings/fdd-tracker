@@ -274,6 +274,32 @@ def test_alerts_digest_preview_endpoint_when_empty():
     assert data["alerts"] == []
 
 
+def test_alerts_digest_preview_markdown_endpoint():
+    email = f"digestpreview-md-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+
+    r = client.get(f"/alerts/digest/preview/markdown?email={email}&max_alerts=10")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["email"] == email
+    assert "markdown" in data
+    assert "# Digest Preview" in data["markdown"]
+
+
+def test_alerts_digest_preview_telegram_endpoint():
+    email = f"digestpreview-tg-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+
+    r = client.get(f"/alerts/digest/preview/telegram?email={email}&max_alerts=10&max_chars=200")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["email"] == email
+    assert data["chunk_count"] >= 1
+    assert data["chunks_with_index"][0].startswith("[1/")
+
+
 
 def test_alerts_outbox_endpoints():
     email = f"outbox-{uuid4().hex[:8]}@example.com"
