@@ -146,6 +146,7 @@ curl "http://localhost:8000/alerts/digest/preview/csv?email=you@example.com&max_
 curl "http://localhost:8000/alerts/digest/preview/packet?email=you@example.com&max_alerts=25&max_chars=2500"
 curl "http://localhost:8000/alerts/digest/preview/all?max_alerts=25"
 curl "http://localhost:8000/alerts/digest/preview/all?max_alerts=25&unread_only=true"
+curl "http://localhost:8000/alerts/digest/preview/all/summary?max_alerts=25"
 
 # All watchlist emails
 curl -X POST http://localhost:8000/alerts/digest/run \

@@ -348,6 +348,21 @@ def test_alerts_digest_preview_all_endpoint():
     assert data2["unread_only"] is True
 
 
+def test_alerts_digest_preview_all_summary_endpoint():
+    email_a = f"digestpreview-allsum-a-{uuid4().hex[:8]}@example.com"
+    email_b = f"digestpreview-allsum-b-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email_a, "franchise_slug": "chick-fil-a"})
+    client.post("/watchlists", json={"email": email_b, "franchise_slug": "orangetheory"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+
+    r = client.get("/alerts/digest/preview/all/summary?max_alerts=10")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["emails_scanned"] >= 2
+    assert "unread_alert_total" in data
+    assert "top_unread_emails" in data and isinstance(data["top_unread_emails"], list)
+
+
 
 def test_alerts_outbox_endpoints():
     email = f"outbox-{uuid4().hex[:8]}@example.com"

@@ -256,6 +256,38 @@ def build_digest_previews_for_all_emails(
     }
 
 
+def summarize_digest_previews_for_all_emails(
+    max_alerts: int = 25,
+    unread_only: bool = False,
+    db_path: str | None = None,
+) -> dict:
+    payload = build_digest_previews_for_all_emails(max_alerts=max_alerts, unread_only=unread_only, db_path=db_path)
+    previews = payload.get("previews") or []
+
+    unread_total = int(sum(int(item.get("unread_count") or 0) for item in previews))
+    emails_with_unread = int(sum(1 for item in previews if item.get("has_unread")))
+    top_unread = sorted(
+        (
+            {
+                "email": item.get("email"),
+                "unread_count": int(item.get("unread_count") or 0),
+            }
+            for item in previews
+        ),
+        key=lambda row: (-row["unread_count"], row["email"] or ""),
+    )[:10]
+
+    return {
+        "emails_scanned": payload.get("emails_scanned", 0),
+        "returned": payload.get("returned", 0),
+        "unread_only": unread_only,
+        "emails_with_unread": emails_with_unread,
+        "emails_without_unread": max(0, int(payload.get("returned", 0)) - emails_with_unread),
+        "unread_alert_total": unread_total,
+        "top_unread_emails": top_unread,
+    }
+
+
 def write_digest_outbox(payload: DigestPayload, outbox_path: str | None = None, run_id: str | None = None) -> str:
     path = Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl")
     path.parent.mkdir(parents=True, exist_ok=True)
