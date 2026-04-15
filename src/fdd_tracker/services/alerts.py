@@ -256,6 +256,158 @@ def build_digest_previews_for_all_emails(
     }
 
 
+def render_digest_previews_all_markdown(
+    max_alerts: int = 25,
+    unread_only: bool = False,
+    db_path: str | None = None,
+) -> str:
+    payload = build_digest_previews_for_all_emails(max_alerts=max_alerts, unread_only=unread_only, db_path=db_path)
+    lines = [
+        "# Digest Preview All Emails",
+        "",
+        f"- Emails scanned: {payload.get('emails_scanned', 0)}",
+        f"- Returned: {payload.get('returned', 0)}",
+        f"- Unread-only mode: {payload.get('unread_only', False)}",
+        "",
+        "## Previews",
+    ]
+    previews = payload.get("previews") or []
+    if not previews:
+        lines.append("- none")
+        return "\n".join(lines)
+
+    for item in previews:
+        lines.append(f"- {item.get('email')}: unread={item.get('unread_count', 0)} has_unread={item.get('has_unread', False)}")
+    return "\n".join(lines)
+
+
+def render_digest_previews_all_telegram_chunks(
+    max_alerts: int = 25,
+    unread_only: bool = False,
+    db_path: str | None = None,
+    max_chars: int = 3500,
+) -> dict:
+    markdown = render_digest_previews_all_markdown(
+        max_alerts=max_alerts,
+        unread_only=unread_only,
+        db_path=db_path,
+    )
+    max_chars = max(100, min(max_chars, 4096))
+
+    chunks: list[str] = []
+    current: list[str] = []
+    current_len = 0
+    for line in markdown.split("\n"):
+        if len(line) > max_chars:
+            if current:
+                chunks.append("\n".join(current))
+                current = []
+                current_len = 0
+            for i in range(0, len(line), max_chars):
+                chunks.append(line[i : i + max_chars])
+            continue
+        line_len = len(line) + (1 if current else 0)
+        if current and (current_len + line_len) > max_chars:
+            chunks.append("\n".join(current))
+            current = [line]
+            current_len = len(line)
+            continue
+        current.append(line)
+        current_len += line_len
+
+    if current:
+        chunks.append("\n".join(current))
+
+    indexed_chunks = [f"[{idx}/{len(chunks)}]\n{chunk}" for idx, chunk in enumerate(chunks, start=1)]
+    return {
+        "max_alerts": max_alerts,
+        "unread_only": unread_only,
+        "total_chars": len(markdown),
+        "max_chars": max_chars,
+        "chunk_count": len(chunks),
+        "chunks": chunks,
+        "chunks_with_index": indexed_chunks,
+    }
+
+
+def render_digest_previews_all_csv(
+    max_alerts: int = 25,
+    unread_only: bool = False,
+    db_path: str | None = None,
+) -> str:
+    payload = build_digest_previews_for_all_emails(max_alerts=max_alerts, unread_only=unread_only, db_path=db_path)
+    output = StringIO()
+    fieldnames = [
+        "emails_scanned",
+        "returned",
+        "unread_only",
+        "email",
+        "has_unread",
+        "unread_count",
+        "subject",
+        "generated_at",
+    ]
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+
+    previews = payload.get("previews") or []
+    if not previews:
+        writer.writerow(
+            {
+                "emails_scanned": payload.get("emails_scanned", 0),
+                "returned": payload.get("returned", 0),
+                "unread_only": payload.get("unread_only", False),
+            }
+        )
+        return output.getvalue()
+
+    for item in previews:
+        writer.writerow(
+            {
+                "emails_scanned": payload.get("emails_scanned", 0),
+                "returned": payload.get("returned", 0),
+                "unread_only": payload.get("unread_only", False),
+                "email": item.get("email"),
+                "has_unread": item.get("has_unread", False),
+                "unread_count": item.get("unread_count", 0),
+                "subject": item.get("subject"),
+                "generated_at": item.get("generated_at"),
+            }
+        )
+    return output.getvalue()
+
+
+def build_digest_previews_all_packet(
+    max_alerts: int = 25,
+    unread_only: bool = False,
+    db_path: str | None = None,
+    max_chars: int = 3500,
+) -> dict:
+    return {
+        "payload": build_digest_previews_for_all_emails(
+            max_alerts=max_alerts,
+            unread_only=unread_only,
+            db_path=db_path,
+        ),
+        "markdown": render_digest_previews_all_markdown(
+            max_alerts=max_alerts,
+            unread_only=unread_only,
+            db_path=db_path,
+        ),
+        "csv": render_digest_previews_all_csv(
+            max_alerts=max_alerts,
+            unread_only=unread_only,
+            db_path=db_path,
+        ),
+        "telegram": render_digest_previews_all_telegram_chunks(
+            max_alerts=max_alerts,
+            unread_only=unread_only,
+            db_path=db_path,
+            max_chars=max_chars,
+        ),
+    }
+
+
 def summarize_digest_previews_for_all_emails(
     max_alerts: int = 25,
     unread_only: bool = False,

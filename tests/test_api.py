@@ -348,6 +348,37 @@ def test_alerts_digest_preview_all_endpoint():
     assert data2["unread_only"] is True
 
 
+def test_alerts_digest_preview_all_markdown_telegram_csv_packet_endpoints():
+    email = f"digestpreview-all-view-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+
+    md = client.get("/alerts/digest/preview/all/markdown?max_alerts=10")
+    assert md.status_code == 200
+    assert "markdown" in md.json()
+    assert "Digest Preview All Emails" in md.json()["markdown"]
+
+    tg = client.get("/alerts/digest/preview/all/telegram?max_alerts=10&max_chars=200")
+    assert tg.status_code == 200
+    tgd = tg.json()
+    assert tgd["chunk_count"] >= 1
+    assert tgd["chunks_with_index"][0].startswith("[1/")
+
+    csv_r = client.get("/alerts/digest/preview/all/csv?max_alerts=10")
+    assert csv_r.status_code == 200
+    assert "csv" in csv_r.json()
+    assert "emails_scanned,returned,unread_only,email,has_unread" in csv_r.json()["csv"]
+
+    packet_r = client.get("/alerts/digest/preview/all/packet?max_alerts=10&max_chars=200")
+    assert packet_r.status_code == 200
+    pkt = packet_r.json()
+    assert "payload" in pkt
+    assert "markdown" in pkt
+    assert "csv" in pkt
+    assert "telegram" in pkt
+    assert pkt["telegram"]["chunk_count"] >= 1
+
+
 def test_alerts_digest_preview_all_summary_endpoint():
     email_a = f"digestpreview-allsum-a-{uuid4().hex[:8]}@example.com"
     email_b = f"digestpreview-allsum-b-{uuid4().hex[:8]}@example.com"

@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_all_summary_packet, build_digest_preview_packet, build_digest_previews_for_all_emails, dispatch_outbox, list_cron_history, list_outbox, prune_alert_artifacts, render_digest_preview_all_summary_csv, render_digest_preview_all_summary_markdown, render_digest_preview_all_summary_telegram_chunks, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, summarize_digest_previews_for_all_emails
+from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_all_summary_packet, build_digest_preview_packet, build_digest_previews_all_packet, build_digest_previews_for_all_emails, dispatch_outbox, list_cron_history, list_outbox, prune_alert_artifacts, render_digest_preview_all_summary_csv, render_digest_preview_all_summary_markdown, render_digest_preview_all_summary_telegram_chunks, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, render_digest_previews_all_csv, render_digest_previews_all_markdown, render_digest_previews_all_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, summarize_digest_previews_for_all_emails
 from fdd_tracker.services.store import get_alert_feed, seed_change_summary, upsert_watchlist
 
 
@@ -106,6 +106,22 @@ def test_build_digest_previews_for_all_emails(tmp_path):
     assert "markdown" in packet
     assert "csv" in packet
     assert "telegram" in packet and packet["telegram"]["chunk_count"] >= 1
+
+    all_markdown = render_digest_previews_all_markdown(max_alerts=10, unread_only=False, db_path=db)
+    assert "# Digest Preview All Emails" in all_markdown
+
+    all_telegram = render_digest_previews_all_telegram_chunks(max_alerts=10, unread_only=False, db_path=db, max_chars=200)
+    assert all_telegram["chunk_count"] >= 1
+    assert all_telegram["chunks_with_index"][0].startswith("[1/")
+
+    all_csv = render_digest_previews_all_csv(max_alerts=10, unread_only=False, db_path=db)
+    assert "emails_scanned,returned,unread_only,email,has_unread" in all_csv
+
+    all_packet = build_digest_previews_all_packet(max_alerts=10, unread_only=False, db_path=db, max_chars=200)
+    assert "payload" in all_packet
+    assert "markdown" in all_packet
+    assert "csv" in all_packet
+    assert "telegram" in all_packet and all_packet["telegram"]["chunk_count"] >= 1
 
 
 
