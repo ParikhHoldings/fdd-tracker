@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_packet, build_digest_previews_for_all_emails, dispatch_outbox, list_cron_history, list_outbox, prune_alert_artifacts, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, summarize_digest_previews_for_all_emails
+from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_packet, build_digest_previews_for_all_emails, dispatch_outbox, list_cron_history, list_outbox, prune_alert_artifacts, render_digest_preview_all_summary_markdown, render_digest_preview_all_summary_telegram_chunks, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, summarize_digest_previews_for_all_emails
 from fdd_tracker.services.store import get_alert_feed, seed_change_summary, upsert_watchlist
 
 
@@ -90,6 +90,13 @@ def test_build_digest_previews_for_all_emails(tmp_path):
     assert summary["returned"] == 2
     assert summary["unread_alert_total"] >= 1
     assert isinstance(summary["top_unread_emails"], list)
+
+    markdown = render_digest_preview_all_summary_markdown(max_alerts=10, unread_only=False, db_path=db)
+    assert "# Digest Preview All-Email Summary" in markdown
+
+    telegram = render_digest_preview_all_summary_telegram_chunks(max_alerts=10, unread_only=False, db_path=db, max_chars=200)
+    assert telegram["chunk_count"] >= 1
+    assert telegram["chunks_with_index"][0].startswith("[1/")
 
 
 

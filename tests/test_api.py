@@ -363,6 +363,23 @@ def test_alerts_digest_preview_all_summary_endpoint():
     assert "top_unread_emails" in data and isinstance(data["top_unread_emails"], list)
 
 
+def test_alerts_digest_preview_all_summary_markdown_and_telegram_endpoints():
+    email = f"digestpreview-allsum-view-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+
+    md = client.get("/alerts/digest/preview/all/summary/markdown?max_alerts=10")
+    assert md.status_code == 200
+    assert "markdown" in md.json()
+    assert "Digest Preview All-Email Summary" in md.json()["markdown"]
+
+    tg = client.get("/alerts/digest/preview/all/summary/telegram?max_alerts=10&max_chars=200")
+    assert tg.status_code == 200
+    tgd = tg.json()
+    assert tgd["chunk_count"] >= 1
+    assert tgd["chunks_with_index"][0].startswith("[1/")
+
+
 
 def test_alerts_outbox_endpoints():
     email = f"outbox-{uuid4().hex[:8]}@example.com"
