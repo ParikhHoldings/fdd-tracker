@@ -328,6 +328,26 @@ def test_alerts_digest_preview_packet_endpoint():
     assert "telegram" in data and data["telegram"]["chunk_count"] >= 1
 
 
+def test_alerts_digest_preview_all_endpoint():
+    email_a = f"digestpreview-all-a-{uuid4().hex[:8]}@example.com"
+    email_b = f"digestpreview-all-b-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email_a, "franchise_slug": "chick-fil-a"})
+    client.post("/watchlists", json={"email": email_b, "franchise_slug": "orangetheory"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+
+    r = client.get("/alerts/digest/preview/all?max_alerts=10")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["emails_scanned"] >= 2
+    assert data["returned"] >= 2
+    assert isinstance(data["previews"], list)
+
+    r2 = client.get("/alerts/digest/preview/all?max_alerts=10&unread_only=true")
+    assert r2.status_code == 200
+    data2 = r2.json()
+    assert data2["unread_only"] is True
+
+
 
 def test_alerts_outbox_endpoints():
     email = f"outbox-{uuid4().hex[:8]}@example.com"

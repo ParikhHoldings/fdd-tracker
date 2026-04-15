@@ -239,6 +239,23 @@ def build_digest_preview_packet(
     }
 
 
+def build_digest_previews_for_all_emails(
+    max_alerts: int = 25,
+    unread_only: bool = False,
+    db_path: str | None = None,
+) -> dict:
+    emails = sorted(get_watchlist_emails(db_path=db_path))
+    previews = [build_digest_preview(email=email, max_alerts=max_alerts, db_path=db_path) for email in emails]
+    if unread_only:
+        previews = [item for item in previews if item.get("has_unread")]
+    return {
+        "emails_scanned": len(emails),
+        "returned": len(previews),
+        "unread_only": unread_only,
+        "previews": previews,
+    }
+
+
 def write_digest_outbox(payload: DigestPayload, outbox_path: str | None = None, run_id: str | None = None) -> str:
     path = Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl")
     path.parent.mkdir(parents=True, exist_ok=True)

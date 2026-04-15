@@ -7,7 +7,7 @@ from pydantic import BaseModel, EmailStr
 
 from fdd_tracker.db import ensure_db
 from fdd_tracker.models import Filing
-from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_packet, build_latest_run_incident_export_packet, build_latest_run_incident_payload, build_run_incident_export_packet, build_run_incident_payload, dispatch_outbox, enforce_live_dispatch_gate, get_alerts_cron_preflight, get_alerts_cron_status, get_dispatch_provider_catalog, get_integrity_dashboard_snapshot, get_latest_cron_history_entry, get_latest_run_id, get_latest_run_integrity_issue_details, get_latest_run_integrity_report, get_run_artifact_summary, get_run_integrity_issue_details, get_run_integrity_report, list_cron_history, list_failing_run_integrity_reports, list_failed_outbox, list_latest_run_events, list_outbox, list_recent_run_integrity_reports, list_run_events, list_sent_outbox, prune_alert_artifacts, recover_alerts_cron_lock, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, render_integrity_dashboard_markdown, render_integrity_dashboard_telegram_chunks, render_latest_run_events_csv, render_latest_run_incident_csv, render_latest_run_incident_markdown, render_latest_run_incident_telegram_chunks, render_latest_run_integrity_issues_csv, render_latest_run_integrity_issues_markdown, render_latest_run_integrity_issues_telegram_chunks, render_run_events_csv, render_run_incident_csv, render_run_incident_markdown, render_run_incident_telegram_chunks, render_run_integrity_issues_csv, render_run_integrity_issues_markdown, render_run_integrity_issues_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, run_provider_smoke_test, summarize_integrity_trends, summarize_recent_run_integrity
+from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_packet, build_digest_previews_for_all_emails, build_latest_run_incident_export_packet, build_latest_run_incident_payload, build_run_incident_export_packet, build_run_incident_payload, dispatch_outbox, enforce_live_dispatch_gate, get_alerts_cron_preflight, get_alerts_cron_status, get_dispatch_provider_catalog, get_integrity_dashboard_snapshot, get_latest_cron_history_entry, get_latest_run_id, get_latest_run_integrity_issue_details, get_latest_run_integrity_report, get_run_artifact_summary, get_run_integrity_issue_details, get_run_integrity_report, list_cron_history, list_failing_run_integrity_reports, list_failed_outbox, list_latest_run_events, list_outbox, list_recent_run_integrity_reports, list_run_events, list_sent_outbox, prune_alert_artifacts, recover_alerts_cron_lock, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, render_integrity_dashboard_markdown, render_integrity_dashboard_telegram_chunks, render_latest_run_events_csv, render_latest_run_incident_csv, render_latest_run_incident_markdown, render_latest_run_incident_telegram_chunks, render_latest_run_integrity_issues_csv, render_latest_run_integrity_issues_markdown, render_latest_run_integrity_issues_telegram_chunks, render_run_events_csv, render_run_incident_csv, render_run_incident_markdown, render_run_incident_telegram_chunks, render_run_integrity_issues_csv, render_run_integrity_issues_markdown, render_run_integrity_issues_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, run_provider_smoke_test, summarize_integrity_trends, summarize_recent_run_integrity
 from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestion
 from fdd_tracker.services.store import (
     delete_watchlist,
@@ -270,6 +270,14 @@ def alerts_digest_preview_packet(
     max_chars: int = Query(default=3500, ge=100, le=4096),
 ) -> dict:
     return build_digest_preview_packet(email=str(email), max_alerts=max_alerts, max_chars=max_chars)
+
+
+@app.get("/alerts/digest/preview/all")
+def alerts_digest_preview_all(
+    max_alerts: int = Query(default=25, ge=1, le=200),
+    unread_only: bool = Query(default=False),
+) -> dict:
+    return build_digest_previews_for_all_emails(max_alerts=max_alerts, unread_only=unread_only)
 
 
 @app.get("/alerts/outbox")

@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_packet, dispatch_outbox, list_cron_history, list_outbox, prune_alert_artifacts, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
+from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_packet, build_digest_previews_for_all_emails, dispatch_outbox, list_cron_history, list_outbox, prune_alert_artifacts, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email
 from fdd_tracker.services.store import get_alert_feed, seed_change_summary, upsert_watchlist
 
 
@@ -69,6 +69,21 @@ def test_digest_preview_renderers(tmp_path):
     assert "markdown" in packet
     assert "csv" in packet
     assert "telegram" in packet and packet["telegram"]["chunk_count"] >= 1
+
+
+def test_build_digest_previews_for_all_emails(tmp_path):
+    db = str(tmp_path / "test.db")
+    upsert_watchlist("all-a@example.com", "chick-fil-a", db_path=db)
+    upsert_watchlist("all-b@example.com", "orangetheory", db_path=db)
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high", db_path=db)
+
+    all_previews = build_digest_previews_for_all_emails(max_alerts=10, unread_only=False, db_path=db)
+    assert all_previews["emails_scanned"] == 2
+    assert all_previews["returned"] == 2
+
+    unread_previews = build_digest_previews_for_all_emails(max_alerts=10, unread_only=True, db_path=db)
+    assert unread_previews["emails_scanned"] == 2
+    assert unread_previews["returned"] >= 1
 
 
 

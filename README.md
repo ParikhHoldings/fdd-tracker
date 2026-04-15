@@ -144,6 +144,8 @@ curl "http://localhost:8000/alerts/digest/preview/markdown?email=you@example.com
 curl "http://localhost:8000/alerts/digest/preview/telegram?email=you@example.com&max_alerts=25&max_chars=2500"
 curl "http://localhost:8000/alerts/digest/preview/csv?email=you@example.com&max_alerts=25"
 curl "http://localhost:8000/alerts/digest/preview/packet?email=you@example.com&max_alerts=25&max_chars=2500"
+curl "http://localhost:8000/alerts/digest/preview/all?max_alerts=25"
+curl "http://localhost:8000/alerts/digest/preview/all?max_alerts=25&unread_only=true"
 
 # All watchlist emails
 curl -X POST http://localhost:8000/alerts/digest/run \
