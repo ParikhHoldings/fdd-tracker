@@ -1875,6 +1875,93 @@ def render_latest_run_incident_csv(
     }
 
 
+def build_run_incident_export_packet(
+    run_id: str,
+    history_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
+    event_kinds: list[str] | None = None,
+    event_statuses: list[str] | None = None,
+    event_limit: int | None = None,
+    event_offset: int = 0,
+    max_chars: int = 3500,
+) -> dict:
+    return {
+        "run_id": run_id,
+        "incident": build_run_incident_payload(
+            run_id=run_id,
+            history_path=history_path,
+            sent_path=sent_path,
+            failed_path=failed_path,
+            event_kinds=event_kinds,
+            event_statuses=event_statuses,
+            event_limit=event_limit,
+            event_offset=event_offset,
+        ),
+        "markdown": render_run_incident_markdown(
+            run_id=run_id,
+            history_path=history_path,
+            sent_path=sent_path,
+            failed_path=failed_path,
+            event_kinds=event_kinds,
+            event_statuses=event_statuses,
+            event_limit=event_limit,
+            event_offset=event_offset,
+        ),
+        "csv": render_run_incident_csv(
+            run_id=run_id,
+            history_path=history_path,
+            sent_path=sent_path,
+            failed_path=failed_path,
+            event_kinds=event_kinds,
+            event_statuses=event_statuses,
+            event_limit=event_limit,
+            event_offset=event_offset,
+        ),
+        "telegram": render_run_incident_telegram_chunks(
+            run_id=run_id,
+            history_path=history_path,
+            sent_path=sent_path,
+            failed_path=failed_path,
+            event_kinds=event_kinds,
+            event_statuses=event_statuses,
+            event_limit=event_limit,
+            event_offset=event_offset,
+            max_chars=max_chars,
+        ),
+    }
+
+
+def build_latest_run_incident_export_packet(
+    history_path: str | None = None,
+    sent_path: str | None = None,
+    failed_path: str | None = None,
+    event_kinds: list[str] | None = None,
+    event_statuses: list[str] | None = None,
+    event_limit: int | None = None,
+    event_offset: int = 0,
+    max_chars: int = 3500,
+) -> dict:
+    run_id = get_latest_run_id(history_path=history_path)
+    if not run_id:
+        return {"exists": False, "run_id": None, "packet": None}
+    return {
+        "exists": True,
+        "run_id": run_id,
+        "packet": build_run_incident_export_packet(
+            run_id=run_id,
+            history_path=history_path,
+            sent_path=sent_path,
+            failed_path=failed_path,
+            event_kinds=event_kinds,
+            event_statuses=event_statuses,
+            event_limit=event_limit,
+            event_offset=event_offset,
+            max_chars=max_chars,
+        ),
+    }
+
+
 def list_recent_run_integrity_reports(
     limit: int = 10,
     status: str | None = None,

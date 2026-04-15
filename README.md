@@ -124,6 +124,8 @@ curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/incident/telegram?kin
 curl "http://localhost:8000/alerts/runs/latest/incident/telegram?kind=dispatch-fallback&max_chars=2500"
 curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/incident/csv?kind=dispatch-fallback"
 curl "http://localhost:8000/alerts/runs/latest/incident/csv?kind=dispatch-fallback"
+curl "http://localhost:8000/alerts/runs/nightly-2026-04-08/incident/packet?kind=dispatch-fallback&max_chars=2500"
+curl "http://localhost:8000/alerts/runs/latest/incident/packet?kind=dispatch-fallback&max_chars=2500"
 curl -X POST http://localhost:8000/alerts/outbox/dispatch   -H "Content-Type: application/json"   -d '{"limit":25,"dry_run":true,"provider":"noop"}'
 curl -X POST http://localhost:8000/alerts/outbox/dispatch   -H "Content-Type: application/json"   -d '{"limit":25,"dry_run":false,"provider":"resend","confirm_live":true,"idempotency_key":"run-2026-04-10-01","live_min_interval_seconds":60}'
 ```

@@ -1218,6 +1218,38 @@ def test_render_run_incident_csv_and_latest(tmp_path):
     assert "incident-csv" in latest["csv"]
 
 
+def test_build_run_incident_export_packet_and_latest(tmp_path):
+    from fdd_tracker.services.alerts import (
+        append_cron_history,
+        build_latest_run_incident_export_packet,
+        build_run_incident_export_packet,
+    )
+
+    history = tmp_path / "alerts_cron_history.jsonl"
+    append_cron_history(
+        {
+            "run_id": "incident-packet",
+            "status": "executed",
+            "ran_at": "2026-04-11T12:00:00+00:00",
+            "degraded": True,
+            "events": [{"kind": "dispatch-fallback", "reason": "missing-env"}],
+        },
+        history_path=str(history),
+    )
+
+    packet = build_run_incident_export_packet(run_id="incident-packet", history_path=str(history), max_chars=200)
+    assert packet["run_id"] == "incident-packet"
+    assert "incident" in packet and isinstance(packet["incident"], dict)
+    assert "markdown" in packet and "# Run Incident" in packet["markdown"]
+    assert "csv" in packet and "run_id,summary_exists" in packet["csv"]
+    assert "telegram" in packet and packet["telegram"]["chunk_count"] >= 1
+
+    latest = build_latest_run_incident_export_packet(history_path=str(history), max_chars=200)
+    assert latest["exists"] is True
+    assert latest["run_id"] == "incident-packet"
+    assert latest["packet"]["run_id"] == "incident-packet"
+
+
 def test_render_run_integrity_issues_markdown(tmp_path):
     from fdd_tracker.services.alerts import append_cron_history, render_run_integrity_issues_markdown
 
