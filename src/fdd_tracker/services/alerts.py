@@ -12,6 +12,26 @@ from io import StringIO
 
 from fdd_tracker.services.store import get_alert_feed, get_watchlist_emails, mark_alert_read
 
+ALL_DIGEST_PREVIEW_ORDER_BY_OPTIONS = ["email", "unread_count", "has_unread", "generated_at"]
+ALL_DIGEST_PREVIEW_ORDER_DIR_OPTIONS = ["asc", "desc"]
+
+
+def get_digest_preview_all_options() -> dict:
+    return {
+        "order_by": ALL_DIGEST_PREVIEW_ORDER_BY_OPTIONS,
+        "order_dir": ALL_DIGEST_PREVIEW_ORDER_DIR_OPTIONS,
+        "defaults": {
+            "order_by": "email",
+            "order_dir": "asc",
+            "limit": None,
+            "offset": 0,
+            "top_n": 10,
+            "max_alerts": 25,
+            "min_unread": 0,
+            "unread_only": False,
+        },
+    }
+
 
 @dataclass
 class WatchlistAlert:
@@ -258,10 +278,10 @@ def build_digest_previews_for_all_emails(
         previews = [item for item in previews if int(item.get("unread_count") or 0) >= min_unread]
 
     order_by = (order_by or "email").strip().lower()
-    if order_by not in {"email", "unread_count", "has_unread", "generated_at"}:
+    if order_by not in set(ALL_DIGEST_PREVIEW_ORDER_BY_OPTIONS):
         order_by = "email"
     order_dir = (order_dir or "asc").strip().lower()
-    if order_dir not in {"asc", "desc"}:
+    if order_dir not in set(ALL_DIGEST_PREVIEW_ORDER_DIR_OPTIONS):
         order_dir = "asc"
 
     def _key(item: dict) -> tuple:

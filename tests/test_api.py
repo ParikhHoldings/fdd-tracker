@@ -328,6 +328,16 @@ def test_alerts_digest_preview_packet_endpoint():
     assert "telegram" in data and data["telegram"]["chunk_count"] >= 1
 
 
+def test_alerts_digest_preview_all_options_endpoint():
+    r = client.get("/alerts/digest/preview/all/options")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["order_by"] == ["email", "unread_count", "has_unread", "generated_at"]
+    assert data["order_dir"] == ["asc", "desc"]
+    assert data["defaults"]["order_by"] == "email"
+    assert data["defaults"]["order_dir"] == "asc"
+
+
 def test_alerts_digest_preview_all_endpoint():
     email_a = f"digestpreview-all-a-{uuid4().hex[:8]}@example.com"
     email_b = f"digestpreview-all-b-{uuid4().hex[:8]}@example.com"
