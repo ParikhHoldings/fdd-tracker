@@ -148,6 +148,7 @@ curl "http://localhost:8000/alerts/digest/preview/all?max_alerts=25"
 curl "http://localhost:8000/alerts/digest/preview/all?max_alerts=25&unread_only=true"
 curl "http://localhost:8000/alerts/digest/preview/all?max_alerts=25&min_unread=2"
 curl "http://localhost:8000/alerts/digest/preview/all?max_alerts=25&min_unread=2&limit=50&offset=0"
+curl "http://localhost:8000/alerts/digest/preview/all?max_alerts=25&order_by=unread_count&order_dir=desc&limit=50&offset=0"
 curl "http://localhost:8000/alerts/digest/preview/all/markdown?max_alerts=25"
 curl "http://localhost:8000/alerts/digest/preview/all/telegram?max_alerts=25&min_unread=2&limit=50&offset=0&max_chars=2500"
 curl "http://localhost:8000/alerts/digest/preview/all/csv?max_alerts=25&min_unread=2"
@@ -159,7 +160,7 @@ curl "http://localhost:8000/alerts/digest/preview/all/summary/telegram?max_alert
 curl "http://localhost:8000/alerts/digest/preview/all/summary/csv?max_alerts=25&min_unread=2&top_n=5"
 curl "http://localhost:8000/alerts/digest/preview/all/summary/packet?max_alerts=25&min_unread=2&limit=50&offset=0&top_n=5&max_chars=2500"
 
-All paged all-email digest preview/summary responses include navigation metadata: `matched`, `returned`, `page_end`, `has_more`, `next_offset`, `prev_offset`, `effective_limit`, `current_page`, and `total_pages`.
+All paged all-email digest preview/summary responses include navigation metadata: `matched`, `returned`, `page_end`, `has_more`, `next_offset`, `prev_offset`, `effective_limit`, `current_page`, and `total_pages`. They also include ordering metadata: `order_by` and `order_dir`.
 
 # All watchlist emails
 curl -X POST http://localhost:8000/alerts/digest/run \

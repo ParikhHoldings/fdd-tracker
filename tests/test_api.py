@@ -335,7 +335,7 @@ def test_alerts_digest_preview_all_endpoint():
     client.post("/watchlists", json={"email": email_b, "franchise_slug": "orangetheory"})
     seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
 
-    r = client.get("/alerts/digest/preview/all?max_alerts=10&limit=1&offset=0")
+    r = client.get("/alerts/digest/preview/all?max_alerts=10&order_by=unread_count&order_dir=desc&limit=1&offset=0")
     assert r.status_code == 200
     data = r.json()
     assert data["emails_scanned"] >= 2
@@ -349,6 +349,8 @@ def test_alerts_digest_preview_all_endpoint():
     assert "effective_limit" in data
     assert "current_page" in data
     assert "total_pages" in data
+    assert data["order_by"] == "unread_count"
+    assert data["order_dir"] == "desc"
     assert isinstance(data["previews"], list)
 
     r2 = client.get("/alerts/digest/preview/all?max_alerts=10&unread_only=true")
@@ -368,12 +370,13 @@ def test_alerts_digest_preview_all_markdown_telegram_csv_packet_endpoints():
     client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
     seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
 
-    md = client.get("/alerts/digest/preview/all/markdown?max_alerts=10&min_unread=1&limit=1&offset=0")
+    md = client.get("/alerts/digest/preview/all/markdown?max_alerts=10&min_unread=1&order_by=email&order_dir=asc&limit=1&offset=0")
     assert md.status_code == 200
     assert "markdown" in md.json()
     assert "Digest Preview All Emails" in md.json()["markdown"]
     assert "Min unread filter: 1" in md.json()["markdown"]
     assert "Pagination: limit=1 offset=0" in md.json()["markdown"]
+    assert "Ordering: email asc" in md.json()["markdown"]
 
     tg = client.get("/alerts/digest/preview/all/telegram?max_alerts=10&min_unread=1&limit=1&offset=0&max_chars=200")
     assert tg.status_code == 200
@@ -387,13 +390,15 @@ def test_alerts_digest_preview_all_markdown_telegram_csv_packet_endpoints():
     assert "effective_limit" in tgd
     assert "current_page" in tgd
     assert "total_pages" in tgd
+    assert "order_by" in tgd
+    assert "order_dir" in tgd
     assert tgd["chunk_count"] >= 1
     assert tgd["chunks_with_index"][0].startswith("[1/")
 
     csv_r = client.get("/alerts/digest/preview/all/csv?max_alerts=10&min_unread=1&limit=1&offset=0")
     assert csv_r.status_code == 200
     assert "csv" in csv_r.json()
-    assert "emails_scanned,matched,returned,limit,offset,page_end,has_more,next_offset,prev_offset,effective_limit,current_page,total_pages,unread_only,min_unread,email,has_unread" in csv_r.json()["csv"]
+    assert "emails_scanned,matched,returned,limit,offset,page_end,has_more,next_offset,prev_offset,effective_limit,current_page,total_pages,order_by,order_dir,unread_only,min_unread,email,has_unread" in csv_r.json()["csv"]
 
     packet_r = client.get("/alerts/digest/preview/all/packet?max_alerts=10&min_unread=1&limit=1&offset=0&max_chars=200")
     assert packet_r.status_code == 200
@@ -428,6 +433,8 @@ def test_alerts_digest_preview_all_summary_endpoint():
     assert "effective_limit" in data
     assert "current_page" in data
     assert "total_pages" in data
+    assert data["order_by"] == "email"
+    assert data["order_dir"] == "asc"
     assert data["top_n"] == 1
     assert len(data["top_unread_emails"]) <= 1
     assert "unread_alert_total" in data
@@ -459,6 +466,8 @@ def test_alerts_digest_preview_all_summary_markdown_and_telegram_endpoints():
     assert "effective_limit" in tgd
     assert "current_page" in tgd
     assert "total_pages" in tgd
+    assert "order_by" in tgd
+    assert "order_dir" in tgd
     assert tgd["top_n"] == 1
     assert tgd["chunk_count"] >= 1
     assert tgd["chunks_with_index"][0].startswith("[1/")
