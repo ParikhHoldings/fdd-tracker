@@ -260,14 +260,18 @@ def build_digest_previews_for_all_emails(
     if limit is None:
         paged_previews = previews[offset:]
         applied_limit = None
+        effective_limit = max(1, total_matched) if total_matched > 0 else 1
     else:
         applied_limit = max(1, min(limit, 10_000))
+        effective_limit = applied_limit
         paged_previews = previews[offset : offset + applied_limit]
 
     page_end = offset + len(paged_previews)
     has_more = page_end < total_matched
     next_offset = page_end if has_more else None
     prev_offset = max(0, offset - (applied_limit or offset)) if offset > 0 else None
+    current_page = (offset // effective_limit) + 1 if total_matched > 0 else 1
+    total_pages = max(1, (total_matched + effective_limit - 1) // effective_limit)
 
     return {
         "emails_scanned": len(emails),
@@ -279,6 +283,9 @@ def build_digest_previews_for_all_emails(
         "has_more": has_more,
         "next_offset": next_offset,
         "prev_offset": prev_offset,
+        "effective_limit": effective_limit,
+        "current_page": current_page,
+        "total_pages": total_pages,
         "unread_only": unread_only,
         "min_unread": min_unread,
         "previews": paged_previews,
@@ -309,6 +316,7 @@ def render_digest_previews_all_markdown(
         f"- Returned: {payload.get('returned', 0)}",
         f"- Pagination: limit={payload.get('limit')} offset={payload.get('offset', 0)}",
         f"- Paging: has_more={payload.get('has_more', False)} next_offset={payload.get('next_offset')} prev_offset={payload.get('prev_offset')}",
+        f"- Page: {payload.get('current_page', 1)}/{payload.get('total_pages', 1)} (effective_limit={payload.get('effective_limit')})",
         f"- Unread-only mode: {payload.get('unread_only', False)}",
         f"- Min unread filter: {payload.get('min_unread', 0)}",
         "",
@@ -385,6 +393,9 @@ def render_digest_previews_all_telegram_chunks(
         "has_more": payload.get("has_more", False),
         "next_offset": payload.get("next_offset"),
         "prev_offset": payload.get("prev_offset"),
+        "effective_limit": payload.get("effective_limit"),
+        "current_page": payload.get("current_page", 1),
+        "total_pages": payload.get("total_pages", 1),
         "total_chars": len(markdown),
         "max_chars": max_chars,
         "chunk_count": len(chunks),
@@ -420,6 +431,9 @@ def render_digest_previews_all_csv(
         "has_more",
         "next_offset",
         "prev_offset",
+        "effective_limit",
+        "current_page",
+        "total_pages",
         "unread_only",
         "min_unread",
         "email",
@@ -444,6 +458,9 @@ def render_digest_previews_all_csv(
                 "has_more": payload.get("has_more", False),
                 "next_offset": payload.get("next_offset"),
                 "prev_offset": payload.get("prev_offset"),
+                "effective_limit": payload.get("effective_limit"),
+                "current_page": payload.get("current_page", 1),
+                "total_pages": payload.get("total_pages", 1),
                 "unread_only": payload.get("unread_only", False),
                 "min_unread": payload.get("min_unread", 0),
             }
@@ -462,6 +479,9 @@ def render_digest_previews_all_csv(
                 "has_more": payload.get("has_more", False),
                 "next_offset": payload.get("next_offset"),
                 "prev_offset": payload.get("prev_offset"),
+                "effective_limit": payload.get("effective_limit"),
+                "current_page": payload.get("current_page", 1),
+                "total_pages": payload.get("total_pages", 1),
                 "unread_only": payload.get("unread_only", False),
                 "min_unread": payload.get("min_unread", 0),
                 "email": item.get("email"),
@@ -563,6 +583,9 @@ def summarize_digest_previews_for_all_emails(
         "has_more": payload.get("has_more", False),
         "next_offset": payload.get("next_offset"),
         "prev_offset": payload.get("prev_offset"),
+        "effective_limit": payload.get("effective_limit"),
+        "current_page": payload.get("current_page", 1),
+        "total_pages": payload.get("total_pages", 1),
         "unread_only": unread_only,
         "min_unread": payload.get("min_unread", 0),
         "emails_with_unread": emails_with_unread,
@@ -599,6 +622,7 @@ def render_digest_preview_all_summary_markdown(
         f"- Returned: {summary.get('returned', 0)}",
         f"- Pagination: limit={summary.get('limit')} offset={summary.get('offset', 0)}",
         f"- Paging: has_more={summary.get('has_more', False)} next_offset={summary.get('next_offset')} prev_offset={summary.get('prev_offset')}",
+        f"- Page: {summary.get('current_page', 1)}/{summary.get('total_pages', 1)} (effective_limit={summary.get('effective_limit')})",
         f"- Unread-only mode: {summary.get('unread_only', False)}",
         f"- Min unread filter: {summary.get('min_unread', 0)}",
         f"- Emails with unread: {summary.get('emails_with_unread', 0)}",
@@ -680,6 +704,9 @@ def render_digest_preview_all_summary_telegram_chunks(
         "has_more": summary.get("has_more", False),
         "next_offset": summary.get("next_offset"),
         "prev_offset": summary.get("prev_offset"),
+        "effective_limit": summary.get("effective_limit"),
+        "current_page": summary.get("current_page", 1),
+        "total_pages": summary.get("total_pages", 1),
         "top_n": top_n,
         "total_chars": len(markdown),
         "max_chars": max_chars,
@@ -718,6 +745,9 @@ def render_digest_preview_all_summary_csv(
         "has_more",
         "next_offset",
         "prev_offset",
+        "effective_limit",
+        "current_page",
+        "total_pages",
         "unread_only",
         "min_unread",
         "emails_with_unread",
@@ -743,6 +773,9 @@ def render_digest_preview_all_summary_csv(
                 "has_more": summary.get("has_more", False),
                 "next_offset": summary.get("next_offset"),
                 "prev_offset": summary.get("prev_offset"),
+                "effective_limit": summary.get("effective_limit"),
+                "current_page": summary.get("current_page", 1),
+                "total_pages": summary.get("total_pages", 1),
                 "unread_only": summary.get("unread_only", False),
                 "min_unread": summary.get("min_unread", 0),
                 "emails_with_unread": summary.get("emails_with_unread", 0),
@@ -765,6 +798,9 @@ def render_digest_preview_all_summary_csv(
                 "has_more": summary.get("has_more", False),
                 "next_offset": summary.get("next_offset"),
                 "prev_offset": summary.get("prev_offset"),
+                "effective_limit": summary.get("effective_limit"),
+                "current_page": summary.get("current_page", 1),
+                "total_pages": summary.get("total_pages", 1),
                 "unread_only": summary.get("unread_only", False),
                 "min_unread": summary.get("min_unread", 0),
                 "emails_with_unread": summary.get("emails_with_unread", 0),
