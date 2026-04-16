@@ -343,6 +343,9 @@ def test_alerts_digest_preview_all_endpoint():
     assert data["returned"] == 1
     assert data["limit"] == 1
     assert data["offset"] == 0
+    assert "has_more" in data
+    assert "next_offset" in data
+    assert "prev_offset" in data
     assert isinstance(data["previews"], list)
 
     r2 = client.get("/alerts/digest/preview/all?max_alerts=10&unread_only=true")
@@ -375,13 +378,16 @@ def test_alerts_digest_preview_all_markdown_telegram_csv_packet_endpoints():
     assert tgd["min_unread"] == 1
     assert tgd["limit"] == 1
     assert tgd["offset"] == 0
+    assert "has_more" in tgd
+    assert "next_offset" in tgd
+    assert "prev_offset" in tgd
     assert tgd["chunk_count"] >= 1
     assert tgd["chunks_with_index"][0].startswith("[1/")
 
     csv_r = client.get("/alerts/digest/preview/all/csv?max_alerts=10&min_unread=1&limit=1&offset=0")
     assert csv_r.status_code == 200
     assert "csv" in csv_r.json()
-    assert "emails_scanned,matched,returned,limit,offset,unread_only,min_unread,email,has_unread" in csv_r.json()["csv"]
+    assert "emails_scanned,matched,returned,limit,offset,page_end,has_more,next_offset,prev_offset,unread_only,min_unread,email,has_unread" in csv_r.json()["csv"]
 
     packet_r = client.get("/alerts/digest/preview/all/packet?max_alerts=10&min_unread=1&limit=1&offset=0&max_chars=200")
     assert packet_r.status_code == 200
@@ -410,6 +416,9 @@ def test_alerts_digest_preview_all_summary_endpoint():
     assert data["min_unread"] == 1
     assert data["limit"] == 1
     assert data["offset"] == 0
+    assert "has_more" in data
+    assert "next_offset" in data
+    assert "prev_offset" in data
     assert data["top_n"] == 1
     assert len(data["top_unread_emails"]) <= 1
     assert "unread_alert_total" in data
@@ -435,6 +444,9 @@ def test_alerts_digest_preview_all_summary_markdown_and_telegram_endpoints():
     assert tgd["min_unread"] == 1
     assert tgd["limit"] == 1
     assert tgd["offset"] == 0
+    assert "has_more" in tgd
+    assert "next_offset" in tgd
+    assert "prev_offset" in tgd
     assert tgd["top_n"] == 1
     assert tgd["chunk_count"] >= 1
     assert tgd["chunks_with_index"][0].startswith("[1/")

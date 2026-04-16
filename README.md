@@ -159,6 +159,8 @@ curl "http://localhost:8000/alerts/digest/preview/all/summary/telegram?max_alert
 curl "http://localhost:8000/alerts/digest/preview/all/summary/csv?max_alerts=25&min_unread=2&top_n=5"
 curl "http://localhost:8000/alerts/digest/preview/all/summary/packet?max_alerts=25&min_unread=2&limit=50&offset=0&top_n=5&max_chars=2500"
 
+All paged all-email digest preview/summary responses include navigation metadata: `matched`, `returned`, `page_end`, `has_more`, `next_offset`, and `prev_offset`.
+
 # All watchlist emails
 curl -X POST http://localhost:8000/alerts/digest/run \
   -H "Content-Type: application/json" \

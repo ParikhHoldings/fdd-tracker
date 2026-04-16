@@ -95,6 +95,9 @@ def test_build_digest_previews_for_all_emails(tmp_path):
     assert paged["returned"] == 1
     assert paged["limit"] == 1
     assert paged["offset"] == 1
+    assert paged["has_more"] is False
+    assert paged["next_offset"] is None
+    assert paged["prev_offset"] == 0
 
     summary = summarize_digest_previews_for_all_emails(max_alerts=10, unread_only=False, db_path=db)
     assert summary["emails_scanned"] == 2
@@ -107,6 +110,7 @@ def test_build_digest_previews_for_all_emails(tmp_path):
     assert summary_top1["min_unread"] == 1
     assert summary_top1["limit"] == 1
     assert summary_top1["offset"] == 0
+    assert summary_top1["has_more"] in (True, False)
     assert summary_top1["top_n"] == 1
     assert len(summary_top1["top_unread_emails"]) <= 1
 
@@ -121,11 +125,14 @@ def test_build_digest_previews_for_all_emails(tmp_path):
     assert telegram["min_unread"] == 1
     assert telegram["limit"] == 1
     assert telegram["offset"] == 0
+    assert "has_more" in telegram
+    assert "next_offset" in telegram
+    assert "prev_offset" in telegram
     assert telegram["top_n"] == 1
     assert telegram["chunks_with_index"][0].startswith("[1/")
 
     csv_text = render_digest_preview_all_summary_csv(max_alerts=10, unread_only=False, min_unread=1, limit=1, offset=0, top_n=1, db_path=db)
-    assert "emails_scanned,matched,returned,limit,offset,unread_only,min_unread,emails_with_unread" in csv_text
+    assert "emails_scanned,matched,returned,limit,offset,page_end,has_more,next_offset,prev_offset,unread_only,min_unread,emails_with_unread" in csv_text
     assert "min_unread" in csv_text
     assert "top_n" in csv_text
 
@@ -147,11 +154,14 @@ def test_build_digest_previews_for_all_emails(tmp_path):
     assert all_telegram["min_unread"] == 1
     assert all_telegram["limit"] == 1
     assert all_telegram["offset"] == 0
+    assert "has_more" in all_telegram
+    assert "next_offset" in all_telegram
+    assert "prev_offset" in all_telegram
     assert all_telegram["chunk_count"] >= 1
     assert all_telegram["chunks_with_index"][0].startswith("[1/")
 
     all_csv = render_digest_previews_all_csv(max_alerts=10, unread_only=False, min_unread=1, limit=1, offset=0, db_path=db)
-    assert "emails_scanned,matched,returned,limit,offset,unread_only,min_unread,email,has_unread" in all_csv
+    assert "emails_scanned,matched,returned,limit,offset,page_end,has_more,next_offset,prev_offset,unread_only,min_unread,email,has_unread" in all_csv
 
     all_packet = build_digest_previews_all_packet(max_alerts=10, unread_only=False, min_unread=1, limit=1, offset=0, db_path=db, max_chars=200)
     assert "payload" in all_packet
