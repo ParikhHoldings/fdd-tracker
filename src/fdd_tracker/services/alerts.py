@@ -242,16 +242,21 @@ def build_digest_preview_packet(
 def build_digest_previews_for_all_emails(
     max_alerts: int = 25,
     unread_only: bool = False,
+    min_unread: int = 0,
     db_path: str | None = None,
 ) -> dict:
     emails = sorted(get_watchlist_emails(db_path=db_path))
     previews = [build_digest_preview(email=email, max_alerts=max_alerts, db_path=db_path) for email in emails]
+    min_unread = max(0, min(min_unread, 10_000))
     if unread_only:
         previews = [item for item in previews if item.get("has_unread")]
+    if min_unread > 0:
+        previews = [item for item in previews if int(item.get("unread_count") or 0) >= min_unread]
     return {
         "emails_scanned": len(emails),
         "returned": len(previews),
         "unread_only": unread_only,
+        "min_unread": min_unread,
         "previews": previews,
     }
 
@@ -259,15 +264,22 @@ def build_digest_previews_for_all_emails(
 def render_digest_previews_all_markdown(
     max_alerts: int = 25,
     unread_only: bool = False,
+    min_unread: int = 0,
     db_path: str | None = None,
 ) -> str:
-    payload = build_digest_previews_for_all_emails(max_alerts=max_alerts, unread_only=unread_only, db_path=db_path)
+    payload = build_digest_previews_for_all_emails(
+        max_alerts=max_alerts,
+        unread_only=unread_only,
+        min_unread=min_unread,
+        db_path=db_path,
+    )
     lines = [
         "# Digest Preview All Emails",
         "",
         f"- Emails scanned: {payload.get('emails_scanned', 0)}",
         f"- Returned: {payload.get('returned', 0)}",
         f"- Unread-only mode: {payload.get('unread_only', False)}",
+        f"- Min unread filter: {payload.get('min_unread', 0)}",
         "",
         "## Previews",
     ]
@@ -284,12 +296,14 @@ def render_digest_previews_all_markdown(
 def render_digest_previews_all_telegram_chunks(
     max_alerts: int = 25,
     unread_only: bool = False,
+    min_unread: int = 0,
     db_path: str | None = None,
     max_chars: int = 3500,
 ) -> dict:
     markdown = render_digest_previews_all_markdown(
         max_alerts=max_alerts,
         unread_only=unread_only,
+        min_unread=min_unread,
         db_path=db_path,
     )
     max_chars = max(100, min(max_chars, 4096))
@@ -322,6 +336,7 @@ def render_digest_previews_all_telegram_chunks(
     return {
         "max_alerts": max_alerts,
         "unread_only": unread_only,
+        "min_unread": max(0, min(min_unread, 10_000)),
         "total_chars": len(markdown),
         "max_chars": max_chars,
         "chunk_count": len(chunks),
@@ -333,14 +348,21 @@ def render_digest_previews_all_telegram_chunks(
 def render_digest_previews_all_csv(
     max_alerts: int = 25,
     unread_only: bool = False,
+    min_unread: int = 0,
     db_path: str | None = None,
 ) -> str:
-    payload = build_digest_previews_for_all_emails(max_alerts=max_alerts, unread_only=unread_only, db_path=db_path)
+    payload = build_digest_previews_for_all_emails(
+        max_alerts=max_alerts,
+        unread_only=unread_only,
+        min_unread=min_unread,
+        db_path=db_path,
+    )
     output = StringIO()
     fieldnames = [
         "emails_scanned",
         "returned",
         "unread_only",
+        "min_unread",
         "email",
         "has_unread",
         "unread_count",
@@ -357,6 +379,7 @@ def render_digest_previews_all_csv(
                 "emails_scanned": payload.get("emails_scanned", 0),
                 "returned": payload.get("returned", 0),
                 "unread_only": payload.get("unread_only", False),
+                "min_unread": payload.get("min_unread", 0),
             }
         )
         return output.getvalue()
@@ -367,6 +390,7 @@ def render_digest_previews_all_csv(
                 "emails_scanned": payload.get("emails_scanned", 0),
                 "returned": payload.get("returned", 0),
                 "unread_only": payload.get("unread_only", False),
+                "min_unread": payload.get("min_unread", 0),
                 "email": item.get("email"),
                 "has_unread": item.get("has_unread", False),
                 "unread_count": item.get("unread_count", 0),
@@ -380,6 +404,7 @@ def render_digest_previews_all_csv(
 def build_digest_previews_all_packet(
     max_alerts: int = 25,
     unread_only: bool = False,
+    min_unread: int = 0,
     db_path: str | None = None,
     max_chars: int = 3500,
 ) -> dict:
@@ -387,21 +412,25 @@ def build_digest_previews_all_packet(
         "payload": build_digest_previews_for_all_emails(
             max_alerts=max_alerts,
             unread_only=unread_only,
+            min_unread=min_unread,
             db_path=db_path,
         ),
         "markdown": render_digest_previews_all_markdown(
             max_alerts=max_alerts,
             unread_only=unread_only,
+            min_unread=min_unread,
             db_path=db_path,
         ),
         "csv": render_digest_previews_all_csv(
             max_alerts=max_alerts,
             unread_only=unread_only,
+            min_unread=min_unread,
             db_path=db_path,
         ),
         "telegram": render_digest_previews_all_telegram_chunks(
             max_alerts=max_alerts,
             unread_only=unread_only,
+            min_unread=min_unread,
             db_path=db_path,
             max_chars=max_chars,
         ),
@@ -411,10 +440,16 @@ def build_digest_previews_all_packet(
 def summarize_digest_previews_for_all_emails(
     max_alerts: int = 25,
     unread_only: bool = False,
+    min_unread: int = 0,
     top_n: int = 10,
     db_path: str | None = None,
 ) -> dict:
-    payload = build_digest_previews_for_all_emails(max_alerts=max_alerts, unread_only=unread_only, db_path=db_path)
+    payload = build_digest_previews_for_all_emails(
+        max_alerts=max_alerts,
+        unread_only=unread_only,
+        min_unread=min_unread,
+        db_path=db_path,
+    )
     previews = payload.get("previews") or []
 
     unread_total = int(sum(int(item.get("unread_count") or 0) for item in previews))
@@ -435,6 +470,7 @@ def summarize_digest_previews_for_all_emails(
         "emails_scanned": payload.get("emails_scanned", 0),
         "returned": payload.get("returned", 0),
         "unread_only": unread_only,
+        "min_unread": payload.get("min_unread", 0),
         "emails_with_unread": emails_with_unread,
         "emails_without_unread": max(0, int(payload.get("returned", 0)) - emails_with_unread),
         "unread_alert_total": unread_total,
@@ -446,12 +482,14 @@ def summarize_digest_previews_for_all_emails(
 def render_digest_preview_all_summary_markdown(
     max_alerts: int = 25,
     unread_only: bool = False,
+    min_unread: int = 0,
     top_n: int = 10,
     db_path: str | None = None,
 ) -> str:
     summary = summarize_digest_previews_for_all_emails(
         max_alerts=max_alerts,
         unread_only=unread_only,
+        min_unread=min_unread,
         top_n=top_n,
         db_path=db_path,
     )
@@ -461,6 +499,7 @@ def render_digest_preview_all_summary_markdown(
         f"- Emails scanned: {summary.get('emails_scanned', 0)}",
         f"- Returned: {summary.get('returned', 0)}",
         f"- Unread-only mode: {summary.get('unread_only', False)}",
+        f"- Min unread filter: {summary.get('min_unread', 0)}",
         f"- Emails with unread: {summary.get('emails_with_unread', 0)}",
         f"- Emails without unread: {summary.get('emails_without_unread', 0)}",
         f"- Total unread alerts: {summary.get('unread_alert_total', 0)}",
@@ -479,6 +518,7 @@ def render_digest_preview_all_summary_markdown(
 def render_digest_preview_all_summary_telegram_chunks(
     max_alerts: int = 25,
     unread_only: bool = False,
+    min_unread: int = 0,
     top_n: int = 10,
     db_path: str | None = None,
     max_chars: int = 3500,
@@ -486,6 +526,7 @@ def render_digest_preview_all_summary_telegram_chunks(
     markdown = render_digest_preview_all_summary_markdown(
         max_alerts=max_alerts,
         unread_only=unread_only,
+        min_unread=min_unread,
         top_n=top_n,
         db_path=db_path,
     )
@@ -519,6 +560,7 @@ def render_digest_preview_all_summary_telegram_chunks(
     return {
         "max_alerts": max_alerts,
         "unread_only": unread_only,
+        "min_unread": max(0, min(min_unread, 10_000)),
         "top_n": top_n,
         "total_chars": len(markdown),
         "max_chars": max_chars,
@@ -531,12 +573,14 @@ def render_digest_preview_all_summary_telegram_chunks(
 def render_digest_preview_all_summary_csv(
     max_alerts: int = 25,
     unread_only: bool = False,
+    min_unread: int = 0,
     top_n: int = 10,
     db_path: str | None = None,
 ) -> str:
     summary = summarize_digest_previews_for_all_emails(
         max_alerts=max_alerts,
         unread_only=unread_only,
+        min_unread=min_unread,
         top_n=top_n,
         db_path=db_path,
     )
@@ -545,6 +589,7 @@ def render_digest_preview_all_summary_csv(
         "emails_scanned",
         "returned",
         "unread_only",
+        "min_unread",
         "emails_with_unread",
         "emails_without_unread",
         "unread_alert_total",
@@ -562,6 +607,7 @@ def render_digest_preview_all_summary_csv(
                 "emails_scanned": summary.get("emails_scanned", 0),
                 "returned": summary.get("returned", 0),
                 "unread_only": summary.get("unread_only", False),
+                "min_unread": summary.get("min_unread", 0),
                 "emails_with_unread": summary.get("emails_with_unread", 0),
                 "emails_without_unread": summary.get("emails_without_unread", 0),
                 "unread_alert_total": summary.get("unread_alert_total", 0),
@@ -576,6 +622,7 @@ def render_digest_preview_all_summary_csv(
                 "emails_scanned": summary.get("emails_scanned", 0),
                 "returned": summary.get("returned", 0),
                 "unread_only": summary.get("unread_only", False),
+                "min_unread": summary.get("min_unread", 0),
                 "emails_with_unread": summary.get("emails_with_unread", 0),
                 "emails_without_unread": summary.get("emails_without_unread", 0),
                 "unread_alert_total": summary.get("unread_alert_total", 0),
@@ -590,6 +637,7 @@ def render_digest_preview_all_summary_csv(
 def build_digest_preview_all_summary_packet(
     max_alerts: int = 25,
     unread_only: bool = False,
+    min_unread: int = 0,
     top_n: int = 10,
     db_path: str | None = None,
     max_chars: int = 3500,
@@ -598,24 +646,28 @@ def build_digest_preview_all_summary_packet(
         "summary": summarize_digest_previews_for_all_emails(
             max_alerts=max_alerts,
             unread_only=unread_only,
+            min_unread=min_unread,
             top_n=top_n,
             db_path=db_path,
         ),
         "markdown": render_digest_preview_all_summary_markdown(
             max_alerts=max_alerts,
             unread_only=unread_only,
+            min_unread=min_unread,
             top_n=top_n,
             db_path=db_path,
         ),
         "csv": render_digest_preview_all_summary_csv(
             max_alerts=max_alerts,
             unread_only=unread_only,
+            min_unread=min_unread,
             top_n=top_n,
             db_path=db_path,
         ),
         "telegram": render_digest_preview_all_summary_telegram_chunks(
             max_alerts=max_alerts,
             unread_only=unread_only,
+            min_unread=min_unread,
             top_n=top_n,
             db_path=db_path,
             max_chars=max_chars,
