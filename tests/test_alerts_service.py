@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_all_summary_packet, build_digest_preview_packet, build_digest_previews_all_packet, build_digest_previews_for_all_emails, dispatch_outbox, get_digest_preview_all_options, list_cron_history, list_outbox, prune_alert_artifacts, render_digest_preview_all_summary_csv, render_digest_preview_all_summary_markdown, render_digest_preview_all_summary_telegram_chunks, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, render_digest_previews_all_csv, render_digest_previews_all_markdown, render_digest_previews_all_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, summarize_digest_previews_for_all_emails
+from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_all_summary_packet, build_digest_preview_packet, build_digest_previews_all_packet, build_digest_previews_for_all_emails, dispatch_outbox, get_digest_preview_all_options, get_digest_preview_options, list_cron_history, list_outbox, prune_alert_artifacts, render_digest_preview_all_summary_csv, render_digest_preview_all_summary_markdown, render_digest_preview_all_summary_telegram_chunks, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, render_digest_previews_all_csv, render_digest_previews_all_markdown, render_digest_previews_all_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, summarize_digest_previews_for_all_emails
 from fdd_tracker.services.store import get_alert_feed, seed_change_summary, upsert_watchlist
 
 
@@ -207,6 +207,15 @@ def test_digest_preview_all_options_contract():
     assert options["defaults"]["order_dir"] == "asc"
     assert options["defaults"]["max_chars"] == 2500
     assert options["surfaces"]["summary_packet"] == "/alerts/digest/preview/all/summary/packet"
+
+
+def test_digest_preview_options_contract():
+    options = get_digest_preview_options()
+    assert options["constraints"]["email"]["required"] is True
+    assert options["constraints"]["max_alerts"]["max"] == 1000
+    assert options["defaults"]["max_alerts"] == 25
+    assert options["defaults"]["max_chars"] == 2500
+    assert options["surfaces"]["preview_packet"] == "/alerts/digest/preview/packet"
 
 
 

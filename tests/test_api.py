@@ -342,6 +342,16 @@ def test_alerts_digest_preview_all_options_endpoint():
     assert data["surfaces"]["preview"] == "/alerts/digest/preview/all"
 
 
+def test_alerts_digest_preview_options_endpoint():
+    r = client.get("/alerts/digest/preview/options")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["constraints"]["email"]["required"] is True
+    assert data["constraints"]["max_chars"]["min"] == 200
+    assert data["defaults"]["max_alerts"] == 25
+    assert data["surfaces"]["preview"] == "/alerts/digest/preview"
+
+
 def test_alerts_digest_preview_all_endpoint():
     email_a = f"digestpreview-all-a-{uuid4().hex[:8]}@example.com"
     email_b = f"digestpreview-all-b-{uuid4().hex[:8]}@example.com"

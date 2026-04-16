@@ -16,6 +16,27 @@ ALL_DIGEST_PREVIEW_ORDER_BY_OPTIONS = ["email", "unread_count", "has_unread", "g
 ALL_DIGEST_PREVIEW_ORDER_DIR_OPTIONS = ["asc", "desc"]
 
 
+def get_digest_preview_options() -> dict:
+    return {
+        "constraints": {
+            "email": {"type": "string", "required": True},
+            "max_alerts": {"type": "int", "min": 1, "max": 1000},
+            "max_chars": {"type": "int", "min": 200, "max": 10000},
+        },
+        "defaults": {
+            "max_alerts": 25,
+            "max_chars": 2500,
+        },
+        "surfaces": {
+            "preview": "/alerts/digest/preview",
+            "preview_markdown": "/alerts/digest/preview/markdown",
+            "preview_telegram": "/alerts/digest/preview/telegram",
+            "preview_csv": "/alerts/digest/preview/csv",
+            "preview_packet": "/alerts/digest/preview/packet",
+        },
+    }
+
+
 def get_digest_preview_all_options() -> dict:
     return {
         "order_by": ALL_DIGEST_PREVIEW_ORDER_BY_OPTIONS,

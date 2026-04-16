@@ -144,6 +144,7 @@ curl "http://localhost:8000/alerts/digest/preview/markdown?email=you@example.com
 curl "http://localhost:8000/alerts/digest/preview/telegram?email=you@example.com&max_alerts=25&max_chars=2500"
 curl "http://localhost:8000/alerts/digest/preview/csv?email=you@example.com&max_alerts=25"
 curl "http://localhost:8000/alerts/digest/preview/packet?email=you@example.com&max_alerts=25&max_chars=2500"
+curl "http://localhost:8000/alerts/digest/preview/options"
 curl "http://localhost:8000/alerts/digest/preview/all/options"
 # Options endpoint returns supported ordering, parameter constraints, defaults, and available all-email preview/summary surfaces.
 curl "http://localhost:8000/alerts/digest/preview/all?max_alerts=25"
