@@ -20,6 +20,15 @@ def get_digest_preview_all_options() -> dict:
     return {
         "order_by": ALL_DIGEST_PREVIEW_ORDER_BY_OPTIONS,
         "order_dir": ALL_DIGEST_PREVIEW_ORDER_DIR_OPTIONS,
+        "constraints": {
+            "max_alerts": {"type": "int", "min": 1, "max": 1000},
+            "limit": {"type": "int|null", "min": 1, "max": 1000},
+            "offset": {"type": "int", "min": 0},
+            "top_n": {"type": "int", "min": 1, "max": 1000},
+            "min_unread": {"type": "int", "min": 0},
+            "unread_only": {"type": "bool"},
+            "max_chars": {"type": "int", "min": 200, "max": 10000},
+        },
         "defaults": {
             "order_by": "email",
             "order_dir": "asc",
@@ -29,6 +38,19 @@ def get_digest_preview_all_options() -> dict:
             "max_alerts": 25,
             "min_unread": 0,
             "unread_only": False,
+            "max_chars": 2500,
+        },
+        "surfaces": {
+            "preview": "/alerts/digest/preview/all",
+            "preview_markdown": "/alerts/digest/preview/all/markdown",
+            "preview_telegram": "/alerts/digest/preview/all/telegram",
+            "preview_csv": "/alerts/digest/preview/all/csv",
+            "preview_packet": "/alerts/digest/preview/all/packet",
+            "summary": "/alerts/digest/preview/all/summary",
+            "summary_markdown": "/alerts/digest/preview/all/summary/markdown",
+            "summary_telegram": "/alerts/digest/preview/all/summary/telegram",
+            "summary_csv": "/alerts/digest/preview/all/summary/csv",
+            "summary_packet": "/alerts/digest/preview/all/summary/packet",
         },
     }
 

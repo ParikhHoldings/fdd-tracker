@@ -334,8 +334,12 @@ def test_alerts_digest_preview_all_options_endpoint():
     data = r.json()
     assert data["order_by"] == ["email", "unread_count", "has_unread", "generated_at"]
     assert data["order_dir"] == ["asc", "desc"]
+    assert data["constraints"]["limit"]["type"] == "int|null"
+    assert data["constraints"]["max_chars"]["max"] == 10000
     assert data["defaults"]["order_by"] == "email"
     assert data["defaults"]["order_dir"] == "asc"
+    assert data["defaults"]["max_chars"] == 2500
+    assert data["surfaces"]["preview"] == "/alerts/digest/preview/all"
 
 
 def test_alerts_digest_preview_all_endpoint():

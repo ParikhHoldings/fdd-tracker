@@ -201,8 +201,12 @@ def test_digest_preview_all_options_contract():
     options = get_digest_preview_all_options()
     assert options["order_by"] == ["email", "unread_count", "has_unread", "generated_at"]
     assert options["order_dir"] == ["asc", "desc"]
+    assert options["constraints"]["limit"]["type"] == "int|null"
+    assert options["constraints"]["max_chars"]["min"] == 200
     assert options["defaults"]["order_by"] == "email"
     assert options["defaults"]["order_dir"] == "asc"
+    assert options["defaults"]["max_chars"] == 2500
+    assert options["surfaces"]["summary_packet"] == "/alerts/digest/preview/all/summary/packet"
 
 
 
