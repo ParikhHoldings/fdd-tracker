@@ -335,11 +335,14 @@ def test_alerts_digest_preview_all_endpoint():
     client.post("/watchlists", json={"email": email_b, "franchise_slug": "orangetheory"})
     seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
 
-    r = client.get("/alerts/digest/preview/all?max_alerts=10")
+    r = client.get("/alerts/digest/preview/all?max_alerts=10&limit=1&offset=0")
     assert r.status_code == 200
     data = r.json()
     assert data["emails_scanned"] >= 2
-    assert data["returned"] >= 2
+    assert data["matched"] >= 2
+    assert data["returned"] == 1
+    assert data["limit"] == 1
+    assert data["offset"] == 0
     assert isinstance(data["previews"], list)
 
     r2 = client.get("/alerts/digest/preview/all?max_alerts=10&unread_only=true")
@@ -359,29 +362,33 @@ def test_alerts_digest_preview_all_markdown_telegram_csv_packet_endpoints():
     client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
     seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
 
-    md = client.get("/alerts/digest/preview/all/markdown?max_alerts=10&min_unread=1")
+    md = client.get("/alerts/digest/preview/all/markdown?max_alerts=10&min_unread=1&limit=1&offset=0")
     assert md.status_code == 200
     assert "markdown" in md.json()
     assert "Digest Preview All Emails" in md.json()["markdown"]
     assert "Min unread filter: 1" in md.json()["markdown"]
+    assert "Pagination: limit=1 offset=0" in md.json()["markdown"]
 
-    tg = client.get("/alerts/digest/preview/all/telegram?max_alerts=10&min_unread=1&max_chars=200")
+    tg = client.get("/alerts/digest/preview/all/telegram?max_alerts=10&min_unread=1&limit=1&offset=0&max_chars=200")
     assert tg.status_code == 200
     tgd = tg.json()
     assert tgd["min_unread"] == 1
+    assert tgd["limit"] == 1
+    assert tgd["offset"] == 0
     assert tgd["chunk_count"] >= 1
     assert tgd["chunks_with_index"][0].startswith("[1/")
 
-    csv_r = client.get("/alerts/digest/preview/all/csv?max_alerts=10&min_unread=1")
+    csv_r = client.get("/alerts/digest/preview/all/csv?max_alerts=10&min_unread=1&limit=1&offset=0")
     assert csv_r.status_code == 200
     assert "csv" in csv_r.json()
-    assert "emails_scanned,returned,unread_only,min_unread,email,has_unread" in csv_r.json()["csv"]
+    assert "emails_scanned,matched,returned,limit,offset,unread_only,min_unread,email,has_unread" in csv_r.json()["csv"]
 
-    packet_r = client.get("/alerts/digest/preview/all/packet?max_alerts=10&min_unread=1&max_chars=200")
+    packet_r = client.get("/alerts/digest/preview/all/packet?max_alerts=10&min_unread=1&limit=1&offset=0&max_chars=200")
     assert packet_r.status_code == 200
     pkt = packet_r.json()
     assert "payload" in pkt
     assert pkt["payload"]["min_unread"] == 1
+    assert pkt["payload"]["limit"] == 1
     assert "markdown" in pkt
     assert "csv" in pkt
     assert "telegram" in pkt
@@ -395,11 +402,14 @@ def test_alerts_digest_preview_all_summary_endpoint():
     client.post("/watchlists", json={"email": email_b, "franchise_slug": "orangetheory"})
     seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
 
-    r = client.get("/alerts/digest/preview/all/summary?max_alerts=10&min_unread=1&top_n=1")
+    r = client.get("/alerts/digest/preview/all/summary?max_alerts=10&min_unread=1&limit=1&offset=0&top_n=1")
     assert r.status_code == 200
     data = r.json()
     assert data["emails_scanned"] >= 2
+    assert data["matched"] >= 1
     assert data["min_unread"] == 1
+    assert data["limit"] == 1
+    assert data["offset"] == 0
     assert data["top_n"] == 1
     assert len(data["top_unread_emails"]) <= 1
     assert "unread_alert_total" in data
@@ -411,17 +421,20 @@ def test_alerts_digest_preview_all_summary_markdown_and_telegram_endpoints():
     client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
     seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
 
-    md = client.get("/alerts/digest/preview/all/summary/markdown?max_alerts=10&min_unread=1&top_n=1")
+    md = client.get("/alerts/digest/preview/all/summary/markdown?max_alerts=10&min_unread=1&limit=1&offset=0&top_n=1")
     assert md.status_code == 200
     assert "markdown" in md.json()
     assert "Digest Preview All-Email Summary" in md.json()["markdown"]
     assert "Min unread filter: 1" in md.json()["markdown"]
+    assert "Pagination: limit=1 offset=0" in md.json()["markdown"]
     assert "Top Unread Emails (1)" in md.json()["markdown"]
 
-    tg = client.get("/alerts/digest/preview/all/summary/telegram?max_alerts=10&min_unread=1&top_n=1&max_chars=200")
+    tg = client.get("/alerts/digest/preview/all/summary/telegram?max_alerts=10&min_unread=1&limit=1&offset=0&top_n=1&max_chars=200")
     assert tg.status_code == 200
     tgd = tg.json()
     assert tgd["min_unread"] == 1
+    assert tgd["limit"] == 1
+    assert tgd["offset"] == 0
     assert tgd["top_n"] == 1
     assert tgd["chunk_count"] >= 1
     assert tgd["chunks_with_index"][0].startswith("[1/")
@@ -432,16 +445,17 @@ def test_alerts_digest_preview_all_summary_csv_and_packet_endpoints():
     client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
     seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
 
-    csv_r = client.get("/alerts/digest/preview/all/summary/csv?max_alerts=10&min_unread=1&top_n=1")
+    csv_r = client.get("/alerts/digest/preview/all/summary/csv?max_alerts=10&min_unread=1&limit=1&offset=0&top_n=1")
     assert csv_r.status_code == 200
     assert "csv" in csv_r.json()
     assert "top_n" in csv_r.json()["csv"]
 
-    packet_r = client.get("/alerts/digest/preview/all/summary/packet?max_alerts=10&min_unread=1&top_n=1&max_chars=200")
+    packet_r = client.get("/alerts/digest/preview/all/summary/packet?max_alerts=10&min_unread=1&limit=1&offset=0&top_n=1&max_chars=200")
     assert packet_r.status_code == 200
     pkt = packet_r.json()
     assert "summary" in pkt
     assert pkt["summary"]["min_unread"] == 1
+    assert pkt["summary"]["limit"] == 1
     assert pkt["summary"]["top_n"] == 1
     assert "markdown" in pkt
     assert "csv" in pkt
