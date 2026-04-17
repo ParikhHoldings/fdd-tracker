@@ -232,6 +232,31 @@ def get_outbox_retry_failed_options() -> dict:
     }
 
 
+def get_retention_prune_options() -> dict:
+    return {
+        "constraints": {
+            "outbox_keep_last": {"type": "int", "min": 0, "max": 50000},
+            "sent_keep_last": {"type": "int", "min": 0, "max": 50000},
+            "failed_keep_last": {"type": "int", "min": 0, "max": 50000},
+            "history_keep_last": {"type": "int", "min": 0, "max": 50000},
+        },
+        "defaults": {
+            "outbox_keep_last": 1000,
+            "sent_keep_last": 2000,
+            "failed_keep_last": 1000,
+            "history_keep_last": 2000,
+        },
+        "surfaces": {
+            "options": "/alerts/retention/prune/options",
+            "prune": "/alerts/retention/prune",
+            "outbox": "/alerts/outbox",
+            "sent": "/alerts/outbox/sent",
+            "failed": "/alerts/outbox/failed",
+            "history": "/alerts/cron/history",
+        },
+    }
+
+
 @dataclass
 class WatchlistAlert:
     email: str

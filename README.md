@@ -141,6 +141,7 @@ curl "http://localhost:8000/alerts/digest/run/options"
 curl "http://localhost:8000/alerts/cron/options"
 curl "http://localhost:8000/alerts/outbox/dispatch/options"
 curl "http://localhost:8000/alerts/outbox/retry-failed/options"
+curl "http://localhost:8000/alerts/retention/prune/options"
 # Cron options includes allowed dispatch_provider enum and provider readiness metadata.
 # It also includes per-provider health snapshots (known/ready/supports_live/missing_env).
 
@@ -217,4 +218,5 @@ curl "http://localhost:8000/alerts/cron/history?limit=25"
 curl -X POST http://localhost:8000/alerts/retention/prune \
   -H "Content-Type: application/json" \
   -d '{"outbox_keep_last":1000,"sent_keep_last":2000,"failed_keep_last":1000,"history_keep_last":2000}'
+curl "http://localhost:8000/alerts/retention/prune/options"
 ```
