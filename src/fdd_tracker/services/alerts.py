@@ -102,6 +102,46 @@ def get_digest_preview_all_options() -> dict:
     }
 
 
+def get_alerts_cron_options() -> dict:
+    return {
+        "constraints": {
+            "max_alerts": {"type": "int", "min": 1, "max": 200},
+            "generate_mark_read": {"type": "bool"},
+            "dispatch_limit": {"type": "int", "min": 1, "max": 500},
+            "retry_limit": {"type": "int", "min": 1, "max": 500},
+            "dispatch_dry_run": {"type": "bool"},
+            "dispatch_provider": {"type": "string"},
+            "run_id": {"type": "string|null", "required": False},
+            "lock_stale_after_seconds": {"type": "int", "min": 1, "max": 86400},
+            "status_lock_stale_after_seconds": {"type": "int", "min": 1, "max": 86400},
+            "history_limit": {"type": "int", "min": 1, "max": 500},
+            "force": {"type": "bool"},
+        },
+        "defaults": {
+            "max_alerts": 25,
+            "generate_mark_read": False,
+            "dispatch_limit": 100,
+            "retry_limit": 100,
+            "dispatch_dry_run": True,
+            "dispatch_provider": "noop",
+            "run_id": None,
+            "lock_stale_after_seconds": 900,
+            "status_lock_stale_after_seconds": 900,
+            "history_limit": 50,
+            "force": False,
+        },
+        "surfaces": {
+            "options": "/alerts/cron/options",
+            "tick": "/alerts/cron/tick",
+            "preflight": "/alerts/cron/preflight",
+            "recover_lock": "/alerts/cron/recover-lock",
+            "status": "/alerts/cron/status",
+            "history": "/alerts/cron/history",
+            "history_latest": "/alerts/cron/history/latest",
+        },
+    }
+
+
 @dataclass
 class WatchlistAlert:
     email: str
