@@ -257,6 +257,24 @@ def get_retention_prune_options() -> dict:
     }
 
 
+def get_cron_history_options() -> dict:
+    return {
+        "constraints": {
+            "limit": {"type": "int", "min": 1, "max": 500},
+        },
+        "defaults": {
+            "limit": 50,
+        },
+        "surfaces": {
+            "options": "/alerts/cron/history/options",
+            "history": "/alerts/cron/history",
+            "latest": "/alerts/cron/history/latest",
+            "status": "/alerts/cron/status",
+            "tick": "/alerts/cron/tick",
+        },
+    }
+
+
 @dataclass
 class WatchlistAlert:
     email: str

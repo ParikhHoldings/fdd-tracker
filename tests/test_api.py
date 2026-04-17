@@ -414,6 +414,17 @@ def test_alerts_retention_prune_options_endpoint():
     assert data["surfaces"]["prune"] == "/alerts/retention/prune"
 
 
+def test_alerts_cron_history_options_endpoint():
+    r = client.get("/alerts/cron/history/options")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["constraints"]["limit"]["min"] == 1
+    assert data["constraints"]["limit"]["max"] == 500
+    assert data["defaults"]["limit"] == 50
+    assert data["surfaces"]["options"] == "/alerts/cron/history/options"
+    assert data["surfaces"]["latest"] == "/alerts/cron/history/latest"
+
+
 def test_alerts_digest_preview_all_endpoint():
     email_a = f"digestpreview-all-a-{uuid4().hex[:8]}@example.com"
     email_b = f"digestpreview-all-b-{uuid4().hex[:8]}@example.com"
