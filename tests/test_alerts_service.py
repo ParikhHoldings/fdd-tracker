@@ -238,6 +238,9 @@ def test_alerts_cron_options_contract():
     assert "noop" in options["providers"]["supported"]
     assert "resend" in options["providers"]["live_capable"]
     assert "noop" in options["providers"]["ready"]
+    assert "noop" in options["providers"]["health"]
+    assert options["providers"]["health"]["noop"]["known"] is True
+    assert options["providers"]["health"]["noop"]["ready"] is True
     assert options["surfaces"]["options"] == "/alerts/cron/options"
     assert options["surfaces"]["tick"] == "/alerts/cron/tick"
 

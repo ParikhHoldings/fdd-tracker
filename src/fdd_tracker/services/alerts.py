@@ -111,6 +111,7 @@ def get_alerts_cron_options() -> dict:
     ready_providers = sorted(
         [name for name, meta in provider_catalog.get("providers", {}).items() if bool(meta.get("ready"))]
     )
+    provider_health = {name: get_provider_health(name) for name in provider_names}
 
     return {
         "constraints": {
@@ -144,6 +145,7 @@ def get_alerts_cron_options() -> dict:
             "supported": provider_names,
             "live_capable": live_capable_providers,
             "ready": ready_providers,
+            "health": provider_health,
         },
         "surfaces": {
             "options": "/alerts/cron/options",

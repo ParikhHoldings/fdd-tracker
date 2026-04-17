@@ -373,6 +373,8 @@ def test_alerts_cron_options_endpoint():
     assert data["defaults"]["lock_stale_after_seconds"] == 900
     assert data["providers"]["default"] == "noop"
     assert "resend" in data["providers"]["live_capable"]
+    assert "noop" in data["providers"]["health"]
+    assert data["providers"]["health"]["noop"]["ready"] is True
     assert data["surfaces"]["options"] == "/alerts/cron/options"
     assert data["surfaces"]["tick"] == "/alerts/cron/tick"
 
