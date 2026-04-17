@@ -214,6 +214,24 @@ def get_outbox_dispatch_options() -> dict:
     }
 
 
+def get_outbox_retry_failed_options() -> dict:
+    return {
+        "constraints": {
+            "limit": {"type": "int", "min": 1, "max": 500},
+        },
+        "defaults": {
+            "limit": 100,
+        },
+        "surfaces": {
+            "options": "/alerts/outbox/retry-failed/options",
+            "retry_failed": "/alerts/outbox/retry-failed",
+            "outbox": "/alerts/outbox",
+            "failed": "/alerts/outbox/failed",
+            "sent": "/alerts/outbox/sent",
+        },
+    }
+
+
 @dataclass
 class WatchlistAlert:
     email: str

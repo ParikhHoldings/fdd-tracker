@@ -140,6 +140,7 @@ curl -X POST http://localhost:8000/alerts/digest/run \
 curl "http://localhost:8000/alerts/digest/run/options"
 curl "http://localhost:8000/alerts/cron/options"
 curl "http://localhost:8000/alerts/outbox/dispatch/options"
+curl "http://localhost:8000/alerts/outbox/retry-failed/options"
 # Cron options includes allowed dispatch_provider enum and provider readiness metadata.
 # It also includes per-provider health snapshots (known/ready/supports_live/missing_env).
 

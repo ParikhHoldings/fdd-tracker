@@ -392,6 +392,16 @@ def test_alerts_outbox_dispatch_options_endpoint():
     assert data["surfaces"]["options"] == "/alerts/outbox/dispatch/options"
 
 
+def test_alerts_outbox_retry_failed_options_endpoint():
+    r = client.get("/alerts/outbox/retry-failed/options")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["constraints"]["limit"]["max"] == 500
+    assert data["defaults"]["limit"] == 100
+    assert data["surfaces"]["options"] == "/alerts/outbox/retry-failed/options"
+    assert data["surfaces"]["retry_failed"] == "/alerts/outbox/retry-failed"
+
+
 def test_alerts_digest_preview_all_endpoint():
     email_a = f"digestpreview-all-a-{uuid4().hex[:8]}@example.com"
     email_b = f"digestpreview-all-b-{uuid4().hex[:8]}@example.com"
