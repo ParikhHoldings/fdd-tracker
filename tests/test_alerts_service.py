@@ -231,8 +231,13 @@ def test_alerts_cron_options_contract():
     options = get_alerts_cron_options()
     assert options["constraints"]["dispatch_limit"]["max"] == 500
     assert options["constraints"]["lock_stale_after_seconds"]["max"] == 86400
+    assert "noop" in options["constraints"]["dispatch_provider"]["enum"]
     assert options["defaults"]["dispatch_provider"] == "noop"
     assert options["defaults"]["history_limit"] == 50
+    assert options["providers"]["default"] == "noop"
+    assert "noop" in options["providers"]["supported"]
+    assert "resend" in options["providers"]["live_capable"]
+    assert "noop" in options["providers"]["ready"]
     assert options["surfaces"]["options"] == "/alerts/cron/options"
     assert options["surfaces"]["tick"] == "/alerts/cron/tick"
 

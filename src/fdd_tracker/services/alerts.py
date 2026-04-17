@@ -103,6 +103,15 @@ def get_digest_preview_all_options() -> dict:
 
 
 def get_alerts_cron_options() -> dict:
+    provider_catalog = get_dispatch_provider_catalog()
+    provider_names = sorted(provider_catalog.get("providers", {}).keys())
+    live_capable_providers = sorted(
+        [name for name, meta in provider_catalog.get("providers", {}).items() if bool(meta.get("supports_live"))]
+    )
+    ready_providers = sorted(
+        [name for name, meta in provider_catalog.get("providers", {}).items() if bool(meta.get("ready"))]
+    )
+
     return {
         "constraints": {
             "max_alerts": {"type": "int", "min": 1, "max": 200},
@@ -110,7 +119,7 @@ def get_alerts_cron_options() -> dict:
             "dispatch_limit": {"type": "int", "min": 1, "max": 500},
             "retry_limit": {"type": "int", "min": 1, "max": 500},
             "dispatch_dry_run": {"type": "bool"},
-            "dispatch_provider": {"type": "string"},
+            "dispatch_provider": {"type": "string", "enum": provider_names},
             "run_id": {"type": "string|null", "required": False},
             "lock_stale_after_seconds": {"type": "int", "min": 1, "max": 86400},
             "status_lock_stale_after_seconds": {"type": "int", "min": 1, "max": 86400},
@@ -129,6 +138,12 @@ def get_alerts_cron_options() -> dict:
             "status_lock_stale_after_seconds": 900,
             "history_limit": 50,
             "force": False,
+        },
+        "providers": {
+            "default": provider_catalog.get("default", "noop"),
+            "supported": provider_names,
+            "live_capable": live_capable_providers,
+            "ready": ready_providers,
         },
         "surfaces": {
             "options": "/alerts/cron/options",

@@ -368,8 +368,11 @@ def test_alerts_cron_options_endpoint():
     assert r.status_code == 200
     data = r.json()
     assert data["constraints"]["dispatch_limit"]["max"] == 500
+    assert "noop" in data["constraints"]["dispatch_provider"]["enum"]
     assert data["defaults"]["dispatch_provider"] == "noop"
     assert data["defaults"]["lock_stale_after_seconds"] == 900
+    assert data["providers"]["default"] == "noop"
+    assert "resend" in data["providers"]["live_capable"]
     assert data["surfaces"]["options"] == "/alerts/cron/options"
     assert data["surfaces"]["tick"] == "/alerts/cron/tick"
 

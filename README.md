@@ -139,6 +139,7 @@ curl -X POST http://localhost:8000/alerts/digest/run \
   -d '{"email":"you@example.com","max_alerts":25,"mark_read":false,"run_id":"nightly-2026-04-08"}'
 curl "http://localhost:8000/alerts/digest/run/options"
 curl "http://localhost:8000/alerts/cron/options"
+# Cron options includes allowed dispatch_provider enum and provider readiness metadata.
 
 # Preview digest payload (no side effects)
 curl "http://localhost:8000/alerts/digest/preview?email=you@example.com&max_alerts=25"
