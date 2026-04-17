@@ -379,6 +379,19 @@ def test_alerts_cron_options_endpoint():
     assert data["surfaces"]["tick"] == "/alerts/cron/tick"
 
 
+def test_alerts_outbox_dispatch_options_endpoint():
+    r = client.get("/alerts/outbox/dispatch/options")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["constraints"]["limit"]["max"] == 500
+    assert "noop" in data["constraints"]["provider"]["enum"]
+    assert data["defaults"]["provider"] == "noop"
+    assert data["live_dispatch_gate"]["requires_confirm_live"] is True
+    assert data["providers"]["default"] == "noop"
+    assert "resend" in data["providers"]["live_capable"]
+    assert data["surfaces"]["options"] == "/alerts/outbox/dispatch/options"
+
+
 def test_alerts_digest_preview_all_endpoint():
     email_a = f"digestpreview-all-a-{uuid4().hex[:8]}@example.com"
     email_b = f"digestpreview-all-b-{uuid4().hex[:8]}@example.com"

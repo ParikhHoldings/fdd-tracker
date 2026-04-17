@@ -139,6 +139,7 @@ curl -X POST http://localhost:8000/alerts/digest/run \
   -d '{"email":"you@example.com","max_alerts":25,"mark_read":false,"run_id":"nightly-2026-04-08"}'
 curl "http://localhost:8000/alerts/digest/run/options"
 curl "http://localhost:8000/alerts/cron/options"
+curl "http://localhost:8000/alerts/outbox/dispatch/options"
 # Cron options includes allowed dispatch_provider enum and provider readiness metadata.
 # It also includes per-provider health snapshots (known/ready/supports_live/missing_env).
 

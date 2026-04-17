@@ -159,6 +159,61 @@ def get_alerts_cron_options() -> dict:
     }
 
 
+def get_outbox_dispatch_options() -> dict:
+    provider_catalog = get_dispatch_provider_catalog()
+    provider_names = sorted(provider_catalog.get("providers", {}).keys())
+    live_capable_providers = sorted(
+        [name for name, meta in provider_catalog.get("providers", {}).items() if bool(meta.get("supports_live"))]
+    )
+    provider_health = {name: get_provider_health(name) for name in provider_names}
+
+    return {
+        "constraints": {
+            "limit": {"type": "int", "min": 1, "max": 500},
+            "dry_run": {"type": "bool"},
+            "provider": {"type": "string", "enum": provider_names},
+            "confirm_live": {"type": "bool"},
+            "idempotency_key": {"type": "string|null", "required": False},
+            "live_min_interval_seconds": {"type": "int", "min": 1, "max": 3600},
+        },
+        "defaults": {
+            "limit": 100,
+            "dry_run": True,
+            "provider": provider_catalog.get("default", "noop"),
+            "confirm_live": False,
+            "idempotency_key": None,
+            "live_min_interval_seconds": 60,
+        },
+        "providers": {
+            "default": provider_catalog.get("default", "noop"),
+            "supported": provider_names,
+            "live_capable": live_capable_providers,
+            "health": provider_health,
+        },
+        "live_dispatch_gate": {
+            "required_when": "dry_run=false",
+            "requires_confirm_live": True,
+            "requires_idempotency_key": True,
+            "enforces_min_interval": True,
+            "error_reasons": [
+                "live-dispatch-confirmation-required",
+                "live-dispatch-idempotency-required",
+                "live-dispatch-duplicate-idempotency-key",
+                "live-dispatch-rate-limited",
+            ],
+        },
+        "surfaces": {
+            "options": "/alerts/outbox/dispatch/options",
+            "dispatch": "/alerts/outbox/dispatch",
+            "providers": "/alerts/providers",
+            "provider_smoke_test": "/alerts/providers/smoke-test",
+            "outbox": "/alerts/outbox",
+            "sent": "/alerts/outbox/sent",
+            "failed": "/alerts/outbox/failed",
+        },
+    }
+
+
 @dataclass
 class WatchlistAlert:
     email: str
