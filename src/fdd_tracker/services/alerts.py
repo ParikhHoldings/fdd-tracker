@@ -37,6 +37,32 @@ def get_digest_preview_options() -> dict:
     }
 
 
+def get_digest_run_options() -> dict:
+    return {
+        "constraints": {
+            "email": {"type": "string|null", "required": False},
+            "max_alerts": {"type": "int", "min": 1, "max": 200},
+            "mark_read": {"type": "bool"},
+            "run_id": {"type": "string|null", "required": False},
+        },
+        "defaults": {
+            "email": None,
+            "max_alerts": 25,
+            "mark_read": False,
+            "run_id": None,
+        },
+        "modes": {
+            "single_email": "Provide email to run digest for one watchlist owner.",
+            "all_emails": "Omit email to run digest for all watchlist owners.",
+        },
+        "surfaces": {
+            "run": "/alerts/digest/run",
+            "preview_options": "/alerts/digest/preview/options",
+            "preview_all_options": "/alerts/digest/preview/all/options",
+        },
+    }
+
+
 def get_digest_preview_all_options() -> dict:
     return {
         "order_by": ALL_DIGEST_PREVIEW_ORDER_BY_OPTIONS,
