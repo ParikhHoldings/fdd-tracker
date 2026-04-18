@@ -302,6 +302,7 @@ def get_provider_catalog_options() -> dict:
             "catalog": "/alerts/providers",
             "health": "/alerts/providers/health",
             "details": "/alerts/providers/{provider}",
+            "recommendations": "/alerts/providers/{provider}/recommendations",
             "smoke_test_options": "/alerts/providers/smoke-test/options",
             "smoke_test": "/alerts/providers/smoke-test",
             "dispatch_options": "/alerts/outbox/dispatch/options",
@@ -1433,6 +1434,65 @@ def get_provider_details(provider: str) -> dict:
             "dry_run": dry_run_validation,
             "live": live_validation,
         },
+    }
+
+
+def get_provider_recommendations(provider: str) -> dict:
+    details = get_provider_details(provider)
+    provider_name = details["provider"]
+
+    actions: list[dict] = []
+    if not details["supported"]:
+        actions.append(
+            {
+                "priority": "high",
+                "code": "choose-supported-provider",
+                "message": "Use one of the supported providers before dispatching alerts.",
+                "supported_providers": details["supported_providers"],
+            }
+        )
+    else:
+        health = details["health"]
+        missing_env = health.get("missing_env", [])
+        if missing_env:
+            actions.append(
+                {
+                    "priority": "high",
+                    "code": "set-missing-env",
+                    "message": "Set required environment variables for this provider.",
+                    "missing_env": missing_env,
+                }
+            )
+
+        live_validation = details["validation"]["live"]
+        if not live_validation.get("ok", False):
+            actions.append(
+                {
+                    "priority": "medium",
+                    "code": "live-validation-failed",
+                    "message": "Live dispatch is not currently valid for this provider.",
+                    "reason": live_validation.get("reason"),
+                }
+            )
+
+        dry_run_validation = details["validation"]["dry_run"]
+        if dry_run_validation.get("ok", False):
+            actions.append(
+                {
+                    "priority": "low",
+                    "code": "run-smoke-test",
+                    "message": "Run provider smoke test in dry_run mode before enabling live dispatch.",
+                    "endpoint": "/alerts/providers/smoke-test",
+                }
+            )
+
+    ready_for_live_dispatch = bool(details["validation"]["live"].get("ok", False))
+
+    return {
+        "provider": provider_name,
+        "ready_for_live_dispatch": ready_for_live_dispatch,
+        "actions": actions,
+        "details": details,
     }
 
 
