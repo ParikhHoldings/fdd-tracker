@@ -275,6 +275,38 @@ def get_cron_history_options() -> dict:
     }
 
 
+def get_provider_catalog_options() -> dict:
+    provider_catalog = get_dispatch_provider_catalog()
+    provider_names = sorted(provider_catalog.get("providers", {}).keys())
+    provider_health = {name: get_provider_health(name) for name in provider_names}
+    live_capable_providers = sorted(
+        [name for name, meta in provider_catalog.get("providers", {}).items() if bool(meta.get("supports_live"))]
+    )
+
+    return {
+        "defaults": {
+            "provider": provider_catalog.get("default", "noop"),
+        },
+        "constraints": {
+            "query": None,
+            "body": None,
+        },
+        "providers": {
+            "default": provider_catalog.get("default", "noop"),
+            "supported": provider_names,
+            "live_capable": live_capable_providers,
+            "health": provider_health,
+        },
+        "surfaces": {
+            "options": "/alerts/providers/options",
+            "catalog": "/alerts/providers",
+            "smoke_test_options": "/alerts/providers/smoke-test/options",
+            "smoke_test": "/alerts/providers/smoke-test",
+            "dispatch_options": "/alerts/outbox/dispatch/options",
+        },
+    }
+
+
 def get_provider_smoke_test_options() -> dict:
     provider_catalog = get_dispatch_provider_catalog()
     provider_names = sorted(provider_catalog.get("providers", {}).keys())

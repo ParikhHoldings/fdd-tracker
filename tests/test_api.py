@@ -790,6 +790,17 @@ def test_alerts_provider_smoke_test_options_endpoint():
     assert data['surfaces']['options'] == '/alerts/providers/smoke-test/options'
 
 
+def test_alerts_providers_options_endpoint():
+    r = client.get('/alerts/providers/options')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['defaults']['provider'] == 'noop'
+    assert data['constraints']['query'] is None
+    assert 'noop' in data['providers']['supported']
+    assert 'health' in data['providers']
+    assert data['surfaces']['options'] == '/alerts/providers/options'
+
+
 def test_alerts_provider_smoke_test_dry_run():
     r = client.post('/alerts/providers/smoke-test', json={'provider': 'noop', 'email': 'smoke@example.com', 'dry_run': True})
     assert r.status_code == 200
