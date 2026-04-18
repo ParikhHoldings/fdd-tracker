@@ -300,6 +300,7 @@ def get_provider_catalog_options() -> dict:
         "surfaces": {
             "options": "/alerts/providers/options",
             "catalog": "/alerts/providers",
+            "health": "/alerts/providers/health",
             "smoke_test_options": "/alerts/providers/smoke-test/options",
             "smoke_test": "/alerts/providers/smoke-test",
             "dispatch_options": "/alerts/outbox/dispatch/options",
@@ -1398,6 +1399,19 @@ def get_provider_health(provider: str) -> dict:
         "missing_env": missing,
         "description": meta.get("description"),
     }
+
+def list_provider_health(providers: list[str] | None = None) -> dict:
+    catalog = get_dispatch_provider_catalog()
+    supported = sorted(catalog.get("providers", {}).keys())
+    requested = supported if providers is None else [p.strip().lower() for p in providers if p and p.strip()]
+
+    items = [get_provider_health(name) for name in requested]
+    return {
+        "requested": requested,
+        "supported": supported,
+        "items": items,
+    }
+
 
 def validate_dispatch_provider(provider: str, dry_run: bool = True) -> dict:
     provider_name = (provider or "noop").strip().lower() or "noop"
