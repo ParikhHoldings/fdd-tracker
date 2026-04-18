@@ -779,6 +779,17 @@ def test_alerts_cron_history_latest_endpoint():
     assert 'item' in data
 
 
+def test_alerts_provider_smoke_test_options_endpoint():
+    r = client.get('/alerts/providers/smoke-test/options')
+    assert r.status_code == 200
+    data = r.json()
+    assert 'noop' in data['constraints']['provider']['enum']
+    assert data['constraints']['email']['format'] == 'email'
+    assert data['defaults']['provider'] == 'noop'
+    assert data['providers']['default'] == 'noop'
+    assert data['surfaces']['options'] == '/alerts/providers/smoke-test/options'
+
+
 def test_alerts_provider_smoke_test_dry_run():
     r = client.post('/alerts/providers/smoke-test', json={'provider': 'noop', 'email': 'smoke@example.com', 'dry_run': True})
     assert r.status_code == 200

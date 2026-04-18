@@ -275,6 +275,39 @@ def get_cron_history_options() -> dict:
     }
 
 
+def get_provider_smoke_test_options() -> dict:
+    provider_catalog = get_dispatch_provider_catalog()
+    provider_names = sorted(provider_catalog.get("providers", {}).keys())
+    provider_health = {name: get_provider_health(name) for name in provider_names}
+    live_capable_providers = sorted(
+        [name for name, meta in provider_catalog.get("providers", {}).items() if bool(meta.get("supports_live"))]
+    )
+
+    return {
+        "constraints": {
+            "provider": {"type": "string", "enum": provider_names},
+            "email": {"type": "string", "format": "email"},
+            "dry_run": {"type": "bool"},
+        },
+        "defaults": {
+            "provider": provider_catalog.get("default", "noop"),
+            "dry_run": True,
+        },
+        "providers": {
+            "default": provider_catalog.get("default", "noop"),
+            "supported": provider_names,
+            "live_capable": live_capable_providers,
+            "health": provider_health,
+        },
+        "surfaces": {
+            "options": "/alerts/providers/smoke-test/options",
+            "smoke_test": "/alerts/providers/smoke-test",
+            "providers": "/alerts/providers",
+            "dispatch_options": "/alerts/outbox/dispatch/options",
+        },
+    }
+
+
 @dataclass
 class WatchlistAlert:
     email: str

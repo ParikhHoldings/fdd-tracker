@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_all_summary_packet, build_digest_preview_packet, build_digest_previews_all_packet, build_digest_previews_for_all_emails, dispatch_outbox, get_alerts_cron_options, get_cron_history_options, get_digest_preview_all_options, get_digest_preview_options, get_digest_run_options, get_outbox_dispatch_options, get_outbox_retry_failed_options, get_retention_prune_options, list_cron_history, list_outbox, prune_alert_artifacts, render_digest_preview_all_summary_csv, render_digest_preview_all_summary_markdown, render_digest_preview_all_summary_telegram_chunks, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, render_digest_previews_all_csv, render_digest_previews_all_markdown, render_digest_previews_all_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, summarize_digest_previews_for_all_emails
+from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_all_summary_packet, build_digest_preview_packet, build_digest_previews_all_packet, build_digest_previews_for_all_emails, dispatch_outbox, get_alerts_cron_options, get_cron_history_options, get_digest_preview_all_options, get_digest_preview_options, get_digest_run_options, get_outbox_dispatch_options, get_outbox_retry_failed_options, get_provider_smoke_test_options, get_retention_prune_options, list_cron_history, list_outbox, prune_alert_artifacts, render_digest_preview_all_summary_csv, render_digest_preview_all_summary_markdown, render_digest_preview_all_summary_telegram_chunks, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, render_digest_previews_all_csv, render_digest_previews_all_markdown, render_digest_previews_all_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, summarize_digest_previews_for_all_emails
 from fdd_tracker.services.store import get_alert_feed, seed_change_summary, upsert_watchlist
 
 
@@ -285,6 +285,18 @@ def test_cron_history_options_contract():
     assert options["defaults"]["limit"] == 50
     assert options["surfaces"]["options"] == "/alerts/cron/history/options"
     assert options["surfaces"]["history"] == "/alerts/cron/history"
+
+
+def test_provider_smoke_test_options_contract():
+    options = get_provider_smoke_test_options()
+    assert "noop" in options["constraints"]["provider"]["enum"]
+    assert options["constraints"]["email"]["format"] == "email"
+    assert options["defaults"]["provider"] == "noop"
+    assert options["defaults"]["dry_run"] is True
+    assert options["providers"]["default"] == "noop"
+    assert "resend" in options["providers"]["live_capable"]
+    assert options["surfaces"]["options"] == "/alerts/providers/smoke-test/options"
+    assert options["surfaces"]["smoke_test"] == "/alerts/providers/smoke-test"
 
 
 
