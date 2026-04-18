@@ -799,6 +799,7 @@ def test_alerts_providers_options_endpoint():
     assert 'noop' in data['providers']['supported']
     assert 'health' in data['providers']
     assert data['surfaces']['options'] == '/alerts/providers/options'
+    assert data['surfaces']['health_options'] == '/alerts/providers/health/options'
 
 
 def test_alerts_providers_health_endpoint_defaults():
@@ -817,6 +818,16 @@ def test_alerts_providers_health_endpoint_with_filter():
     assert data['requested'] == ['resend', 'not-real']
     assert data['items'][0]['provider'] == 'resend'
     assert data['items'][1]['known'] is False
+
+
+def test_alerts_providers_health_options_endpoint():
+    r = client.get('/alerts/providers/health/options')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['defaults']['provider'] is None
+    assert 'noop' in data['providers']['supported']
+    assert data['constraints']['provider']['type'] == 'csv|string|null'
+    assert data['surfaces']['options'] == '/alerts/providers/health/options'
 
 
 def test_alerts_provider_details_endpoint_supported():
@@ -847,6 +858,7 @@ def test_alerts_provider_details_options_endpoint():
     assert 'noop' in data['providers']['supported']
     assert data['constraints']['provider']['path_param'] is True
     assert data['surfaces']['options'] == '/alerts/providers/details/options'
+    assert data['surfaces']['health_options'] == '/alerts/providers/health/options'
 
 
 def test_alerts_provider_recommendations_endpoint_supported():
@@ -876,6 +888,7 @@ def test_alerts_provider_recommendations_options_endpoint():
     assert data['constraints']['provider']['path_param'] is True
     assert data['surfaces']['options'] == '/alerts/providers/recommendations/options'
     assert data['surfaces']['details_options'] == '/alerts/providers/details/options'
+    assert data['surfaces']['health_options'] == '/alerts/providers/health/options'
 
 
 def test_alerts_provider_smoke_test_dry_run():

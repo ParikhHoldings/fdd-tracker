@@ -301,6 +301,7 @@ def get_provider_catalog_options() -> dict:
             "options": "/alerts/providers/options",
             "catalog": "/alerts/providers",
             "health": "/alerts/providers/health",
+            "health_options": "/alerts/providers/health/options",
             "details": "/alerts/providers/{provider}",
             "details_options": "/alerts/providers/details/options",
             "recommendations": "/alerts/providers/{provider}/recommendations",
@@ -308,6 +309,37 @@ def get_provider_catalog_options() -> dict:
             "smoke_test_options": "/alerts/providers/smoke-test/options",
             "smoke_test": "/alerts/providers/smoke-test",
             "dispatch_options": "/alerts/outbox/dispatch/options",
+        },
+    }
+
+
+def get_provider_health_options() -> dict:
+    provider_catalog = get_dispatch_provider_catalog()
+    provider_names = sorted(provider_catalog.get("providers", {}).keys())
+
+    return {
+        "constraints": {
+            "provider": {
+                "type": "csv|string|null",
+                "required": False,
+                "examples": ["resend,noop", "noop"],
+                "enum": provider_names,
+            },
+        },
+        "defaults": {
+            "provider": None,
+        },
+        "providers": {
+            "default": provider_catalog.get("default", "noop"),
+            "supported": provider_names,
+        },
+        "surfaces": {
+            "options": "/alerts/providers/health/options",
+            "health": "/alerts/providers/health",
+            "catalog": "/alerts/providers",
+            "catalog_options": "/alerts/providers/options",
+            "details": "/alerts/providers/{provider}",
+            "details_options": "/alerts/providers/details/options",
         },
     }
 
@@ -1463,6 +1495,7 @@ def get_provider_details_options() -> dict:
             "recommendations": "/alerts/providers/{provider}/recommendations",
             "recommendations_options": "/alerts/providers/recommendations/options",
             "health": "/alerts/providers/health",
+            "health_options": "/alerts/providers/health/options",
             "catalog": "/alerts/providers",
         },
     }
@@ -1492,6 +1525,7 @@ def get_provider_recommendations_options() -> dict:
             "details": "/alerts/providers/{provider}",
             "details_options": "/alerts/providers/details/options",
             "health": "/alerts/providers/health",
+            "health_options": "/alerts/providers/health/options",
             "catalog": "/alerts/providers",
             "smoke_test": "/alerts/providers/smoke-test",
         },

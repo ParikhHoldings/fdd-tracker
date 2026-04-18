@@ -89,6 +89,7 @@ Returns total/unread counts, risk-level breakdown, and top unread franchises.
 curl "http://localhost:8000/alerts/providers"
 curl "http://localhost:8000/alerts/providers/options"
 curl "http://localhost:8000/alerts/providers/health"
+curl "http://localhost:8000/alerts/providers/health/options"
 curl "http://localhost:8000/alerts/providers/health?provider=resend,noop"
 curl "http://localhost:8000/alerts/providers/details/options"
 curl "http://localhost:8000/alerts/providers/noop"
