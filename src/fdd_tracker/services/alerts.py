@@ -302,6 +302,7 @@ def get_provider_catalog_options() -> dict:
             "catalog": "/alerts/providers",
             "health": "/alerts/providers/health",
             "details": "/alerts/providers/{provider}",
+            "details_options": "/alerts/providers/details/options",
             "recommendations": "/alerts/providers/{provider}/recommendations",
             "recommendations_options": "/alerts/providers/recommendations/options",
             "smoke_test_options": "/alerts/providers/smoke-test/options",
@@ -1438,6 +1439,35 @@ def get_provider_details(provider: str) -> dict:
     }
 
 
+def get_provider_details_options() -> dict:
+    catalog = get_dispatch_provider_catalog()
+    supported = sorted(catalog.get("providers", {}).keys())
+    return {
+        "constraints": {
+            "provider": {
+                "type": "string",
+                "path_param": True,
+                "examples": supported,
+            },
+        },
+        "defaults": {
+            "provider": catalog.get("default", "noop"),
+        },
+        "providers": {
+            "supported": supported,
+            "default": catalog.get("default", "noop"),
+        },
+        "surfaces": {
+            "options": "/alerts/providers/details/options",
+            "details": "/alerts/providers/{provider}",
+            "recommendations": "/alerts/providers/{provider}/recommendations",
+            "recommendations_options": "/alerts/providers/recommendations/options",
+            "health": "/alerts/providers/health",
+            "catalog": "/alerts/providers",
+        },
+    }
+
+
 def get_provider_recommendations_options() -> dict:
     catalog = get_dispatch_provider_catalog()
     supported = sorted(catalog.get("providers", {}).keys())
@@ -1460,6 +1490,7 @@ def get_provider_recommendations_options() -> dict:
             "options": "/alerts/providers/recommendations/options",
             "recommendations": "/alerts/providers/{provider}/recommendations",
             "details": "/alerts/providers/{provider}",
+            "details_options": "/alerts/providers/details/options",
             "health": "/alerts/providers/health",
             "catalog": "/alerts/providers",
             "smoke_test": "/alerts/providers/smoke-test",

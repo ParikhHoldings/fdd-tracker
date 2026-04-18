@@ -839,6 +839,16 @@ def test_alerts_provider_details_endpoint_unknown():
     assert data['validation']['dry_run']['ok'] is False
 
 
+def test_alerts_provider_details_options_endpoint():
+    r = client.get('/alerts/providers/details/options')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['defaults']['provider'] == 'noop'
+    assert 'noop' in data['providers']['supported']
+    assert data['constraints']['provider']['path_param'] is True
+    assert data['surfaces']['options'] == '/alerts/providers/details/options'
+
+
 def test_alerts_provider_recommendations_endpoint_supported():
     r = client.get('/alerts/providers/noop/recommendations')
     assert r.status_code == 200
@@ -865,6 +875,7 @@ def test_alerts_provider_recommendations_options_endpoint():
     assert 'noop' in data['providers']['supported']
     assert data['constraints']['provider']['path_param'] is True
     assert data['surfaces']['options'] == '/alerts/providers/recommendations/options'
+    assert data['surfaces']['details_options'] == '/alerts/providers/details/options'
 
 
 def test_alerts_provider_smoke_test_dry_run():
