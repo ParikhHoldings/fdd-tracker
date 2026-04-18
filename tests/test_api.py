@@ -819,6 +819,26 @@ def test_alerts_providers_health_endpoint_with_filter():
     assert data['items'][1]['known'] is False
 
 
+def test_alerts_provider_details_endpoint_supported():
+    r = client.get('/alerts/providers/noop')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['provider'] == 'noop'
+    assert data['supported'] is True
+    assert data['health']['provider'] == 'noop'
+    assert data['validation']['dry_run']['ok'] is True
+
+
+def test_alerts_provider_details_endpoint_unknown():
+    r = client.get('/alerts/providers/not-real')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['provider'] == 'not-real'
+    assert data['supported'] is False
+    assert data['health']['known'] is False
+    assert data['validation']['dry_run']['ok'] is False
+
+
 def test_alerts_provider_smoke_test_dry_run():
     r = client.post('/alerts/providers/smoke-test', json={'provider': 'noop', 'email': 'smoke@example.com', 'dry_run': True})
     assert r.status_code == 200

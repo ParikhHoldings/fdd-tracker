@@ -301,6 +301,7 @@ def get_provider_catalog_options() -> dict:
             "options": "/alerts/providers/options",
             "catalog": "/alerts/providers",
             "health": "/alerts/providers/health",
+            "details": "/alerts/providers/{provider}",
             "smoke_test_options": "/alerts/providers/smoke-test/options",
             "smoke_test": "/alerts/providers/smoke-test",
             "dispatch_options": "/alerts/outbox/dispatch/options",
@@ -1410,6 +1411,28 @@ def list_provider_health(providers: list[str] | None = None) -> dict:
         "requested": requested,
         "supported": supported,
         "items": items,
+    }
+
+
+def get_provider_details(provider: str) -> dict:
+    provider_name = (provider or "").strip().lower()
+    catalog = get_dispatch_provider_catalog()
+    supported = sorted(catalog.get("providers", {}).keys())
+    health = get_provider_health(provider_name)
+
+    dry_run_validation = validate_dispatch_provider(provider=provider_name, dry_run=True)
+    live_validation = validate_dispatch_provider(provider=provider_name, dry_run=False)
+
+    return {
+        "provider": provider_name,
+        "supported": provider_name in catalog.get("providers", {}),
+        "supported_providers": supported,
+        "meta": catalog.get("providers", {}).get(provider_name),
+        "health": health,
+        "validation": {
+            "dry_run": dry_run_validation,
+            "live": live_validation,
+        },
     }
 
 

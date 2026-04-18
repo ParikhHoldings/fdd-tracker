@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_all_summary_packet, build_digest_preview_packet, build_digest_previews_all_packet, build_digest_previews_for_all_emails, dispatch_outbox, get_alerts_cron_options, get_cron_history_options, get_digest_preview_all_options, get_digest_preview_options, get_digest_run_options, get_outbox_dispatch_options, get_outbox_retry_failed_options, get_provider_catalog_options, get_provider_smoke_test_options, list_provider_health, get_retention_prune_options, list_cron_history, list_outbox, prune_alert_artifacts, render_digest_preview_all_summary_csv, render_digest_preview_all_summary_markdown, render_digest_preview_all_summary_telegram_chunks, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, render_digest_previews_all_csv, render_digest_previews_all_markdown, render_digest_previews_all_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, summarize_digest_previews_for_all_emails
+from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_all_summary_packet, build_digest_preview_packet, build_digest_previews_all_packet, build_digest_previews_for_all_emails, dispatch_outbox, get_alerts_cron_options, get_cron_history_options, get_digest_preview_all_options, get_digest_preview_options, get_digest_run_options, get_outbox_dispatch_options, get_outbox_retry_failed_options, get_provider_catalog_options, get_provider_details, get_provider_smoke_test_options, list_provider_health, get_retention_prune_options, list_cron_history, list_outbox, prune_alert_artifacts, render_digest_preview_all_summary_csv, render_digest_preview_all_summary_markdown, render_digest_preview_all_summary_telegram_chunks, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, render_digest_previews_all_csv, render_digest_previews_all_markdown, render_digest_previews_all_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, summarize_digest_previews_for_all_emails
 from fdd_tracker.services.store import get_alert_feed, seed_change_summary, upsert_watchlist
 
 
@@ -322,6 +322,23 @@ def test_list_provider_health_filters_requested_and_keeps_unknown():
     assert data["items"][0]["provider"] == "resend"
     assert data["items"][1]["known"] is False
     assert data["items"][1]["reason"] == "unsupported-provider"
+
+
+def test_get_provider_details_supported_provider():
+    data = get_provider_details("noop")
+    assert data["provider"] == "noop"
+    assert data["supported"] is True
+    assert data["health"]["provider"] == "noop"
+    assert data["validation"]["dry_run"]["ok"] is True
+
+
+def test_get_provider_details_unknown_provider():
+    data = get_provider_details("not-real")
+    assert data["provider"] == "not-real"
+    assert data["supported"] is False
+    assert data["health"]["known"] is False
+    assert data["validation"]["dry_run"]["ok"] is False
+    assert data["validation"]["dry_run"]["reason"] == "unsupported-provider"
 
 
 
