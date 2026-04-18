@@ -857,6 +857,16 @@ def test_alerts_provider_recommendations_endpoint_unknown():
     assert any(item['code'] == 'choose-supported-provider' for item in data['actions'])
 
 
+def test_alerts_provider_recommendations_options_endpoint():
+    r = client.get('/alerts/providers/recommendations/options')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['defaults']['provider'] == 'noop'
+    assert 'noop' in data['providers']['supported']
+    assert data['constraints']['provider']['path_param'] is True
+    assert data['surfaces']['options'] == '/alerts/providers/recommendations/options'
+
+
 def test_alerts_provider_smoke_test_dry_run():
     r = client.post('/alerts/providers/smoke-test', json={'provider': 'noop', 'email': 'smoke@example.com', 'dry_run': True})
     assert r.status_code == 200
