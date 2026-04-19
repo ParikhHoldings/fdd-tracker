@@ -340,6 +340,7 @@ def get_provider_health_options() -> dict:
             "health": "/alerts/providers/health",
             "health_summary": "/alerts/providers/health/summary",
             "health_summary_options": "/alerts/providers/health/summary/options",
+            "health_summary_recommendations": "/alerts/providers/health/summary/recommendations",
             "health_summary_markdown": "/alerts/providers/health/summary/markdown",
             "health_summary_telegram": "/alerts/providers/health/summary/telegram",
             "health_summary_csv": "/alerts/providers/health/summary/csv",
@@ -386,6 +387,7 @@ def get_provider_health_summary_options() -> dict:
         "surfaces": {
             "options": "/alerts/providers/health/summary/options",
             "summary": "/alerts/providers/health/summary",
+            "recommendations": "/alerts/providers/health/summary/recommendations",
             "markdown": "/alerts/providers/health/summary/markdown",
             "telegram": "/alerts/providers/health/summary/telegram",
             "csv": "/alerts/providers/health/summary/csv",
@@ -1524,6 +1526,71 @@ def summarize_provider_health(providers: list[str] | None = None) -> dict:
         },
         "missing_env_counts": dict(sorted(missing_env_counts.items(), key=lambda row: (-row[1], row[0]))),
         "items": items,
+    }
+
+
+def summarize_provider_health_recommendations(providers: list[str] | None = None) -> dict:
+    summary = summarize_provider_health(providers=providers)
+    counts = summary.get("counts", {})
+    recommendations: list[dict] = []
+
+    if counts.get("unknown", 0) > 0:
+        recommendations.append(
+            {
+                "severity": "warning",
+                "code": "unknown-providers-requested",
+                "message": "Requested provider list contains unsupported provider names.",
+                "action": "Use /alerts/providers and keep provider filters within supported names.",
+            }
+        )
+
+    if counts.get("ready", 0) == 0:
+        recommendations.append(
+            {
+                "severity": "critical",
+                "code": "no-ready-providers",
+                "message": "No providers are currently ready.",
+                "action": "Set missing environment variables, then rerun provider smoke tests.",
+            }
+        )
+
+    if counts.get("live_capable", 0) > 0 and counts.get("live_ready", 0) == 0:
+        recommendations.append(
+            {
+                "severity": "warning",
+                "code": "no-live-ready-providers",
+                "message": "Live-capable providers exist but none are live-ready.",
+                "action": "Configure live provider credentials before enabling live dispatch.",
+            }
+        )
+
+    for env_key, count in (summary.get("missing_env_counts", {}) or {}).items():
+        recommendations.append(
+            {
+                "severity": "info",
+                "code": "missing-env",
+                "message": f"Environment variable {env_key} is missing for {count} provider(s).",
+                "action": f"Set {env_key} and rerun /alerts/providers/health/summary.",
+                "env_key": env_key,
+                "count": count,
+            }
+        )
+
+    if not recommendations:
+        recommendations.append(
+            {
+                "severity": "ok",
+                "code": "healthy",
+                "message": "Provider health summary is healthy.",
+                "action": "Proceed with dispatch plan and routine smoke tests.",
+            }
+        )
+
+    return {
+        "requested": summary.get("requested", []),
+        "counts": counts,
+        "recommendation_count": len(recommendations),
+        "recommendations": recommendations,
     }
 
 

@@ -868,6 +868,14 @@ def test_alerts_providers_health_summary_options_endpoint():
     assert data['surfaces']['packet'] == '/alerts/providers/health/summary/packet'
 
 
+def test_alerts_providers_health_summary_recommendations_endpoint():
+    r = client.get('/alerts/providers/health/summary/recommendations?provider=noop,resend,not-real')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['recommendation_count'] >= 1
+    assert any(row.get('code') == 'unknown-providers-requested' for row in data['recommendations'])
+
+
 def test_alerts_providers_health_summary_markdown_endpoint():
     r = client.get('/alerts/providers/health/summary/markdown?provider=noop,resend,not-real')
     assert r.status_code == 200
@@ -915,6 +923,7 @@ def test_alerts_providers_health_options_endpoint():
     assert data['surfaces']['options'] == '/alerts/providers/health/options'
     assert data['surfaces']['health_summary'] == '/alerts/providers/health/summary'
     assert data['surfaces']['health_summary_options'] == '/alerts/providers/health/summary/options'
+    assert data['surfaces']['health_summary_recommendations'] == '/alerts/providers/health/summary/recommendations'
 
 
 def test_alerts_provider_details_endpoint_supported():
