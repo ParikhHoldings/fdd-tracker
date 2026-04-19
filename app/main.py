@@ -590,8 +590,6 @@ def alerts_provider_recommendations_options() -> dict:
 @app.get("/alerts/providers/{provider}/recommendations")
 def alerts_provider_recommendations(provider: str) -> dict:
     return get_provider_recommendations(provider=provider)
-
-
 @app.post("/alerts/providers/smoke-test")
 def alerts_provider_smoke_test(payload: AlertProviderSmokeTestIn) -> dict:
     provider = (payload.provider or "noop").strip() or "noop"

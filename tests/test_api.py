@@ -732,6 +732,33 @@ def test_alerts_providers_endpoint():
     assert 'noop' in data['providers']
 
 
+def test_alerts_providers_health_endpoint():
+    r = client.get('/alerts/providers/health')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['requested'] is None
+    assert 'noop' in data['supported']
+    assert any(item['provider'] == 'noop' for item in data['items'])
+
+
+def test_alerts_providers_health_endpoint_with_filter():
+    r = client.get('/alerts/providers/health', params={'provider': 'noop'})
+    assert r.status_code == 200
+    data = r.json()
+    assert data['requested'] == 'noop'
+    assert len(data['items']) == 1
+    assert data['items'][0]['provider'] == 'noop'
+
+
+def test_alerts_providers_health_options_endpoint():
+    r = client.get('/alerts/providers/health/options')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['constraints']['provider']['type'] == 'string|null'
+    assert data['defaults']['provider'] is None
+    assert data['surfaces']['health'] == '/alerts/providers/health'
+
+
 def test_alerts_outbox_dispatch_rejects_unknown_provider():
     r = client.post('/alerts/outbox/dispatch', json={'limit': 10, 'provider': 'not-real', 'dry_run': True})
     assert r.status_code == 200
