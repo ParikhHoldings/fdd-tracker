@@ -736,7 +736,7 @@ def test_alerts_providers_health_endpoint():
     r = client.get('/alerts/providers/health')
     assert r.status_code == 200
     data = r.json()
-    assert data['requested'] is None
+    assert sorted(data['requested']) == sorted(data['supported'])
     assert 'noop' in data['supported']
     assert any(item['provider'] == 'noop' for item in data['items'])
 
@@ -745,7 +745,7 @@ def test_alerts_providers_health_endpoint_with_filter():
     r = client.get('/alerts/providers/health', params={'provider': 'noop'})
     assert r.status_code == 200
     data = r.json()
-    assert data['requested'] == 'noop'
+    assert data['requested'] == ['noop']
     assert len(data['items']) == 1
     assert data['items'][0]['provider'] == 'noop'
 
