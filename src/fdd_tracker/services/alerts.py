@@ -339,6 +339,7 @@ def get_provider_health_options() -> dict:
             "options": "/alerts/providers/health/options",
             "health": "/alerts/providers/health",
             "health_summary": "/alerts/providers/health/summary",
+            "health_summary_options": "/alerts/providers/health/summary/options",
             "health_summary_markdown": "/alerts/providers/health/summary/markdown",
             "health_summary_telegram": "/alerts/providers/health/summary/telegram",
             "health_summary_csv": "/alerts/providers/health/summary/csv",
@@ -348,6 +349,48 @@ def get_provider_health_options() -> dict:
             "catalog_options": "/alerts/providers/options",
             "details": "/alerts/providers/{provider}",
             "details_options": "/alerts/providers/details/options",
+        },
+    }
+
+
+def get_provider_health_summary_options() -> dict:
+    provider_catalog = get_dispatch_provider_catalog()
+    provider_names = sorted(provider_catalog.get("providers", {}).keys())
+    return {
+        "constraints": {
+            "provider": {
+                "type": "csv|string|null",
+                "required": False,
+                "examples": ["resend,noop", "noop"],
+                "enum": provider_names,
+            },
+            "max_chars": {
+                "type": "int",
+                "required": False,
+                "minimum": 100,
+                "maximum": 4096,
+                "applies_to": [
+                    "/alerts/providers/health/summary/telegram",
+                    "/alerts/providers/health/summary/packet",
+                ],
+            },
+        },
+        "defaults": {
+            "provider": None,
+            "max_chars": 3500,
+        },
+        "providers": {
+            "default": provider_catalog.get("default", "noop"),
+            "supported": provider_names,
+        },
+        "surfaces": {
+            "options": "/alerts/providers/health/summary/options",
+            "summary": "/alerts/providers/health/summary",
+            "markdown": "/alerts/providers/health/summary/markdown",
+            "telegram": "/alerts/providers/health/summary/telegram",
+            "csv": "/alerts/providers/health/summary/csv",
+            "packet": "/alerts/providers/health/summary/packet",
+            "health_options": "/alerts/providers/health/options",
         },
     }
 

@@ -858,6 +858,16 @@ def test_alerts_providers_health_summary_endpoint():
     assert 'items' in data and len(data['items']) == 3
 
 
+def test_alerts_providers_health_summary_options_endpoint():
+    r = client.get('/alerts/providers/health/summary/options')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['constraints']['provider']['type'] == 'csv|string|null'
+    assert data['constraints']['max_chars']['minimum'] == 100
+    assert data['surfaces']['options'] == '/alerts/providers/health/summary/options'
+    assert data['surfaces']['packet'] == '/alerts/providers/health/summary/packet'
+
+
 def test_alerts_providers_health_summary_markdown_endpoint():
     r = client.get('/alerts/providers/health/summary/markdown?provider=noop,resend,not-real')
     assert r.status_code == 200
@@ -904,6 +914,7 @@ def test_alerts_providers_health_options_endpoint():
     assert data['constraints']['provider']['type'] == 'csv|string|null'
     assert data['surfaces']['options'] == '/alerts/providers/health/options'
     assert data['surfaces']['health_summary'] == '/alerts/providers/health/summary'
+    assert data['surfaces']['health_summary_options'] == '/alerts/providers/health/summary/options'
 
 
 def test_alerts_provider_details_endpoint_supported():
