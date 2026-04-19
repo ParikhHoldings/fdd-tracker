@@ -341,6 +341,7 @@ def get_provider_health_options() -> dict:
             "health_summary": "/alerts/providers/health/summary",
             "health_summary_markdown": "/alerts/providers/health/summary/markdown",
             "health_summary_telegram": "/alerts/providers/health/summary/telegram",
+            "health_summary_packet": "/alerts/providers/health/summary/packet",
             "health_details": "/alerts/providers/{provider}/health",
             "catalog": "/alerts/providers",
             "catalog_options": "/alerts/providers/options",
@@ -1556,6 +1557,20 @@ def render_provider_health_summary_telegram_chunks(
         "chunk_count": len(chunks),
         "chunks": chunks,
         "chunks_with_index": indexed_chunks,
+    }
+
+
+def build_provider_health_summary_packet(
+    providers: list[str] | None = None,
+    max_chars: int = 3500,
+) -> dict:
+    summary = summarize_provider_health(providers=providers)
+    markdown = render_provider_health_summary_markdown(providers=providers)
+    telegram = render_provider_health_summary_telegram_chunks(providers=providers, max_chars=max_chars)
+    return {
+        "summary": summary,
+        "markdown": markdown,
+        "telegram": telegram,
     }
 
 
