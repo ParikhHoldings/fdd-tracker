@@ -341,6 +341,7 @@ def get_provider_health_options() -> dict:
             "health_summary": "/alerts/providers/health/summary",
             "health_summary_markdown": "/alerts/providers/health/summary/markdown",
             "health_summary_telegram": "/alerts/providers/health/summary/telegram",
+            "health_summary_csv": "/alerts/providers/health/summary/csv",
             "health_summary_packet": "/alerts/providers/health/summary/packet",
             "health_details": "/alerts/providers/{provider}/health",
             "catalog": "/alerts/providers",
@@ -1560,16 +1561,53 @@ def render_provider_health_summary_telegram_chunks(
     }
 
 
+def render_provider_health_summary_csv(providers: list[str] | None = None) -> str:
+    summary = summarize_provider_health(providers=providers)
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["metric", "value"])
+    counts = summary.get("counts", {})
+    writer.writerow(["requested", ",".join(summary.get("requested", [])) or "all"])
+    writer.writerow(["supported", ",".join(summary.get("supported", []))])
+    for key in ["total", "known", "unknown", "ready", "not_ready", "live_capable", "live_ready"]:
+        writer.writerow([f"counts.{key}", counts.get(key, 0)])
+
+    writer.writerow([])
+    writer.writerow(["missing_env", "count"])
+    missing = summary.get("missing_env_counts", {}) or {}
+    if not missing:
+        writer.writerow(["none", 0])
+    else:
+        for key, count in missing.items():
+            writer.writerow([key, count])
+
+    writer.writerow([])
+    writer.writerow(["provider", "known", "ready", "supports_live", "missing_env"])
+    for item in summary.get("items", []):
+        writer.writerow(
+            [
+                item.get("provider", ""),
+                str(bool(item.get("known", False))).lower(),
+                str(bool(item.get("ready", False))).lower(),
+                str(bool(item.get("supports_live", False))).lower(),
+                "|".join(item.get("missing_env", []) or []),
+            ]
+        )
+    return output.getvalue().strip()
+
+
 def build_provider_health_summary_packet(
     providers: list[str] | None = None,
     max_chars: int = 3500,
 ) -> dict:
     summary = summarize_provider_health(providers=providers)
     markdown = render_provider_health_summary_markdown(providers=providers)
+    csv_text = render_provider_health_summary_csv(providers=providers)
     telegram = render_provider_health_summary_telegram_chunks(providers=providers, max_chars=max_chars)
     return {
         "summary": summary,
         "markdown": markdown,
+        "csv": csv_text,
         "telegram": telegram,
     }
 

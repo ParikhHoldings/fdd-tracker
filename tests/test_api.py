@@ -875,12 +875,22 @@ def test_alerts_providers_health_summary_telegram_endpoint():
     assert data['chunks_with_index'][0].startswith('[1/')
 
 
+def test_alerts_providers_health_summary_csv_endpoint():
+    r = client.get('/alerts/providers/health/summary/csv?provider=noop,resend,not-real')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['requested'] == ['noop', 'resend', 'not-real']
+    assert 'metric,value' in data['csv']
+    assert 'provider,known,ready,supports_live,missing_env' in data['csv']
+
+
 def test_alerts_providers_health_summary_packet_endpoint():
     r = client.get('/alerts/providers/health/summary/packet?provider=noop,resend,not-real&max_chars=220')
     assert r.status_code == 200
     data = r.json()
     assert 'summary' in data
     assert 'markdown' in data
+    assert 'csv' in data
     assert 'telegram' in data
     assert data['telegram']['chunk_count'] >= 1
 
