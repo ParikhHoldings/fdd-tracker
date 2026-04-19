@@ -800,6 +800,7 @@ def test_alerts_providers_options_endpoint():
     assert 'health' in data['providers']
     assert data['surfaces']['options'] == '/alerts/providers/options'
     assert data['surfaces']['health_options'] == '/alerts/providers/health/options'
+    assert data['surfaces']['health_details'] == '/alerts/providers/{provider}/health'
 
 
 def test_alerts_providers_health_endpoint_defaults():
@@ -859,6 +860,25 @@ def test_alerts_provider_details_options_endpoint():
     assert data['constraints']['provider']['path_param'] is True
     assert data['surfaces']['options'] == '/alerts/providers/details/options'
     assert data['surfaces']['health_options'] == '/alerts/providers/health/options'
+    assert data['surfaces']['health_details'] == '/alerts/providers/{provider}/health'
+
+
+def test_alerts_provider_health_details_endpoint_supported():
+    r = client.get('/alerts/providers/noop/health')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['provider'] == 'noop'
+    assert data['supported'] is True
+    assert data['health']['known'] is True
+
+
+def test_alerts_provider_health_details_endpoint_unknown():
+    r = client.get('/alerts/providers/not-real/health')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['provider'] == 'not-real'
+    assert data['supported'] is False
+    assert data['health']['known'] is False
 
 
 def test_alerts_provider_recommendations_endpoint_supported():
