@@ -301,6 +301,7 @@ def get_provider_catalog_options() -> dict:
             "options": "/alerts/providers/options",
             "catalog": "/alerts/providers",
             "health": "/alerts/providers/health",
+            "health_summary": "/alerts/providers/health/summary",
             "health_options": "/alerts/providers/health/options",
             "health_details": "/alerts/providers/{provider}/health",
             "details": "/alerts/providers/{provider}",
@@ -337,6 +338,7 @@ def get_provider_health_options() -> dict:
         "surfaces": {
             "options": "/alerts/providers/health/options",
             "health": "/alerts/providers/health",
+            "health_summary": "/alerts/providers/health/summary",
             "health_details": "/alerts/providers/{provider}/health",
             "catalog": "/alerts/providers",
             "catalog_options": "/alerts/providers/options",
@@ -1447,6 +1449,33 @@ def list_provider_health(providers: list[str] | None = None) -> dict:
     return {
         "requested": requested,
         "supported": supported,
+        "items": items,
+    }
+
+
+def summarize_provider_health(providers: list[str] | None = None) -> dict:
+    payload = list_provider_health(providers=providers)
+    items = payload.get("items", [])
+
+    missing_env_counts: dict[str, int] = {}
+    for item in items:
+        for env_key in item.get("missing_env", []) or []:
+            missing_env_counts[env_key] = missing_env_counts.get(env_key, 0) + 1
+
+    known_items = [item for item in items if item.get("known")]
+    return {
+        "requested": payload.get("requested", []),
+        "supported": payload.get("supported", []),
+        "counts": {
+            "total": len(items),
+            "known": len(known_items),
+            "unknown": len(items) - len(known_items),
+            "ready": sum(1 for item in known_items if item.get("ready")),
+            "not_ready": sum(1 for item in known_items if not item.get("ready")),
+            "live_capable": sum(1 for item in known_items if item.get("supports_live")),
+            "live_ready": sum(1 for item in known_items if item.get("supports_live") and item.get("ready")),
+        },
+        "missing_env_counts": dict(sorted(missing_env_counts.items(), key=lambda row: (-row[1], row[0]))),
         "items": items,
     }
 

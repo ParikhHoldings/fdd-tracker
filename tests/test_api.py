@@ -848,6 +848,16 @@ def test_alerts_providers_health_endpoint_with_filter():
     assert data['items'][1]['known'] is False
 
 
+def test_alerts_providers_health_summary_endpoint():
+    r = client.get('/alerts/providers/health/summary?provider=noop,resend,not-real')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['counts']['total'] == 3
+    assert data['counts']['known'] == 2
+    assert data['counts']['unknown'] == 1
+    assert 'items' in data and len(data['items']) == 3
+
+
 def test_alerts_providers_health_options_endpoint():
     r = client.get('/alerts/providers/health/options')
     assert r.status_code == 200
@@ -856,6 +866,7 @@ def test_alerts_providers_health_options_endpoint():
     assert 'noop' in data['providers']['supported']
     assert data['constraints']['provider']['type'] == 'csv|string|null'
     assert data['surfaces']['options'] == '/alerts/providers/health/options'
+    assert data['surfaces']['health_summary'] == '/alerts/providers/health/summary'
 
 
 def test_alerts_provider_details_endpoint_supported():
