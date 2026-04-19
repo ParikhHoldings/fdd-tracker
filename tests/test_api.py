@@ -858,6 +858,23 @@ def test_alerts_providers_health_summary_endpoint():
     assert 'items' in data and len(data['items']) == 3
 
 
+def test_alerts_providers_health_summary_markdown_endpoint():
+    r = client.get('/alerts/providers/health/summary/markdown?provider=noop,resend,not-real')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['requested'] == ['noop', 'resend', 'not-real']
+    assert '# Provider Health Summary' in data['markdown']
+
+
+def test_alerts_providers_health_summary_telegram_endpoint():
+    r = client.get('/alerts/providers/health/summary/telegram?provider=noop,resend,not-real&max_chars=220')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['chunk_count'] >= 1
+    assert len(data['chunks']) == data['chunk_count']
+    assert data['chunks_with_index'][0].startswith('[1/')
+
+
 def test_alerts_providers_health_options_endpoint():
     r = client.get('/alerts/providers/health/options')
     assert r.status_code == 200

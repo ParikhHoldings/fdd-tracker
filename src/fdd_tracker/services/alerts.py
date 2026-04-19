@@ -339,6 +339,8 @@ def get_provider_health_options() -> dict:
             "options": "/alerts/providers/health/options",
             "health": "/alerts/providers/health",
             "health_summary": "/alerts/providers/health/summary",
+            "health_summary_markdown": "/alerts/providers/health/summary/markdown",
+            "health_summary_telegram": "/alerts/providers/health/summary/telegram",
             "health_details": "/alerts/providers/{provider}/health",
             "catalog": "/alerts/providers",
             "catalog_options": "/alerts/providers/options",
@@ -1477,6 +1479,83 @@ def summarize_provider_health(providers: list[str] | None = None) -> dict:
         },
         "missing_env_counts": dict(sorted(missing_env_counts.items(), key=lambda row: (-row[1], row[0]))),
         "items": items,
+    }
+
+
+def render_provider_health_summary_markdown(providers: list[str] | None = None) -> str:
+    summary = summarize_provider_health(providers=providers)
+    counts = summary.get("counts", {})
+    lines = [
+        "# Provider Health Summary",
+        "",
+        f"- Requested: {', '.join(summary.get('requested', [])) or 'all'}",
+        f"- Supported: {', '.join(summary.get('supported', []))}",
+        f"- Total: {counts.get('total', 0)}",
+        f"- Known: {counts.get('known', 0)}",
+        f"- Unknown: {counts.get('unknown', 0)}",
+        f"- Ready: {counts.get('ready', 0)}",
+        f"- Not ready: {counts.get('not_ready', 0)}",
+        f"- Live capable: {counts.get('live_capable', 0)}",
+        f"- Live ready: {counts.get('live_ready', 0)}",
+        "",
+        "## Missing env frequency",
+    ]
+    missing = summary.get("missing_env_counts", {}) or {}
+    if not missing:
+        lines.append("- none")
+    else:
+        for key, count in missing.items():
+            lines.append(f"- {key}: {count}")
+
+    lines.extend(["", "## Providers"])
+    for item in summary.get("items", []):
+        lines.append(
+            f"- {item.get('provider')}: known={item.get('known', False)} ready={item.get('ready', False)} supports_live={item.get('supports_live', False)}"
+        )
+    return "\n".join(lines)
+
+
+def render_provider_health_summary_telegram_chunks(
+    providers: list[str] | None = None,
+    max_chars: int = 3500,
+) -> dict:
+    markdown = render_provider_health_summary_markdown(providers=providers)
+    max_chars = max(100, min(max_chars, 4096))
+
+    chunks: list[str] = []
+    current: list[str] = []
+    current_len = 0
+    for line in markdown.split("\n"):
+        if len(line) > max_chars:
+            if current:
+                chunks.append("\n".join(current))
+                current = []
+                current_len = 0
+            for i in range(0, len(line), max_chars):
+                chunks.append(line[i : i + max_chars])
+            continue
+
+        line_len = len(line) + (1 if current else 0)
+        if current and (current_len + line_len) > max_chars:
+            chunks.append("\n".join(current))
+            current = [line]
+            current_len = len(line)
+            continue
+
+        current.append(line)
+        current_len += line_len
+
+    if current:
+        chunks.append("\n".join(current))
+
+    indexed_chunks = [f"[{idx}/{len(chunks)}]\n{chunk}" for idx, chunk in enumerate(chunks, start=1)]
+    return {
+        "requested": providers or [],
+        "total_chars": len(markdown),
+        "max_chars": max_chars,
+        "chunk_count": len(chunks),
+        "chunks": chunks,
+        "chunks_with_index": indexed_chunks,
     }
 
 

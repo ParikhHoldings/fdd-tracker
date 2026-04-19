@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_all_summary_packet, build_digest_preview_packet, build_digest_previews_all_packet, build_digest_previews_for_all_emails, dispatch_outbox, get_alerts_cron_options, get_cron_history_options, get_digest_preview_all_options, get_digest_preview_options, get_digest_run_options, get_outbox_dispatch_options, get_outbox_retry_failed_options, get_provider_catalog_options, get_provider_details, get_provider_details_options, get_provider_health_details, get_provider_health_options, get_provider_recommendations, get_provider_recommendations_options, get_provider_smoke_test_options, list_provider_health, get_retention_prune_options, list_cron_history, list_outbox, prune_alert_artifacts, render_digest_preview_all_summary_csv, render_digest_preview_all_summary_markdown, render_digest_preview_all_summary_telegram_chunks, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, render_digest_previews_all_csv, render_digest_previews_all_markdown, render_digest_previews_all_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, summarize_digest_previews_for_all_emails, summarize_provider_health
+from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_all_summary_packet, build_digest_preview_packet, build_digest_previews_all_packet, build_digest_previews_for_all_emails, dispatch_outbox, get_alerts_cron_options, get_cron_history_options, get_digest_preview_all_options, get_digest_preview_options, get_digest_run_options, get_outbox_dispatch_options, get_outbox_retry_failed_options, get_provider_catalog_options, get_provider_details, get_provider_details_options, get_provider_health_details, get_provider_health_options, get_provider_recommendations, get_provider_recommendations_options, get_provider_smoke_test_options, list_provider_health, get_retention_prune_options, list_cron_history, list_outbox, prune_alert_artifacts, render_digest_preview_all_summary_csv, render_digest_preview_all_summary_markdown, render_digest_preview_all_summary_telegram_chunks, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, render_digest_previews_all_csv, render_digest_previews_all_markdown, render_digest_previews_all_telegram_chunks, render_provider_health_summary_markdown, render_provider_health_summary_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, summarize_digest_previews_for_all_emails, summarize_provider_health
 from fdd_tracker.services.store import get_alert_feed, seed_change_summary, upsert_watchlist
 
 
@@ -341,6 +341,20 @@ def test_summarize_provider_health_counts_and_missing_env(monkeypatch):
     assert data["missing_env_counts"]["ALERTS_FROM_EMAIL"] >= 1
 
 
+def test_render_provider_health_summary_markdown():
+    md = render_provider_health_summary_markdown(["noop", "resend", "not-real"])
+    assert "# Provider Health Summary" in md
+    assert "## Missing env frequency" in md
+    assert "noop" in md
+
+
+def test_render_provider_health_summary_telegram_chunks():
+    payload = render_provider_health_summary_telegram_chunks(["noop", "resend", "not-real"], max_chars=220)
+    assert payload["chunk_count"] >= 1
+    assert len(payload["chunks"]) == payload["chunk_count"]
+    assert payload["chunks_with_index"][0].startswith("[1/")
+
+
 def test_get_provider_health_details_supported_provider():
     data = get_provider_health_details("noop")
     assert data["provider"] == "noop"
@@ -404,6 +418,7 @@ def test_get_provider_health_options_contract():
     assert data["constraints"]["provider"]["type"] == "csv|string|null"
     assert data["surfaces"]["options"] == "/alerts/providers/health/options"
     assert data["surfaces"]["health_details"] == "/alerts/providers/{provider}/health"
+    assert data["surfaces"]["health_summary_markdown"] == "/alerts/providers/health/summary/markdown"
 
 
 def test_get_provider_recommendations_options_contract():
