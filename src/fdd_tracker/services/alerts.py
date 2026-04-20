@@ -343,6 +343,7 @@ def get_provider_health_options() -> dict:
             "health_summary_recommendations": "/alerts/providers/health/summary/recommendations",
             "health_summary_recommendations_markdown": "/alerts/providers/health/summary/recommendations/markdown",
             "health_summary_recommendations_telegram": "/alerts/providers/health/summary/recommendations/telegram",
+            "health_summary_recommendations_csv": "/alerts/providers/health/summary/recommendations/csv",
             "health_summary_recommendations_packet": "/alerts/providers/health/summary/recommendations/packet",
             "health_summary_markdown": "/alerts/providers/health/summary/markdown",
             "health_summary_telegram": "/alerts/providers/health/summary/telegram",
@@ -393,6 +394,7 @@ def get_provider_health_summary_options() -> dict:
             "recommendations": "/alerts/providers/health/summary/recommendations",
             "recommendations_markdown": "/alerts/providers/health/summary/recommendations/markdown",
             "recommendations_telegram": "/alerts/providers/health/summary/recommendations/telegram",
+            "recommendations_csv": "/alerts/providers/health/summary/recommendations/csv",
             "recommendations_packet": "/alerts/providers/health/summary/recommendations/packet",
             "markdown": "/alerts/providers/health/summary/markdown",
             "telegram": "/alerts/providers/health/summary/telegram",
@@ -1661,6 +1663,33 @@ def render_provider_health_recommendations_telegram_chunks(
     }
 
 
+def render_provider_health_recommendations_csv(providers: list[str] | None = None) -> str:
+    payload = summarize_provider_health_recommendations(providers=providers)
+    out = StringIO()
+    writer = csv.writer(out)
+
+    writer.writerow(["metric", "value"])
+    writer.writerow(["requested", "|".join(payload.get("requested", []))])
+    writer.writerow(["recommendation_count", payload.get("recommendation_count", 0)])
+    writer.writerow([])
+
+    writer.writerow(["severity", "code", "message", "action", "env_key", "count", "providers", "supported"])
+    for row in payload.get("recommendations", []):
+        writer.writerow(
+            [
+                row.get("severity", ""),
+                row.get("code", ""),
+                row.get("message", ""),
+                row.get("action", ""),
+                row.get("env_key", ""),
+                row.get("count", ""),
+                "|".join(row.get("providers", []) or []),
+                "|".join(row.get("supported", []) or []),
+            ]
+        )
+    return out.getvalue()
+
+
 def build_provider_health_recommendations_packet(
     providers: list[str] | None = None,
     max_chars: int = 3500,
@@ -1668,6 +1697,7 @@ def build_provider_health_recommendations_packet(
     return {
         "recommendations": summarize_provider_health_recommendations(providers=providers),
         "markdown": render_provider_health_recommendations_markdown(providers=providers),
+        "csv": render_provider_health_recommendations_csv(providers=providers),
         "telegram": render_provider_health_recommendations_telegram_chunks(providers=providers, max_chars=max_chars),
     }
 

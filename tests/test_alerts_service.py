@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_all_summary_packet, build_digest_preview_packet, build_digest_previews_all_packet, build_digest_previews_for_all_emails, build_provider_health_recommendations_packet, build_provider_health_summary_packet, dispatch_outbox, get_alerts_cron_options, get_cron_history_options, get_digest_preview_all_options, get_digest_preview_options, get_digest_run_options, get_outbox_dispatch_options, get_outbox_retry_failed_options, get_provider_catalog_options, get_provider_details, get_provider_details_options, get_provider_health_details, get_provider_health_options, get_provider_health_summary_options, get_provider_recommendations, get_provider_recommendations_options, get_provider_smoke_test_options, list_provider_health, get_retention_prune_options, list_cron_history, list_outbox, prune_alert_artifacts, render_digest_preview_all_summary_csv, render_digest_preview_all_summary_markdown, render_digest_preview_all_summary_telegram_chunks, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, render_digest_previews_all_csv, render_digest_previews_all_markdown, render_digest_previews_all_telegram_chunks, render_provider_health_recommendations_markdown, render_provider_health_recommendations_telegram_chunks, render_provider_health_summary_csv, render_provider_health_summary_markdown, render_provider_health_summary_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, summarize_digest_previews_for_all_emails, summarize_provider_health, summarize_provider_health_recommendations
+from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_all_summary_packet, build_digest_preview_packet, build_digest_previews_all_packet, build_digest_previews_for_all_emails, build_provider_health_recommendations_packet, build_provider_health_summary_packet, dispatch_outbox, get_alerts_cron_options, get_cron_history_options, get_digest_preview_all_options, get_digest_preview_options, get_digest_run_options, get_outbox_dispatch_options, get_outbox_retry_failed_options, get_provider_catalog_options, get_provider_details, get_provider_details_options, get_provider_health_details, get_provider_health_options, get_provider_health_summary_options, get_provider_recommendations, get_provider_recommendations_options, get_provider_smoke_test_options, list_provider_health, get_retention_prune_options, list_cron_history, list_outbox, prune_alert_artifacts, render_digest_preview_all_summary_csv, render_digest_preview_all_summary_markdown, render_digest_preview_all_summary_telegram_chunks, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, render_digest_previews_all_csv, render_digest_previews_all_markdown, render_digest_previews_all_telegram_chunks, render_provider_health_recommendations_csv, render_provider_health_recommendations_markdown, render_provider_health_recommendations_telegram_chunks, render_provider_health_summary_csv, render_provider_health_summary_markdown, render_provider_health_summary_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, summarize_digest_previews_for_all_emails, summarize_provider_health, summarize_provider_health_recommendations
 from fdd_tracker.services.store import get_alert_feed, seed_change_summary, upsert_watchlist
 
 
@@ -356,10 +356,17 @@ def test_render_provider_health_recommendations_markdown_and_telegram():
     assert telegram["chunks_with_index"][0].startswith("[1/")
 
 
+def test_render_provider_health_recommendations_csv():
+    csv_text = render_provider_health_recommendations_csv(["noop", "resend", "not-real"])
+    assert "metric,value" in csv_text
+    assert "severity,code,message,action,env_key,count,providers,supported" in csv_text
+
+
 def test_build_provider_health_recommendations_packet():
     payload = build_provider_health_recommendations_packet(["noop", "resend", "not-real"], max_chars=220)
     assert "recommendations" in payload
     assert "markdown" in payload
+    assert "csv" in payload
     assert "telegram" in payload
     assert payload["telegram"]["chunk_count"] >= 1
 
@@ -459,6 +466,7 @@ def test_get_provider_health_options_contract():
     assert data["surfaces"]["health_summary_markdown"] == "/alerts/providers/health/summary/markdown"
     assert data["surfaces"]["health_summary_csv"] == "/alerts/providers/health/summary/csv"
     assert data["surfaces"]["health_summary_packet"] == "/alerts/providers/health/summary/packet"
+    assert data["surfaces"]["health_summary_recommendations_csv"] == "/alerts/providers/health/summary/recommendations/csv"
 
 
 def test_get_provider_health_summary_options_contract():
@@ -469,6 +477,7 @@ def test_get_provider_health_summary_options_contract():
     assert data["surfaces"]["options"] == "/alerts/providers/health/summary/options"
     assert data["surfaces"]["packet"] == "/alerts/providers/health/summary/packet"
     assert data["surfaces"]["recommendations"] == "/alerts/providers/health/summary/recommendations"
+    assert data["surfaces"]["recommendations_csv"] == "/alerts/providers/health/summary/recommendations/csv"
     assert data["surfaces"]["recommendations_packet"] == "/alerts/providers/health/summary/recommendations/packet"
 
 

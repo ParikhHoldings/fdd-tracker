@@ -892,12 +892,22 @@ def test_alerts_providers_health_summary_recommendations_telegram_endpoint():
     assert data['chunks_with_index'][0].startswith('[1/')
 
 
+def test_alerts_providers_health_summary_recommendations_csv_endpoint():
+    r = client.get('/alerts/providers/health/summary/recommendations/csv?provider=noop,resend,not-real')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['requested'] == ['noop', 'resend', 'not-real']
+    assert 'metric,value' in data['csv']
+    assert 'severity,code,message,action,env_key,count,providers,supported' in data['csv']
+
+
 def test_alerts_providers_health_summary_recommendations_packet_endpoint():
     r = client.get('/alerts/providers/health/summary/recommendations/packet?provider=noop,resend,not-real&max_chars=220')
     assert r.status_code == 200
     data = r.json()
     assert 'recommendations' in data
     assert 'markdown' in data
+    assert 'csv' in data
     assert 'telegram' in data
     assert data['telegram']['chunk_count'] >= 1
 
@@ -950,6 +960,7 @@ def test_alerts_providers_health_options_endpoint():
     assert data['surfaces']['health_summary'] == '/alerts/providers/health/summary'
     assert data['surfaces']['health_summary_options'] == '/alerts/providers/health/summary/options'
     assert data['surfaces']['health_summary_recommendations'] == '/alerts/providers/health/summary/recommendations'
+    assert data['surfaces']['health_summary_recommendations_csv'] == '/alerts/providers/health/summary/recommendations/csv'
     assert data['surfaces']['health_summary_recommendations_packet'] == '/alerts/providers/health/summary/recommendations/packet'
 
 
