@@ -341,6 +341,9 @@ def get_provider_health_options() -> dict:
             "health_summary": "/alerts/providers/health/summary",
             "health_summary_options": "/alerts/providers/health/summary/options",
             "health_summary_recommendations": "/alerts/providers/health/summary/recommendations",
+            "health_summary_recommendations_markdown": "/alerts/providers/health/summary/recommendations/markdown",
+            "health_summary_recommendations_telegram": "/alerts/providers/health/summary/recommendations/telegram",
+            "health_summary_recommendations_packet": "/alerts/providers/health/summary/recommendations/packet",
             "health_summary_markdown": "/alerts/providers/health/summary/markdown",
             "health_summary_telegram": "/alerts/providers/health/summary/telegram",
             "health_summary_csv": "/alerts/providers/health/summary/csv",
@@ -388,6 +391,9 @@ def get_provider_health_summary_options() -> dict:
             "options": "/alerts/providers/health/summary/options",
             "summary": "/alerts/providers/health/summary",
             "recommendations": "/alerts/providers/health/summary/recommendations",
+            "recommendations_markdown": "/alerts/providers/health/summary/recommendations/markdown",
+            "recommendations_telegram": "/alerts/providers/health/summary/recommendations/telegram",
+            "recommendations_packet": "/alerts/providers/health/summary/recommendations/packet",
             "markdown": "/alerts/providers/health/summary/markdown",
             "telegram": "/alerts/providers/health/summary/telegram",
             "csv": "/alerts/providers/health/summary/csv",
@@ -1591,6 +1597,78 @@ def summarize_provider_health_recommendations(providers: list[str] | None = None
         "counts": counts,
         "recommendation_count": len(recommendations),
         "recommendations": recommendations,
+    }
+
+
+def render_provider_health_recommendations_markdown(providers: list[str] | None = None) -> str:
+    payload = summarize_provider_health_recommendations(providers=providers)
+    lines = [
+        "# Provider Health Recommendations",
+        "",
+        f"- Requested: {', '.join(payload.get('requested', [])) or 'all'}",
+        f"- Recommendation count: {payload.get('recommendation_count', 0)}",
+        "",
+        "## Recommendations",
+    ]
+    for row in payload.get("recommendations", []):
+        lines.append(
+            f"- [{row.get('severity', 'info')}] {row.get('code', '')}: {row.get('message', '')} Action: {row.get('action', '')}"
+        )
+    return "\n".join(lines)
+
+
+def render_provider_health_recommendations_telegram_chunks(
+    providers: list[str] | None = None,
+    max_chars: int = 3500,
+) -> dict:
+    markdown = render_provider_health_recommendations_markdown(providers=providers)
+    max_chars = max(100, min(max_chars, 4096))
+
+    chunks: list[str] = []
+    current: list[str] = []
+    current_len = 0
+    for line in markdown.split("\n"):
+        if len(line) > max_chars:
+            if current:
+                chunks.append("\n".join(current))
+                current = []
+                current_len = 0
+            for i in range(0, len(line), max_chars):
+                chunks.append(line[i : i + max_chars])
+            continue
+
+        line_len = len(line) + (1 if current else 0)
+        if current and (current_len + line_len) > max_chars:
+            chunks.append("\n".join(current))
+            current = [line]
+            current_len = len(line)
+            continue
+
+        current.append(line)
+        current_len += line_len
+
+    if current:
+        chunks.append("\n".join(current))
+
+    indexed_chunks = [f"[{idx}/{len(chunks)}]\n{chunk}" for idx, chunk in enumerate(chunks, start=1)]
+    return {
+        "requested": providers or [],
+        "total_chars": len(markdown),
+        "max_chars": max_chars,
+        "chunk_count": len(chunks),
+        "chunks": chunks,
+        "chunks_with_index": indexed_chunks,
+    }
+
+
+def build_provider_health_recommendations_packet(
+    providers: list[str] | None = None,
+    max_chars: int = 3500,
+) -> dict:
+    return {
+        "recommendations": summarize_provider_health_recommendations(providers=providers),
+        "markdown": render_provider_health_recommendations_markdown(providers=providers),
+        "telegram": render_provider_health_recommendations_telegram_chunks(providers=providers, max_chars=max_chars),
     }
 
 

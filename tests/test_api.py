@@ -876,6 +876,32 @@ def test_alerts_providers_health_summary_recommendations_endpoint():
     assert any(row.get('code') == 'unknown-providers-requested' for row in data['recommendations'])
 
 
+def test_alerts_providers_health_summary_recommendations_markdown_endpoint():
+    r = client.get('/alerts/providers/health/summary/recommendations/markdown?provider=noop,resend,not-real')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['requested'] == ['noop', 'resend', 'not-real']
+    assert '# Provider Health Recommendations' in data['markdown']
+
+
+def test_alerts_providers_health_summary_recommendations_telegram_endpoint():
+    r = client.get('/alerts/providers/health/summary/recommendations/telegram?provider=noop,resend,not-real&max_chars=220')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['chunk_count'] >= 1
+    assert data['chunks_with_index'][0].startswith('[1/')
+
+
+def test_alerts_providers_health_summary_recommendations_packet_endpoint():
+    r = client.get('/alerts/providers/health/summary/recommendations/packet?provider=noop,resend,not-real&max_chars=220')
+    assert r.status_code == 200
+    data = r.json()
+    assert 'recommendations' in data
+    assert 'markdown' in data
+    assert 'telegram' in data
+    assert data['telegram']['chunk_count'] >= 1
+
+
 def test_alerts_providers_health_summary_markdown_endpoint():
     r = client.get('/alerts/providers/health/summary/markdown?provider=noop,resend,not-real')
     assert r.status_code == 200
@@ -924,6 +950,7 @@ def test_alerts_providers_health_options_endpoint():
     assert data['surfaces']['health_summary'] == '/alerts/providers/health/summary'
     assert data['surfaces']['health_summary_options'] == '/alerts/providers/health/summary/options'
     assert data['surfaces']['health_summary_recommendations'] == '/alerts/providers/health/summary/recommendations'
+    assert data['surfaces']['health_summary_recommendations_packet'] == '/alerts/providers/health/summary/recommendations/packet'
 
 
 def test_alerts_provider_details_endpoint_supported():
