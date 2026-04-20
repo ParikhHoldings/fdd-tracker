@@ -1982,6 +1982,10 @@ def get_provider_details_options() -> dict:
         },
         "surfaces": {
             "options": "/alerts/providers/details/options",
+            "options_markdown": "/alerts/providers/details/options/markdown",
+            "options_telegram": "/alerts/providers/details/options/telegram",
+            "options_csv": "/alerts/providers/details/options/csv",
+            "options_packet": "/alerts/providers/details/options/packet",
             "details": "/alerts/providers/{provider}",
             "recommendations": "/alerts/providers/{provider}/recommendations",
             "recommendations_options": "/alerts/providers/recommendations/options",
@@ -1990,6 +1994,100 @@ def get_provider_details_options() -> dict:
             "health_details": "/alerts/providers/{provider}/health",
             "catalog": "/alerts/providers",
         },
+    }
+
+
+def render_provider_details_options_markdown() -> str:
+    payload = get_provider_details_options()
+    providers = payload.get("providers", {})
+    constraints = payload.get("constraints", {})
+    surfaces = payload.get("surfaces", {})
+
+    lines = [
+        "# Provider Details Options",
+        "",
+        "## Defaults",
+        f"- provider: {payload.get('defaults', {}).get('provider', '')}",
+        "",
+        "## Providers",
+        f"- default: {providers.get('default', '')}",
+        f"- supported: {', '.join(providers.get('supported', [])) or '(none)'}",
+        "",
+        "## Constraints",
+        f"- provider.examples: {', '.join(constraints.get('provider', {}).get('examples', [])) or '(none)'}",
+        "",
+        "## Surfaces",
+    ]
+    for key in sorted(surfaces.keys()):
+        lines.append(f"- {key}: {surfaces[key]}")
+    return "\n".join(lines)
+
+
+def render_provider_details_options_telegram_chunks(max_chars: int = 3500) -> dict:
+    markdown = render_provider_details_options_markdown()
+    max_chars = max(100, min(max_chars, 4096))
+
+    chunks: list[str] = []
+    current: list[str] = []
+    current_len = 0
+    for line in markdown.split("\n"):
+        if len(line) > max_chars:
+            if current:
+                chunks.append("\n".join(current))
+                current = []
+                current_len = 0
+            for i in range(0, len(line), max_chars):
+                chunks.append(line[i : i + max_chars])
+            continue
+
+        line_len = len(line) + (1 if current else 0)
+        if current and (current_len + line_len) > max_chars:
+            chunks.append("\n".join(current))
+            current = [line]
+            current_len = len(line)
+            continue
+
+        current.append(line)
+        current_len += line_len
+
+    if current:
+        chunks.append("\n".join(current))
+
+    indexed_chunks = [f"[{idx}/{len(chunks)}]\n{chunk}" for idx, chunk in enumerate(chunks, start=1)]
+    return {
+        "total_chars": len(markdown),
+        "max_chars": max_chars,
+        "chunk_count": len(chunks),
+        "chunks": chunks,
+        "chunks_with_index": indexed_chunks,
+    }
+
+
+def render_provider_details_options_csv() -> str:
+    payload = get_provider_details_options()
+    out = StringIO()
+    writer = csv.writer(out)
+    writer.writerow(["section", "key", "value"])
+    for key, value in payload.get("defaults", {}).items():
+        writer.writerow(["defaults", key, value])
+    for key, value in payload.get("providers", {}).items():
+        if isinstance(value, list):
+            writer.writerow(["providers", key, "|".join(str(v) for v in value)])
+        else:
+            writer.writerow(["providers", key, value])
+    for key, value in payload.get("constraints", {}).items():
+        writer.writerow(["constraints", key, json.dumps(value, sort_keys=True)])
+    for key, value in payload.get("surfaces", {}).items():
+        writer.writerow(["surfaces", key, value])
+    return out.getvalue()
+
+
+def build_provider_details_options_packet(max_chars: int = 3500) -> dict:
+    return {
+        "options": get_provider_details_options(),
+        "markdown": render_provider_details_options_markdown(),
+        "csv": render_provider_details_options_csv(),
+        "telegram": render_provider_details_options_telegram_chunks(max_chars=max_chars),
     }
 
 

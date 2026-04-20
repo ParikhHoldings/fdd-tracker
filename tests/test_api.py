@@ -1021,8 +1021,37 @@ def test_alerts_provider_details_options_endpoint():
     assert 'noop' in data['providers']['supported']
     assert data['constraints']['provider']['path_param'] is True
     assert data['surfaces']['options'] == '/alerts/providers/details/options'
+    assert data['surfaces']['options_markdown'] == '/alerts/providers/details/options/markdown'
+    assert data['surfaces']['options_telegram'] == '/alerts/providers/details/options/telegram'
+    assert data['surfaces']['options_csv'] == '/alerts/providers/details/options/csv'
+    assert data['surfaces']['options_packet'] == '/alerts/providers/details/options/packet'
     assert data['surfaces']['health_options'] == '/alerts/providers/health/options'
     assert data['surfaces']['health_details'] == '/alerts/providers/{provider}/health'
+
+
+def test_alerts_provider_details_options_presentation_endpoints():
+    md = client.get('/alerts/providers/details/options/markdown')
+    assert md.status_code == 200
+    assert '# Provider Details Options' in md.json()['markdown']
+
+    tg = client.get('/alerts/providers/details/options/telegram?max_chars=200')
+    assert tg.status_code == 200
+    tgd = tg.json()
+    assert tgd['chunk_count'] >= 1
+    assert tgd['chunks_with_index'][0].startswith('[1/')
+
+    csv_res = client.get('/alerts/providers/details/options/csv')
+    assert csv_res.status_code == 200
+    assert 'section,key,value' in csv_res.json()['csv']
+
+    packet = client.get('/alerts/providers/details/options/packet?max_chars=200')
+    assert packet.status_code == 200
+    data = packet.json()
+    assert 'options' in data
+    assert 'markdown' in data
+    assert 'csv' in data
+    assert 'telegram' in data
+    assert data['telegram']['chunk_count'] >= 1
 
 
 def test_alerts_provider_health_details_endpoint_supported():
