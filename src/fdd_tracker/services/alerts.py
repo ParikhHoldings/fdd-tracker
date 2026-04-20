@@ -1896,6 +1896,11 @@ def get_provider_details_options() -> dict:
 def get_provider_recommendations_options() -> dict:
     catalog = get_dispatch_provider_catalog()
     supported = sorted(catalog.get("providers", {}).keys())
+    live_capable = sorted(catalog.get("live_capable", []))
+    ready = sorted(catalog.get("ready", []))
+    providers_health: dict[str, dict] = {}
+    for name in supported:
+        providers_health[name] = get_provider_health_details(name)
     return {
         "constraints": {
             "provider": {
@@ -1921,6 +1926,9 @@ def get_provider_recommendations_options() -> dict:
         "providers": {
             "supported": supported,
             "default": catalog.get("default", "noop"),
+            "live_capable": live_capable,
+            "ready": ready,
+            "health": providers_health,
         },
         "surfaces": {
             "options": "/alerts/providers/recommendations/options",

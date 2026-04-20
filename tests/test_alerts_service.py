@@ -502,6 +502,11 @@ def test_get_provider_recommendations_options_contract():
     assert data["defaults"]["provider"] == "noop"
     assert data["defaults"]["max_chars"] == 3500
     assert "noop" in data["providers"]["supported"]
+    assert isinstance(data["providers"]["live_capable"], list)
+    assert isinstance(data["providers"]["ready"], list)
+    assert data["providers"]["health"]["noop"]["provider"] == "noop"
+    assert data["providers"]["health"]["noop"]["supported"] is True
+    assert data["providers"]["health"]["noop"]["health"]["known"] is True
     assert data["constraints"]["provider"]["path_param"] is True
     assert data["constraints"]["max_chars"]["minimum"] == 100
     assert data["constraints"]["max_chars"]["maximum"] == 4096
