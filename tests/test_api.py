@@ -1023,6 +1023,41 @@ def test_alerts_provider_recommendations_endpoint_supported():
     assert any(item['code'] == 'run-smoke-test' for item in data['actions'])
 
 
+def test_alerts_provider_recommendations_markdown_endpoint():
+    r = client.get('/alerts/providers/noop/recommendations/markdown')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['provider'] == 'noop'
+    assert '# Provider Recommendations' in data['markdown']
+
+
+def test_alerts_provider_recommendations_telegram_endpoint():
+    r = client.get('/alerts/providers/noop/recommendations/telegram?max_chars=220')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['chunk_count'] >= 1
+    assert data['chunks_with_index'][0].startswith('[1/')
+
+
+def test_alerts_provider_recommendations_csv_endpoint():
+    r = client.get('/alerts/providers/noop/recommendations/csv')
+    assert r.status_code == 200
+    data = r.json()
+    assert data['provider'] == 'noop'
+    assert 'metric,value' in data['csv']
+    assert 'priority,code,message,reason,missing_env,supported_providers,endpoint' in data['csv']
+
+
+def test_alerts_provider_recommendations_packet_endpoint():
+    r = client.get('/alerts/providers/noop/recommendations/packet?max_chars=220')
+    assert r.status_code == 200
+    data = r.json()
+    assert 'recommendations' in data
+    assert 'markdown' in data
+    assert 'csv' in data
+    assert 'telegram' in data
+
+
 def test_alerts_provider_recommendations_endpoint_unknown():
     r = client.get('/alerts/providers/not-real/recommendations')
     assert r.status_code == 200
@@ -1041,6 +1076,10 @@ def test_alerts_provider_recommendations_options_endpoint():
     assert data['constraints']['provider']['path_param'] is True
     assert data['surfaces']['options'] == '/alerts/providers/recommendations/options'
     assert data['surfaces']['details_options'] == '/alerts/providers/details/options'
+    assert data['surfaces']['recommendations_markdown'] == '/alerts/providers/{provider}/recommendations/markdown'
+    assert data['surfaces']['recommendations_telegram'] == '/alerts/providers/{provider}/recommendations/telegram'
+    assert data['surfaces']['recommendations_csv'] == '/alerts/providers/{provider}/recommendations/csv'
+    assert data['surfaces']['recommendations_packet'] == '/alerts/providers/{provider}/recommendations/packet'
     assert data['surfaces']['health_options'] == '/alerts/providers/health/options'
 
 

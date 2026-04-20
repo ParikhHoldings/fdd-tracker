@@ -1914,6 +1914,10 @@ def get_provider_recommendations_options() -> dict:
         "surfaces": {
             "options": "/alerts/providers/recommendations/options",
             "recommendations": "/alerts/providers/{provider}/recommendations",
+            "recommendations_markdown": "/alerts/providers/{provider}/recommendations/markdown",
+            "recommendations_telegram": "/alerts/providers/{provider}/recommendations/telegram",
+            "recommendations_csv": "/alerts/providers/{provider}/recommendations/csv",
+            "recommendations_packet": "/alerts/providers/{provider}/recommendations/packet",
             "details": "/alerts/providers/{provider}",
             "details_options": "/alerts/providers/details/options",
             "health": "/alerts/providers/health",
@@ -1981,6 +1985,100 @@ def get_provider_recommendations(provider: str) -> dict:
         "ready_for_live_dispatch": ready_for_live_dispatch,
         "actions": actions,
         "details": details,
+    }
+
+
+def render_provider_recommendations_markdown(provider: str) -> str:
+    payload = get_provider_recommendations(provider=provider)
+    lines = [
+        "# Provider Recommendations",
+        "",
+        f"- Provider: {payload.get('provider', '')}",
+        f"- Ready for live dispatch: {payload.get('ready_for_live_dispatch', False)}",
+        f"- Action count: {len(payload.get('actions', []))}",
+        "",
+        "## Actions",
+    ]
+    actions = payload.get("actions", [])
+    if not actions:
+        lines.append("- [ok] none: No further action required.")
+    for row in actions:
+        lines.append(f"- [{row.get('priority', 'info')}] {row.get('code', '')}: {row.get('message', '')}")
+    return "\n".join(lines)
+
+
+def render_provider_recommendations_telegram_chunks(provider: str, max_chars: int = 3500) -> dict:
+    markdown = render_provider_recommendations_markdown(provider=provider)
+    max_chars = max(100, min(max_chars, 4096))
+
+    chunks: list[str] = []
+    current: list[str] = []
+    current_len = 0
+    for line in markdown.split("\n"):
+        if len(line) > max_chars:
+            if current:
+                chunks.append("\n".join(current))
+                current = []
+                current_len = 0
+            for i in range(0, len(line), max_chars):
+                chunks.append(line[i : i + max_chars])
+            continue
+
+        line_len = len(line) + (1 if current else 0)
+        if current and (current_len + line_len) > max_chars:
+            chunks.append("\n".join(current))
+            current = [line]
+            current_len = len(line)
+            continue
+
+        current.append(line)
+        current_len += line_len
+
+    if current:
+        chunks.append("\n".join(current))
+
+    indexed_chunks = [f"[{idx}/{len(chunks)}]\n{chunk}" for idx, chunk in enumerate(chunks, start=1)]
+    return {
+        "provider": provider,
+        "total_chars": len(markdown),
+        "max_chars": max_chars,
+        "chunk_count": len(chunks),
+        "chunks": chunks,
+        "chunks_with_index": indexed_chunks,
+    }
+
+
+def render_provider_recommendations_csv(provider: str) -> str:
+    payload = get_provider_recommendations(provider=provider)
+    out = StringIO()
+    writer = csv.writer(out)
+    writer.writerow(["metric", "value"])
+    writer.writerow(["provider", payload.get("provider", "")])
+    writer.writerow(["ready_for_live_dispatch", payload.get("ready_for_live_dispatch", False)])
+    writer.writerow(["action_count", len(payload.get("actions", []))])
+    writer.writerow([])
+    writer.writerow(["priority", "code", "message", "reason", "missing_env", "supported_providers", "endpoint"])
+    for row in payload.get("actions", []):
+        writer.writerow(
+            [
+                row.get("priority", ""),
+                row.get("code", ""),
+                row.get("message", ""),
+                row.get("reason", ""),
+                "|".join(row.get("missing_env", []) or []),
+                "|".join(row.get("supported_providers", []) or []),
+                row.get("endpoint", ""),
+            ]
+        )
+    return out.getvalue()
+
+
+def build_provider_recommendations_packet(provider: str, max_chars: int = 3500) -> dict:
+    return {
+        "recommendations": get_provider_recommendations(provider=provider),
+        "markdown": render_provider_recommendations_markdown(provider=provider),
+        "csv": render_provider_recommendations_csv(provider=provider),
+        "telegram": render_provider_recommendations_telegram_chunks(provider=provider, max_chars=max_chars),
     }
 
 
