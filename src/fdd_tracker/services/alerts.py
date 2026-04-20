@@ -1932,6 +1932,10 @@ def get_provider_recommendations_options() -> dict:
         },
         "surfaces": {
             "options": "/alerts/providers/recommendations/options",
+            "options_markdown": "/alerts/providers/recommendations/options/markdown",
+            "options_telegram": "/alerts/providers/recommendations/options/telegram",
+            "options_csv": "/alerts/providers/recommendations/options/csv",
+            "options_packet": "/alerts/providers/recommendations/options/packet",
             "recommendations": "/alerts/providers/{provider}/recommendations",
             "recommendations_markdown": "/alerts/providers/{provider}/recommendations/markdown",
             "recommendations_telegram": "/alerts/providers/{provider}/recommendations/telegram",
@@ -1945,6 +1949,105 @@ def get_provider_recommendations_options() -> dict:
             "catalog": "/alerts/providers",
             "smoke_test": "/alerts/providers/smoke-test",
         },
+    }
+
+
+def render_provider_recommendations_options_markdown() -> str:
+    payload = get_provider_recommendations_options()
+    providers = payload.get("providers", {})
+    constraints = payload.get("constraints", {})
+    surfaces = payload.get("surfaces", {})
+
+    lines = [
+        "# Provider Recommendations Options",
+        "",
+        "## Defaults",
+        f"- provider: {payload.get('defaults', {}).get('provider', '')}",
+        f"- max_chars: {payload.get('defaults', {}).get('max_chars', '')}",
+        "",
+        "## Providers",
+        f"- supported: {', '.join(providers.get('supported', [])) or '(none)'}",
+        f"- live_capable: {', '.join(providers.get('live_capable', [])) or '(none)'}",
+        f"- ready: {', '.join(providers.get('ready', [])) or '(none)'}",
+        "",
+        "## Constraints",
+        f"- provider.examples: {', '.join(constraints.get('provider', {}).get('examples', [])) or '(none)'}",
+        f"- max_chars: {constraints.get('max_chars', {}).get('minimum', '')}..{constraints.get('max_chars', {}).get('maximum', '')}",
+        "",
+        "## Surfaces",
+    ]
+    for key in sorted(surfaces.keys()):
+        lines.append(f"- {key}: {surfaces[key]}")
+    return "\n".join(lines)
+
+
+def render_provider_recommendations_options_telegram_chunks(max_chars: int = 3500) -> dict:
+    markdown = render_provider_recommendations_options_markdown()
+    max_chars = max(100, min(max_chars, 4096))
+
+    chunks: list[str] = []
+    current: list[str] = []
+    current_len = 0
+    for line in markdown.split("\n"):
+        if len(line) > max_chars:
+            if current:
+                chunks.append("\n".join(current))
+                current = []
+                current_len = 0
+            for i in range(0, len(line), max_chars):
+                chunks.append(line[i : i + max_chars])
+            continue
+
+        line_len = len(line) + (1 if current else 0)
+        if current and (current_len + line_len) > max_chars:
+            chunks.append("\n".join(current))
+            current = [line]
+            current_len = len(line)
+            continue
+
+        current.append(line)
+        current_len += line_len
+
+    if current:
+        chunks.append("\n".join(current))
+
+    indexed_chunks = [f"[{idx}/{len(chunks)}]\n{chunk}" for idx, chunk in enumerate(chunks, start=1)]
+    return {
+        "total_chars": len(markdown),
+        "max_chars": max_chars,
+        "chunk_count": len(chunks),
+        "chunks": chunks,
+        "chunks_with_index": indexed_chunks,
+    }
+
+
+def render_provider_recommendations_options_csv() -> str:
+    payload = get_provider_recommendations_options()
+    out = StringIO()
+    writer = csv.writer(out)
+    writer.writerow(["section", "key", "value"])
+    for key, value in payload.get("defaults", {}).items():
+        writer.writerow(["defaults", key, value])
+    for key, value in payload.get("providers", {}).items():
+        if isinstance(value, dict):
+            writer.writerow(["providers", key, json.dumps(value, sort_keys=True)])
+        elif isinstance(value, list):
+            writer.writerow(["providers", key, "|".join(str(v) for v in value)])
+        else:
+            writer.writerow(["providers", key, value])
+    for key, value in payload.get("constraints", {}).items():
+        writer.writerow(["constraints", key, json.dumps(value, sort_keys=True)])
+    for key, value in payload.get("surfaces", {}).items():
+        writer.writerow(["surfaces", key, value])
+    return out.getvalue()
+
+
+def build_provider_recommendations_options_packet(max_chars: int = 3500) -> dict:
+    return {
+        "options": get_provider_recommendations_options(),
+        "markdown": render_provider_recommendations_options_markdown(),
+        "csv": render_provider_recommendations_options_csv(),
+        "telegram": render_provider_recommendations_options_telegram_chunks(max_chars=max_chars),
     }
 
 
