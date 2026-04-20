@@ -1903,9 +1903,20 @@ def get_provider_recommendations_options() -> dict:
                 "path_param": True,
                 "examples": supported,
             },
+            "max_chars": {
+                "type": "int",
+                "required": False,
+                "minimum": 100,
+                "maximum": 4096,
+                "applies_to": [
+                    "/alerts/providers/{provider}/recommendations/telegram",
+                    "/alerts/providers/{provider}/recommendations/packet",
+                ],
+            },
         },
         "defaults": {
             "provider": catalog.get("default", "noop"),
+            "max_chars": 3500,
         },
         "providers": {
             "supported": supported,

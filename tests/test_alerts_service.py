@@ -500,8 +500,11 @@ def test_get_provider_health_summary_options_contract():
 def test_get_provider_recommendations_options_contract():
     data = get_provider_recommendations_options()
     assert data["defaults"]["provider"] == "noop"
+    assert data["defaults"]["max_chars"] == 3500
     assert "noop" in data["providers"]["supported"]
     assert data["constraints"]["provider"]["path_param"] is True
+    assert data["constraints"]["max_chars"]["minimum"] == 100
+    assert data["constraints"]["max_chars"]["maximum"] == 4096
     assert data["surfaces"]["options"] == "/alerts/providers/recommendations/options"
     assert data["surfaces"]["details_options"] == "/alerts/providers/details/options"
     assert data["surfaces"]["recommendations_markdown"] == "/alerts/providers/{provider}/recommendations/markdown"

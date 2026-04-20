@@ -113,6 +113,7 @@ curl "http://localhost:8000/alerts/providers/noop/recommendations/csv"
 curl "http://localhost:8000/alerts/providers/noop/recommendations/packet?max_chars=1200"
 curl "http://localhost:8000/alerts/providers/not-real/recommendations"
 curl "http://localhost:8000/alerts/providers/recommendations/options"
+# options includes max_chars bounds for /recommendations/telegram and /recommendations/packet
 curl "http://localhost:8000/alerts/providers/smoke-test/options"
 curl -X POST http://localhost:8000/alerts/providers/smoke-test -H "Content-Type: application/json" -d "{\"provider\":\"noop\",\"email\":\"ops@example.com\",\"dry_run\":true}"
 curl "http://localhost:8000/alerts/outbox?limit=25"
