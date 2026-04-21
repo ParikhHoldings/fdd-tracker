@@ -1013,12 +1013,42 @@ def test_alerts_providers_health_options_endpoint():
     assert data['defaults']['provider'] is None
     assert 'noop' in data['providers']['supported']
     assert data['constraints']['provider']['type'] == 'csv|string|null'
+    assert data['constraints']['max_chars']['minimum'] == 100
+    assert data['defaults']['max_chars'] == 3500
     assert data['surfaces']['options'] == '/alerts/providers/health/options'
+    assert data['surfaces']['options_markdown'] == '/alerts/providers/health/options/markdown'
+    assert data['surfaces']['options_telegram'] == '/alerts/providers/health/options/telegram'
+    assert data['surfaces']['options_csv'] == '/alerts/providers/health/options/csv'
+    assert data['surfaces']['options_packet'] == '/alerts/providers/health/options/packet'
     assert data['surfaces']['health_summary'] == '/alerts/providers/health/summary'
     assert data['surfaces']['health_summary_options'] == '/alerts/providers/health/summary/options'
     assert data['surfaces']['health_summary_recommendations'] == '/alerts/providers/health/summary/recommendations'
     assert data['surfaces']['health_summary_recommendations_csv'] == '/alerts/providers/health/summary/recommendations/csv'
     assert data['surfaces']['health_summary_recommendations_packet'] == '/alerts/providers/health/summary/recommendations/packet'
+
+
+def test_alerts_providers_health_options_presentation_endpoints():
+    md = client.get('/alerts/providers/health/options/markdown')
+    assert md.status_code == 200
+    assert '# Provider Health Options' in md.json()['markdown']
+
+    tg = client.get('/alerts/providers/health/options/telegram?max_chars=200')
+    assert tg.status_code == 200
+    tgd = tg.json()
+    assert tgd['chunk_count'] >= 1
+    assert tgd['chunks_with_index'][0].startswith('[1/')
+
+    csv_res = client.get('/alerts/providers/health/options/csv')
+    assert csv_res.status_code == 200
+    assert 'section,key,value' in csv_res.json()['csv']
+
+    packet = client.get('/alerts/providers/health/options/packet?max_chars=200')
+    assert packet.status_code == 200
+    data = packet.json()
+    assert 'options' in data
+    assert 'markdown' in data
+    assert 'csv' in data
+    assert 'telegram' in data
 
 
 def test_alerts_provider_details_endpoint_supported():

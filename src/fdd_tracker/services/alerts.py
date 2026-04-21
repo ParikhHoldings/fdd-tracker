@@ -420,9 +420,20 @@ def get_provider_health_options() -> dict:
                 "examples": ["resend,noop", "noop"],
                 "enum": provider_names,
             },
+            "max_chars": {
+                "type": "int",
+                "required": False,
+                "minimum": 100,
+                "maximum": 4096,
+                "applies_to": [
+                    "/alerts/providers/health/options/telegram",
+                    "/alerts/providers/health/options/packet",
+                ],
+            },
         },
         "defaults": {
             "provider": None,
+            "max_chars": 3500,
         },
         "providers": {
             "default": provider_catalog.get("default", "noop"),
@@ -430,6 +441,10 @@ def get_provider_health_options() -> dict:
         },
         "surfaces": {
             "options": "/alerts/providers/health/options",
+            "options_markdown": "/alerts/providers/health/options/markdown",
+            "options_telegram": "/alerts/providers/health/options/telegram",
+            "options_csv": "/alerts/providers/health/options/csv",
+            "options_packet": "/alerts/providers/health/options/packet",
             "health": "/alerts/providers/health",
             "health_summary": "/alerts/providers/health/summary",
             "health_summary_options": "/alerts/providers/health/summary/options",
@@ -448,6 +463,102 @@ def get_provider_health_options() -> dict:
             "details": "/alerts/providers/{provider}",
             "details_options": "/alerts/providers/details/options",
         },
+    }
+
+
+def render_provider_health_options_markdown() -> str:
+    payload = get_provider_health_options()
+    providers = payload.get("providers", {})
+    constraints = payload.get("constraints", {})
+    surfaces = payload.get("surfaces", {})
+
+    lines = [
+        "# Provider Health Options",
+        "",
+        "## Defaults",
+        f"- provider: {payload.get('defaults', {}).get('provider', None)}",
+        f"- max_chars: {payload.get('defaults', {}).get('max_chars', '')}",
+        "",
+        "## Providers",
+        f"- default: {providers.get('default', '')}",
+        f"- supported: {', '.join(providers.get('supported', [])) or '(none)'}",
+        "",
+        "## Constraints",
+        f"- provider.enum: {', '.join(constraints.get('provider', {}).get('enum', [])) or '(none)'}",
+        f"- max_chars: {constraints.get('max_chars', {}).get('minimum', '')}..{constraints.get('max_chars', {}).get('maximum', '')}",
+        "",
+        "## Surfaces",
+    ]
+    for key in sorted(surfaces.keys()):
+        lines.append(f"- {key}: {surfaces[key]}")
+    return "\n".join(lines)
+
+
+def render_provider_health_options_telegram_chunks(max_chars: int = 3500) -> dict:
+    markdown = render_provider_health_options_markdown()
+    max_chars = max(100, min(max_chars, 4096))
+
+    chunks: list[str] = []
+    current: list[str] = []
+    current_len = 0
+    for line in markdown.split("\n"):
+        if len(line) > max_chars:
+            if current:
+                chunks.append("\n".join(current))
+                current = []
+                current_len = 0
+            for i in range(0, len(line), max_chars):
+                chunks.append(line[i : i + max_chars])
+            continue
+
+        line_len = len(line) + (1 if current else 0)
+        if current and (current_len + line_len) > max_chars:
+            chunks.append("\n".join(current))
+            current = [line]
+            current_len = len(line)
+            continue
+
+        current.append(line)
+        current_len += line_len
+
+    if current:
+        chunks.append("\n".join(current))
+
+    indexed_chunks = [f"[{idx}/{len(chunks)}]\n{chunk}" for idx, chunk in enumerate(chunks, start=1)]
+    return {
+        "total_chars": len(markdown),
+        "max_chars": max_chars,
+        "chunk_count": len(chunks),
+        "chunks": chunks,
+        "chunks_with_index": indexed_chunks,
+    }
+
+
+def render_provider_health_options_csv() -> str:
+    payload = get_provider_health_options()
+    out = StringIO()
+    writer = csv.writer(out)
+    writer.writerow(["section", "key", "value"])
+    for key, value in payload.get("defaults", {}).items():
+        writer.writerow(["defaults", key, value])
+    for key, value in payload.get("providers", {}).items():
+        if isinstance(value, list):
+            writer.writerow(["providers", key, "|".join(str(v) for v in value)])
+        else:
+            writer.writerow(["providers", key, value])
+    for key, value in payload.get("constraints", {}).items():
+        writer.writerow(["constraints", key, json.dumps(value, sort_keys=True)])
+    for key, value in payload.get("surfaces", {}).items():
+        writer.writerow(["surfaces", key, value])
+    return out.getvalue()
+
+
+def build_provider_health_options_packet(max_chars: int = 3500) -> dict:
+    return {
+        "options": get_provider_health_options(),
+        "markdown": render_provider_health_options_markdown(),
+        "csv": render_provider_health_options_csv(),
+        "telegram": render_provider_health_options_telegram_chunks(max_chars=max_chars),
     }
 
 
