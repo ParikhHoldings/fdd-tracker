@@ -37,6 +37,30 @@ def get_digest_preview_options() -> dict:
     }
 
 
+def get_weekly_brief_options() -> dict:
+    return {
+        "constraints": {
+            "email": {"type": "string", "required": True},
+            "days": {"type": "int", "min": 1, "max": 30},
+            "max_alerts": {"type": "int", "min": 1, "max": 1000},
+            "max_chars": {"type": "int", "min": 100, "max": 4096},
+        },
+        "defaults": {
+            "days": 7,
+            "max_alerts": 200,
+            "max_chars": 3500,
+        },
+        "surfaces": {
+            "brief": "/alerts/weekly-brief",
+            "markdown": "/alerts/weekly-brief/markdown",
+            "telegram": "/alerts/weekly-brief/telegram",
+            "csv": "/alerts/weekly-brief/csv",
+            "packet": "/alerts/weekly-brief/packet",
+            "options": "/alerts/weekly-brief/options",
+        },
+    }
+
+
 def get_digest_run_options() -> dict:
     return {
         "constraints": {

@@ -84,6 +84,16 @@ curl "http://localhost:8000/alerts/summary?email=you@example.com"
 ```
 Returns total/unread counts, risk-level breakdown, and top unread franchises.
 
+**Weekly brief + export surfaces:**
+```bash
+curl "http://localhost:8000/alerts/weekly-brief?email=you@example.com&days=7&max_alerts=200"
+curl "http://localhost:8000/alerts/weekly-brief/options"
+curl "http://localhost:8000/alerts/weekly-brief/markdown?email=you@example.com"
+curl "http://localhost:8000/alerts/weekly-brief/telegram?email=you@example.com&max_chars=2500"
+curl "http://localhost:8000/alerts/weekly-brief/csv?email=you@example.com"
+curl "http://localhost:8000/alerts/weekly-brief/packet?email=you@example.com&max_chars=2500"
+```
+
 **Inspect provider catalog + dispatch outbox queue:**
 ```bash
 curl "http://localhost:8000/alerts/providers"

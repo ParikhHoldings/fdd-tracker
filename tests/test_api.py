@@ -279,6 +279,15 @@ def test_alerts_weekly_brief_telegram_csv_packet_endpoints():
     assert "telegram" in packet_data
 
 
+def test_alerts_weekly_brief_options_endpoint():
+    r = client.get("/alerts/weekly-brief/options")
+    assert r.status_code == 200
+    data = r.json()
+    assert "constraints" in data
+    assert data["defaults"]["days"] == 7
+    assert "/alerts/weekly-brief/packet" in data["surfaces"]["packet"]
+
+
 
 def test_alerts_digest_run_for_email():
     email = f"digest-{uuid4().hex[:8]}@example.com"
