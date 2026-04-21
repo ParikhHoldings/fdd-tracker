@@ -88,6 +88,10 @@ Returns total/unread counts, risk-level breakdown, and top unread franchises.
 ```bash
 curl "http://localhost:8000/alerts/providers"
 curl "http://localhost:8000/alerts/providers/options"
+curl "http://localhost:8000/alerts/providers/options/markdown"
+curl "http://localhost:8000/alerts/providers/options/telegram?max_chars=1200"
+curl "http://localhost:8000/alerts/providers/options/csv"
+curl "http://localhost:8000/alerts/providers/options/packet?max_chars=1200"
 curl "http://localhost:8000/alerts/providers/health"
 curl "http://localhost:8000/alerts/providers/health/summary"
 curl "http://localhost:8000/alerts/providers/health/summary/options"

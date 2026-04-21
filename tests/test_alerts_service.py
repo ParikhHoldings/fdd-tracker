@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_all_summary_packet, build_digest_preview_packet, build_digest_previews_all_packet, build_digest_previews_for_all_emails, build_provider_details_options_packet, build_provider_health_recommendations_packet, build_provider_health_summary_options_packet, build_provider_health_summary_packet, build_provider_recommendations_options_packet, build_provider_recommendations_packet, dispatch_outbox, get_alerts_cron_options, get_cron_history_options, get_digest_preview_all_options, get_digest_preview_options, get_digest_run_options, get_outbox_dispatch_options, get_outbox_retry_failed_options, get_provider_catalog_options, get_provider_details, get_provider_details_options, get_provider_health_details, get_provider_health_options, get_provider_health_summary_options, get_provider_recommendations, get_provider_recommendations_options, get_provider_smoke_test_options, list_provider_health, get_retention_prune_options, list_cron_history, list_outbox, prune_alert_artifacts, render_digest_preview_all_summary_csv, render_digest_preview_all_summary_markdown, render_digest_preview_all_summary_telegram_chunks, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, render_digest_previews_all_csv, render_digest_previews_all_markdown, render_digest_previews_all_telegram_chunks, render_provider_details_options_csv, render_provider_details_options_markdown, render_provider_details_options_telegram_chunks, render_provider_health_recommendations_csv, render_provider_health_recommendations_markdown, render_provider_health_recommendations_telegram_chunks, render_provider_health_summary_csv, render_provider_health_summary_markdown, render_provider_health_summary_options_csv, render_provider_health_summary_options_markdown, render_provider_health_summary_options_telegram_chunks, render_provider_health_summary_telegram_chunks, render_provider_recommendations_csv, render_provider_recommendations_markdown, render_provider_recommendations_options_csv, render_provider_recommendations_options_markdown, render_provider_recommendations_options_telegram_chunks, render_provider_recommendations_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, summarize_digest_previews_for_all_emails, summarize_provider_health, summarize_provider_health_recommendations
+from fdd_tracker.services.alerts import build_provider_catalog_options_packet, render_provider_catalog_options_csv, render_provider_catalog_options_markdown, render_provider_catalog_options_telegram_chunks
 from fdd_tracker.services.store import get_alert_feed, seed_change_summary, upsert_watchlist
 
 
@@ -306,9 +307,33 @@ def test_provider_catalog_options_contract():
     assert "noop" in options["providers"]["supported"]
     assert "health" in options["providers"]
     assert options["surfaces"]["options"] == "/alerts/providers/options"
+    assert options["surfaces"]["options_markdown"] == "/alerts/providers/options/markdown"
+    assert options["surfaces"]["options_telegram"] == "/alerts/providers/options/telegram"
+    assert options["surfaces"]["options_csv"] == "/alerts/providers/options/csv"
+    assert options["surfaces"]["options_packet"] == "/alerts/providers/options/packet"
     assert options["surfaces"]["catalog"] == "/alerts/providers"
     assert options["surfaces"]["health_options"] == "/alerts/providers/health/options"
     assert options["surfaces"]["health_details"] == "/alerts/providers/{provider}/health"
+
+
+def test_provider_catalog_options_renderers_and_packet():
+    markdown = render_provider_catalog_options_markdown()
+    assert "# Provider Catalog Options" in markdown
+    assert "/alerts/providers/options/packet" in markdown
+
+    tg = render_provider_catalog_options_telegram_chunks(max_chars=200)
+    assert tg["chunk_count"] >= 1
+    assert tg["chunks_with_index"][0].startswith("[1/")
+
+    csv_text = render_provider_catalog_options_csv()
+    assert "section,key,value" in csv_text
+    assert "surfaces,options,/alerts/providers/options" in csv_text
+
+    packet = build_provider_catalog_options_packet(max_chars=200)
+    assert "options" in packet
+    assert "markdown" in packet
+    assert "csv" in packet
+    assert "telegram" in packet
 
 
 def test_list_provider_health_defaults_to_all_supported():
