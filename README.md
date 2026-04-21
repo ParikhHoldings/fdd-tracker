@@ -88,6 +88,9 @@ Returns total/unread counts, risk-level breakdown, and top unread franchises.
 ```bash
 curl "http://localhost:8000/alerts/weekly-brief?email=you@example.com&days=7&max_alerts=200"
 curl "http://localhost:8000/alerts/weekly-brief/options"
+curl "http://localhost:8000/alerts/weekly-brief/all/options"
+curl "http://localhost:8000/alerts/weekly-brief/all?days=7&max_alerts=200&order_by=total_alerts&order_dir=desc&limit=25&offset=0"
+curl "http://localhost:8000/alerts/weekly-brief/all/summary?days=7&max_alerts=200&unread_only=true&min_total_alerts=1&top_n=10"
 curl "http://localhost:8000/alerts/weekly-brief/options/markdown"
 curl "http://localhost:8000/alerts/weekly-brief/options/telegram?max_chars=2500"
 curl "http://localhost:8000/alerts/weekly-brief/options/csv"

@@ -312,6 +312,51 @@ def test_alerts_weekly_brief_options_presentation_endpoints():
     assert "telegram" in packet_data
 
 
+def test_alerts_weekly_brief_all_options_endpoint():
+    r = client.get("/alerts/weekly-brief/all/options")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["order_by"] == ["email", "total_alerts", "unread_alerts"]
+    assert data["order_dir"] == ["asc", "desc"]
+    assert data["defaults"]["days"] == 7
+    assert data["constraints"]["min_total_alerts"]["max"] == 10000
+    assert data["surfaces"]["all"] == "/alerts/weekly-brief/all"
+
+
+def test_alerts_weekly_brief_all_and_summary_endpoints():
+    email_a = f"weeklybrief-all-a-{uuid4().hex[:8]}@example.com"
+    email_b = f"weeklybrief-all-b-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email_a, "franchise_slug": "chick-fil-a"})
+    client.post("/watchlists", json={"email": email_b, "franchise_slug": "orangetheory"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+    seed_change_summary("orangetheory", ["litigation"], risk_level="medium")
+
+    all_resp = client.get(
+        "/alerts/weekly-brief/all?days=7&max_alerts=200&order_by=total_alerts&order_dir=desc&limit=1&offset=0"
+    )
+    assert all_resp.status_code == 200
+    all_data = all_resp.json()
+    assert all_data["emails_scanned"] >= 2
+    assert all_data["matched"] >= 2
+    assert all_data["returned"] == 1
+    assert all_data["order_by"] == "total_alerts"
+    assert all_data["order_dir"] == "desc"
+    assert "has_more" in all_data
+    assert isinstance(all_data["briefs"], list)
+
+    summary_resp = client.get(
+        "/alerts/weekly-brief/all/summary?days=7&max_alerts=200&unread_only=true&min_total_alerts=1&top_n=1"
+    )
+    assert summary_resp.status_code == 200
+    summary_data = summary_resp.json()
+    assert summary_data["unread_only"] is True
+    assert summary_data["min_total_alerts"] == 1
+    assert summary_data["top_n"] == 1
+    assert "total_alerts" in summary_data
+    assert "unread_alert_total" in summary_data
+    assert len(summary_data["top_unread_emails"]) <= 1
+
+
 
 def test_alerts_digest_run_for_email():
     email = f"digest-{uuid4().hex[:8]}@example.com"

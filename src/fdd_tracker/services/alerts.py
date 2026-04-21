@@ -14,6 +14,8 @@ from fdd_tracker.services.store import get_alert_feed, get_watchlist_emails, mar
 
 ALL_DIGEST_PREVIEW_ORDER_BY_OPTIONS = ["email", "unread_count", "has_unread", "generated_at"]
 ALL_DIGEST_PREVIEW_ORDER_DIR_OPTIONS = ["asc", "desc"]
+ALL_WEEKLY_BRIEF_ORDER_BY_OPTIONS = ["email", "total_alerts", "unread_alerts"]
+ALL_WEEKLY_BRIEF_ORDER_DIR_OPTIONS = ["asc", "desc"]
 
 
 def get_digest_preview_options() -> dict:
@@ -57,6 +59,40 @@ def get_weekly_brief_options() -> dict:
             "csv": "/alerts/weekly-brief/csv",
             "packet": "/alerts/weekly-brief/packet",
             "options": "/alerts/weekly-brief/options",
+        },
+    }
+
+
+def get_weekly_brief_all_options() -> dict:
+    return {
+        "order_by": ALL_WEEKLY_BRIEF_ORDER_BY_OPTIONS,
+        "order_dir": ALL_WEEKLY_BRIEF_ORDER_DIR_OPTIONS,
+        "constraints": {
+            "days": {"type": "int", "min": 1, "max": 30},
+            "max_alerts": {"type": "int", "min": 1, "max": 1000},
+            "unread_only": {"type": "bool"},
+            "min_total_alerts": {"type": "int", "min": 0, "max": 10000},
+            "limit": {"type": "int|null", "min": 1, "max": 10000},
+            "offset": {"type": "int", "min": 0, "max": 10000},
+            "top_n": {"type": "int", "min": 1, "max": 1000},
+        },
+        "defaults": {
+            "days": 7,
+            "max_alerts": 200,
+            "unread_only": False,
+            "min_total_alerts": 0,
+            "order_by": "email",
+            "order_dir": "asc",
+            "limit": None,
+            "offset": 0,
+            "top_n": 10,
+        },
+        "surfaces": {
+            "options": "/alerts/weekly-brief/all/options",
+            "all": "/alerts/weekly-brief/all",
+            "summary": "/alerts/weekly-brief/all/summary",
+            "single": "/alerts/weekly-brief",
+            "single_options": "/alerts/weekly-brief/options",
         },
     }
 
@@ -1269,6 +1305,134 @@ def build_weekly_brief_packet(
             db_path=db_path,
             max_chars=max_chars,
         ),
+    }
+
+
+def build_weekly_briefs_for_all_emails(
+    days: int = 7,
+    max_alerts: int = 200,
+    unread_only: bool = False,
+    min_total_alerts: int = 0,
+    order_by: str = "email",
+    order_dir: str = "asc",
+    limit: int | None = None,
+    offset: int = 0,
+    db_path: str | None = None,
+) -> dict:
+    emails = sorted(get_watchlist_emails(db_path=db_path))
+    briefs = [build_weekly_brief(email=email, days=days, max_alerts=max_alerts, db_path=db_path) for email in emails]
+
+    min_total_alerts = max(0, min(min_total_alerts, 10_000))
+    if unread_only:
+        briefs = [item for item in briefs if int(item.get("unread_alerts") or 0) > 0]
+    if min_total_alerts > 0:
+        briefs = [item for item in briefs if int(item.get("total_alerts") or 0) >= min_total_alerts]
+
+    order_by = (order_by or "email").strip().lower()
+    if order_by not in set(ALL_WEEKLY_BRIEF_ORDER_BY_OPTIONS):
+        order_by = "email"
+    order_dir = (order_dir or "asc").strip().lower()
+    if order_dir not in set(ALL_WEEKLY_BRIEF_ORDER_DIR_OPTIONS):
+        order_dir = "asc"
+
+    def _key(item: dict) -> tuple:
+        if order_by == "total_alerts":
+            return (int(item.get("total_alerts") or 0), item.get("email") or "")
+        if order_by == "unread_alerts":
+            return (int(item.get("unread_alerts") or 0), item.get("email") or "")
+        return ((item.get("email") or "").lower(),)
+
+    briefs = sorted(briefs, key=_key, reverse=(order_dir == "desc"))
+
+    total_matched = len(briefs)
+    offset = max(0, min(offset, total_matched))
+    if limit is None:
+        paged_briefs = briefs[offset:]
+        applied_limit = None
+        effective_limit = max(1, total_matched) if total_matched > 0 else 1
+    else:
+        applied_limit = max(1, min(limit, 10_000))
+        effective_limit = applied_limit
+        paged_briefs = briefs[offset : offset + applied_limit]
+
+    returned = len(paged_briefs)
+    page_end = offset + returned
+    has_more = page_end < total_matched
+    next_offset = page_end if has_more else None
+    prev_offset = max(0, offset - effective_limit) if offset > 0 else None
+    current_page = (offset // effective_limit) + 1 if total_matched > 0 else 1
+    total_pages = max(1, (total_matched + effective_limit - 1) // effective_limit)
+
+    return {
+        "emails_scanned": len(emails),
+        "matched": total_matched,
+        "returned": returned,
+        "limit": applied_limit,
+        "offset": offset,
+        "page_end": page_end,
+        "has_more": has_more,
+        "next_offset": next_offset,
+        "prev_offset": prev_offset,
+        "effective_limit": effective_limit,
+        "current_page": current_page,
+        "total_pages": total_pages,
+        "days": days,
+        "max_alerts": max_alerts,
+        "unread_only": unread_only,
+        "min_total_alerts": min_total_alerts,
+        "order_by": order_by,
+        "order_dir": order_dir,
+        "briefs": paged_briefs,
+    }
+
+
+def summarize_weekly_briefs_for_all_emails(
+    days: int = 7,
+    max_alerts: int = 200,
+    unread_only: bool = False,
+    min_total_alerts: int = 0,
+    order_by: str = "email",
+    order_dir: str = "asc",
+    limit: int | None = None,
+    offset: int = 0,
+    top_n: int = 10,
+    db_path: str | None = None,
+) -> dict:
+    payload = build_weekly_briefs_for_all_emails(
+        days=days,
+        max_alerts=max_alerts,
+        unread_only=unread_only,
+        min_total_alerts=min_total_alerts,
+        order_by=order_by,
+        order_dir=order_dir,
+        limit=limit,
+        offset=offset,
+        db_path=db_path,
+    )
+
+    briefs = payload.get("briefs") or []
+    top_n = max(1, min(top_n, 1000))
+    unread_total = sum(int(item.get("unread_alerts") or 0) for item in briefs)
+    total_alerts = sum(int(item.get("total_alerts") or 0) for item in briefs)
+
+    top_unread = sorted(
+        [
+            {
+                "email": item.get("email"),
+                "unread_alerts": int(item.get("unread_alerts") or 0),
+                "total_alerts": int(item.get("total_alerts") or 0),
+            }
+            for item in briefs
+        ],
+        key=lambda row: (-int(row["unread_alerts"]), -int(row["total_alerts"]), str(row["email"])),
+    )[:top_n]
+
+    return {
+        **payload,
+        "top_n": top_n,
+        "total_alerts": total_alerts,
+        "unread_alert_total": unread_total,
+        "top_unread_emails": top_unread,
     }
 
 
