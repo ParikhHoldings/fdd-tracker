@@ -288,6 +288,30 @@ def test_alerts_weekly_brief_options_endpoint():
     assert "/alerts/weekly-brief/packet" in data["surfaces"]["packet"]
 
 
+def test_alerts_weekly_brief_options_presentation_endpoints():
+    md = client.get("/alerts/weekly-brief/options/markdown")
+    assert md.status_code == 200
+    assert "# Weekly Brief Options" in md.json()["markdown"]
+
+    tg = client.get("/alerts/weekly-brief/options/telegram?max_chars=200")
+    assert tg.status_code == 200
+    tg_data = tg.json()
+    assert tg_data["chunk_count"] >= 1
+    assert tg_data["chunks_with_index"][0].startswith("[1/")
+
+    csv_resp = client.get("/alerts/weekly-brief/options/csv")
+    assert csv_resp.status_code == 200
+    assert "section,key,value" in csv_resp.json()["csv"]
+
+    packet = client.get("/alerts/weekly-brief/options/packet?max_chars=200")
+    assert packet.status_code == 200
+    packet_data = packet.json()
+    assert "options" in packet_data
+    assert "markdown" in packet_data
+    assert "csv" in packet_data
+    assert "telegram" in packet_data
+
+
 
 def test_alerts_digest_run_for_email():
     email = f"digest-{uuid4().hex[:8]}@example.com"
