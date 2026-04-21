@@ -1023,6 +1023,144 @@ def build_weekly_brief(
     }
 
 
+def render_weekly_brief_markdown(
+    email: str,
+    days: int = 7,
+    max_alerts: int = 200,
+    db_path: str | None = None,
+) -> str:
+    payload = build_weekly_brief(email=email, days=days, max_alerts=max_alerts, db_path=db_path)
+    lines = [
+        f"# Weekly Brief — {payload['email']}",
+        "",
+        f"- Window days: {payload['window_days']}",
+        f"- Total alerts: {payload['total_alerts']}",
+        f"- Unread alerts: {payload['unread_alerts']}",
+        f"- Risk counts: high={payload['by_risk'].get('high', 0)}, medium={payload['by_risk'].get('medium', 0)}, low={payload['by_risk'].get('low', 0)}",
+        "",
+        "## Top franchises",
+    ]
+    top = payload.get("top_franchises") or []
+    if not top:
+        lines.append("- none")
+    else:
+        for item in top:
+            lines.append(f"- {item.get('franchise_slug')}: {item.get('count')}")
+    return "\n".join(lines)
+
+
+def render_weekly_brief_telegram_chunks(
+    email: str,
+    days: int = 7,
+    max_alerts: int = 200,
+    db_path: str | None = None,
+    max_chars: int = 3500,
+) -> dict:
+    markdown = render_weekly_brief_markdown(email=email, days=days, max_alerts=max_alerts, db_path=db_path)
+    max_chars = max(100, min(max_chars, 4096))
+    chunks: list[str] = []
+    current: list[str] = []
+    current_len = 0
+
+    for line in markdown.split("\n"):
+        if len(line) > max_chars:
+            if current:
+                chunks.append("\n".join(current))
+                current = []
+                current_len = 0
+            for i in range(0, len(line), max_chars):
+                chunks.append(line[i : i + max_chars])
+            continue
+
+        line_len = len(line) + (1 if current else 0)
+        if current and (current_len + line_len) > max_chars:
+            chunks.append("\n".join(current))
+            current = [line]
+            current_len = len(line)
+            continue
+
+        current.append(line)
+        current_len += line_len
+
+    if current:
+        chunks.append("\n".join(current))
+
+    indexed_chunks = [f"[{idx}/{len(chunks)}]\n{chunk}" for idx, chunk in enumerate(chunks, start=1)]
+    return {
+        "email": email,
+        "total_chars": len(markdown),
+        "max_chars": max_chars,
+        "chunk_count": len(chunks),
+        "chunks": chunks,
+        "chunks_with_index": indexed_chunks,
+    }
+
+
+def render_weekly_brief_csv(
+    email: str,
+    days: int = 7,
+    max_alerts: int = 200,
+    db_path: str | None = None,
+) -> str:
+    payload = build_weekly_brief(email=email, days=days, max_alerts=max_alerts, db_path=db_path)
+    output = StringIO()
+    fieldnames = ["email", "window_days", "total_alerts", "unread_alerts", "risk_high", "risk_medium", "risk_low", "franchise_slug", "count"]
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+    top = payload.get("top_franchises") or []
+    if not top:
+        writer.writerow(
+            {
+                "email": payload["email"],
+                "window_days": payload["window_days"],
+                "total_alerts": payload["total_alerts"],
+                "unread_alerts": payload["unread_alerts"],
+                "risk_high": payload["by_risk"].get("high", 0),
+                "risk_medium": payload["by_risk"].get("medium", 0),
+                "risk_low": payload["by_risk"].get("low", 0),
+            }
+        )
+        return output.getvalue()
+
+    for item in top:
+        writer.writerow(
+            {
+                "email": payload["email"],
+                "window_days": payload["window_days"],
+                "total_alerts": payload["total_alerts"],
+                "unread_alerts": payload["unread_alerts"],
+                "risk_high": payload["by_risk"].get("high", 0),
+                "risk_medium": payload["by_risk"].get("medium", 0),
+                "risk_low": payload["by_risk"].get("low", 0),
+                "franchise_slug": item.get("franchise_slug"),
+                "count": item.get("count"),
+            }
+        )
+    return output.getvalue()
+
+
+def build_weekly_brief_packet(
+    email: str,
+    days: int = 7,
+    max_alerts: int = 200,
+    db_path: str | None = None,
+    max_chars: int = 3500,
+) -> dict:
+    return {
+        "email": email,
+        "brief": build_weekly_brief(email=email, days=days, max_alerts=max_alerts, db_path=db_path),
+        "markdown": render_weekly_brief_markdown(email=email, days=days, max_alerts=max_alerts, db_path=db_path),
+        "csv": render_weekly_brief_csv(email=email, days=days, max_alerts=max_alerts, db_path=db_path),
+        "telegram": render_weekly_brief_telegram_chunks(
+            email=email,
+            days=days,
+            max_alerts=max_alerts,
+            db_path=db_path,
+            max_chars=max_chars,
+        ),
+    }
+
+
 def build_digest_previews_for_all_emails(
     max_alerts: int = 25,
     unread_only: bool = False,

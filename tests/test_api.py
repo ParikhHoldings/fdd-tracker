@@ -243,6 +243,42 @@ def test_alerts_weekly_brief_endpoint_custom_window_and_max_alerts():
     assert data["by_risk"]["low"] >= 0
 
 
+def test_alerts_weekly_brief_markdown_endpoint():
+    email = f"weeklybriefmd-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+
+    r = client.get(f"/alerts/weekly-brief/markdown?email={email}&days=7&max_alerts=20")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["email"] == email
+    assert "# Weekly Brief" in data["markdown"]
+
+
+def test_alerts_weekly_brief_telegram_csv_packet_endpoints():
+    email = f"weeklybriefexports-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "orangetheory"})
+    seed_change_summary("orangetheory", ["fees"], risk_level="medium")
+
+    tg = client.get(f"/alerts/weekly-brief/telegram?email={email}&max_chars=500")
+    assert tg.status_code == 200
+    tg_data = tg.json()
+    assert tg_data["chunk_count"] >= 1
+    assert isinstance(tg_data["chunks_with_index"], list)
+
+    csv_resp = client.get(f"/alerts/weekly-brief/csv?email={email}")
+    assert csv_resp.status_code == 200
+    assert "email,window_days,total_alerts" in csv_resp.json()["csv"]
+
+    packet = client.get(f"/alerts/weekly-brief/packet?email={email}&max_chars=500")
+    assert packet.status_code == 200
+    packet_data = packet.json()
+    assert "brief" in packet_data
+    assert "markdown" in packet_data
+    assert "csv" in packet_data
+    assert "telegram" in packet_data
+
+
 
 def test_alerts_digest_run_for_email():
     email = f"digest-{uuid4().hex[:8]}@example.com"
