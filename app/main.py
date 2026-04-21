@@ -7,7 +7,7 @@ from pydantic import BaseModel, EmailStr
 
 from fdd_tracker.db import ensure_db
 from fdd_tracker.models import Filing
-from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_all_summary_packet, build_digest_preview_packet, build_digest_previews_all_packet, build_digest_previews_for_all_emails, build_latest_run_incident_export_packet, build_latest_run_incident_payload, build_provider_catalog_options_packet, build_provider_details_options_packet, build_provider_health_options_packet, build_provider_health_summary_options_packet, build_provider_health_summary_packet, build_provider_recommendations_options_packet, build_provider_recommendations_packet, build_run_incident_export_packet, build_run_incident_payload, build_weekly_brief, build_weekly_brief_options_packet, build_weekly_brief_packet, build_weekly_briefs_for_all_emails, dispatch_outbox, enforce_live_dispatch_gate, get_alerts_cron_options, get_alerts_cron_preflight, get_alerts_cron_status, get_cron_history_options, get_digest_preview_all_options, get_digest_preview_options, get_digest_run_options, get_dispatch_provider_catalog, get_integrity_dashboard_snapshot, get_latest_cron_history_entry, get_latest_run_id, get_latest_run_integrity_issue_details, get_latest_run_integrity_report, get_outbox_dispatch_options, get_outbox_retry_failed_options, get_provider_catalog_options, get_provider_details, get_provider_details_options, get_provider_health_details, get_provider_health_options, get_provider_health_summary_options, get_provider_recommendations, get_provider_recommendations_options, get_provider_smoke_test_options, get_weekly_brief_all_options, get_weekly_brief_options, list_provider_health, get_retention_prune_options, get_run_artifact_summary, get_run_integrity_issue_details, get_run_integrity_report, list_cron_history, list_failing_run_integrity_reports, list_failed_outbox, list_latest_run_events, list_outbox, list_recent_run_integrity_reports, list_run_events, list_sent_outbox, prune_alert_artifacts, recover_alerts_cron_lock, render_digest_preview_all_summary_csv, render_digest_preview_all_summary_markdown, render_digest_preview_all_summary_telegram_chunks, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, render_digest_previews_all_csv, render_digest_previews_all_markdown, render_digest_previews_all_telegram_chunks, render_integrity_dashboard_markdown, render_integrity_dashboard_telegram_chunks, render_latest_run_events_csv, render_latest_run_incident_csv, render_latest_run_incident_markdown, render_latest_run_incident_telegram_chunks, render_latest_run_integrity_issues_csv, render_latest_run_integrity_issues_markdown, render_latest_run_integrity_issues_telegram_chunks, render_provider_catalog_options_csv, render_provider_catalog_options_markdown, render_provider_catalog_options_telegram_chunks, render_provider_details_options_csv, render_provider_details_options_markdown, render_provider_details_options_telegram_chunks, render_provider_health_options_csv, render_provider_health_options_markdown, render_provider_health_options_telegram_chunks, render_provider_health_recommendations_csv, render_provider_health_recommendations_markdown, render_provider_health_recommendations_telegram_chunks, render_provider_health_summary_csv, render_provider_health_summary_markdown, render_provider_health_summary_options_csv, render_provider_health_summary_options_markdown, render_provider_health_summary_options_telegram_chunks, render_provider_health_summary_telegram_chunks, render_provider_recommendations_csv, render_provider_recommendations_markdown, render_provider_recommendations_options_csv, render_provider_recommendations_options_markdown, render_provider_recommendations_options_telegram_chunks, render_provider_recommendations_telegram_chunks, render_run_events_csv, render_run_incident_csv, render_run_incident_markdown, render_run_incident_telegram_chunks, render_run_integrity_issues_csv, render_run_integrity_issues_markdown, render_run_integrity_issues_telegram_chunks, render_weekly_brief_csv, render_weekly_brief_markdown, render_weekly_brief_options_csv, render_weekly_brief_options_markdown, render_weekly_brief_options_telegram_chunks, render_weekly_brief_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, run_provider_smoke_test, summarize_digest_previews_for_all_emails, summarize_integrity_trends, summarize_provider_health, summarize_provider_health_recommendations, summarize_recent_run_integrity, summarize_weekly_briefs_for_all_emails, build_provider_health_recommendations_packet
+from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_all_summary_packet, build_digest_preview_packet, build_digest_previews_all_packet, build_digest_previews_for_all_emails, build_latest_run_incident_export_packet, build_latest_run_incident_payload, build_provider_catalog_options_packet, build_provider_details_options_packet, build_provider_health_options_packet, build_provider_health_summary_options_packet, build_provider_health_summary_packet, build_provider_recommendations_options_packet, build_provider_recommendations_packet, build_run_incident_export_packet, build_run_incident_payload, build_weekly_brief, build_weekly_brief_options_packet, build_weekly_brief_packet, build_weekly_briefs_all_packet, build_weekly_briefs_for_all_emails, dispatch_outbox, enforce_live_dispatch_gate, get_alerts_cron_options, get_alerts_cron_preflight, get_alerts_cron_status, get_cron_history_options, get_digest_preview_all_options, get_digest_preview_options, get_digest_run_options, get_dispatch_provider_catalog, get_integrity_dashboard_snapshot, get_latest_cron_history_entry, get_latest_run_id, get_latest_run_integrity_issue_details, get_latest_run_integrity_report, get_outbox_dispatch_options, get_outbox_retry_failed_options, get_provider_catalog_options, get_provider_details, get_provider_details_options, get_provider_health_details, get_provider_health_options, get_provider_health_summary_options, get_provider_recommendations, get_provider_recommendations_options, get_provider_smoke_test_options, get_weekly_brief_all_options, get_weekly_brief_options, list_provider_health, get_retention_prune_options, get_run_artifact_summary, get_run_integrity_issue_details, get_run_integrity_report, list_cron_history, list_failing_run_integrity_reports, list_failed_outbox, list_latest_run_events, list_outbox, list_recent_run_integrity_reports, list_run_events, list_sent_outbox, prune_alert_artifacts, recover_alerts_cron_lock, render_digest_preview_all_summary_csv, render_digest_preview_all_summary_markdown, render_digest_preview_all_summary_telegram_chunks, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, render_digest_previews_all_csv, render_digest_previews_all_markdown, render_digest_previews_all_telegram_chunks, render_integrity_dashboard_markdown, render_integrity_dashboard_telegram_chunks, render_latest_run_events_csv, render_latest_run_incident_csv, render_latest_run_incident_markdown, render_latest_run_incident_telegram_chunks, render_latest_run_integrity_issues_csv, render_latest_run_integrity_issues_markdown, render_latest_run_integrity_issues_telegram_chunks, render_provider_catalog_options_csv, render_provider_catalog_options_markdown, render_provider_catalog_options_telegram_chunks, render_provider_details_options_csv, render_provider_details_options_markdown, render_provider_details_options_telegram_chunks, render_provider_health_options_csv, render_provider_health_options_markdown, render_provider_health_options_telegram_chunks, render_provider_health_recommendations_csv, render_provider_health_recommendations_markdown, render_provider_health_recommendations_telegram_chunks, render_provider_health_summary_csv, render_provider_health_summary_markdown, render_provider_health_summary_options_csv, render_provider_health_summary_options_markdown, render_provider_health_summary_options_telegram_chunks, render_provider_health_summary_telegram_chunks, render_provider_recommendations_csv, render_provider_recommendations_markdown, render_provider_recommendations_options_csv, render_provider_recommendations_options_markdown, render_provider_recommendations_options_telegram_chunks, render_provider_recommendations_telegram_chunks, render_run_events_csv, render_run_incident_csv, render_run_incident_markdown, render_run_incident_telegram_chunks, render_run_integrity_issues_csv, render_run_integrity_issues_markdown, render_run_integrity_issues_telegram_chunks, render_weekly_brief_csv, render_weekly_brief_markdown, render_weekly_brief_options_csv, render_weekly_brief_options_markdown, render_weekly_brief_options_telegram_chunks, render_weekly_briefs_all_csv, render_weekly_briefs_all_markdown, render_weekly_briefs_all_telegram_chunks, render_weekly_brief_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, run_provider_smoke_test, summarize_digest_previews_for_all_emails, summarize_integrity_trends, summarize_provider_health, summarize_provider_health_recommendations, summarize_recent_run_integrity, summarize_weekly_briefs_for_all_emails, build_provider_health_recommendations_packet
 from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestion
 from fdd_tracker.services.store import (
     delete_watchlist,
@@ -284,6 +284,106 @@ def alerts_weekly_brief_all_summary(
         limit=limit,
         offset=offset,
         top_n=top_n,
+    )
+
+
+@app.get("/alerts/weekly-brief/all/markdown")
+def alerts_weekly_brief_all_markdown(
+    days: int = Query(default=7, ge=1, le=30),
+    max_alerts: int = Query(default=200, ge=1, le=1000),
+    unread_only: bool = Query(default=False),
+    min_total_alerts: int = Query(default=0, ge=0, le=10000),
+    order_by: str = Query(default="email"),
+    order_dir: str = Query(default="asc"),
+    limit: int | None = Query(default=None, ge=1, le=10000),
+    offset: int = Query(default=0, ge=0, le=10000),
+) -> dict:
+    return {
+        "markdown": render_weekly_briefs_all_markdown(
+            days=days,
+            max_alerts=max_alerts,
+            unread_only=unread_only,
+            min_total_alerts=min_total_alerts,
+            order_by=order_by,
+            order_dir=order_dir,
+            limit=limit,
+            offset=offset,
+        )
+    }
+
+
+@app.get("/alerts/weekly-brief/all/telegram")
+def alerts_weekly_brief_all_telegram(
+    days: int = Query(default=7, ge=1, le=30),
+    max_alerts: int = Query(default=200, ge=1, le=1000),
+    unread_only: bool = Query(default=False),
+    min_total_alerts: int = Query(default=0, ge=0, le=10000),
+    order_by: str = Query(default="email"),
+    order_dir: str = Query(default="asc"),
+    limit: int | None = Query(default=None, ge=1, le=10000),
+    offset: int = Query(default=0, ge=0, le=10000),
+    max_chars: int = Query(default=3500, ge=100, le=4096),
+) -> dict:
+    return render_weekly_briefs_all_telegram_chunks(
+        days=days,
+        max_alerts=max_alerts,
+        unread_only=unread_only,
+        min_total_alerts=min_total_alerts,
+        order_by=order_by,
+        order_dir=order_dir,
+        limit=limit,
+        offset=offset,
+        max_chars=max_chars,
+    )
+
+
+@app.get("/alerts/weekly-brief/all/csv")
+def alerts_weekly_brief_all_csv(
+    days: int = Query(default=7, ge=1, le=30),
+    max_alerts: int = Query(default=200, ge=1, le=1000),
+    unread_only: bool = Query(default=False),
+    min_total_alerts: int = Query(default=0, ge=0, le=10000),
+    order_by: str = Query(default="email"),
+    order_dir: str = Query(default="asc"),
+    limit: int | None = Query(default=None, ge=1, le=10000),
+    offset: int = Query(default=0, ge=0, le=10000),
+) -> dict:
+    return {
+        "csv": render_weekly_briefs_all_csv(
+            days=days,
+            max_alerts=max_alerts,
+            unread_only=unread_only,
+            min_total_alerts=min_total_alerts,
+            order_by=order_by,
+            order_dir=order_dir,
+            limit=limit,
+            offset=offset,
+        )
+    }
+
+
+@app.get("/alerts/weekly-brief/all/packet")
+def alerts_weekly_brief_all_packet(
+    days: int = Query(default=7, ge=1, le=30),
+    max_alerts: int = Query(default=200, ge=1, le=1000),
+    unread_only: bool = Query(default=False),
+    min_total_alerts: int = Query(default=0, ge=0, le=10000),
+    order_by: str = Query(default="email"),
+    order_dir: str = Query(default="asc"),
+    limit: int | None = Query(default=None, ge=1, le=10000),
+    offset: int = Query(default=0, ge=0, le=10000),
+    max_chars: int = Query(default=3500, ge=100, le=4096),
+) -> dict:
+    return build_weekly_briefs_all_packet(
+        days=days,
+        max_alerts=max_alerts,
+        unread_only=unread_only,
+        min_total_alerts=min_total_alerts,
+        order_by=order_by,
+        order_dir=order_dir,
+        limit=limit,
+        offset=offset,
+        max_chars=max_chars,
     )
 
 

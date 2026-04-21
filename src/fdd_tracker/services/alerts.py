@@ -1436,6 +1436,307 @@ def summarize_weekly_briefs_for_all_emails(
     }
 
 
+def render_weekly_briefs_all_markdown(
+    days: int = 7,
+    max_alerts: int = 200,
+    unread_only: bool = False,
+    min_total_alerts: int = 0,
+    order_by: str = "email",
+    order_dir: str = "asc",
+    limit: int | None = None,
+    offset: int = 0,
+    db_path: str | None = None,
+) -> str:
+    payload = build_weekly_briefs_for_all_emails(
+        days=days,
+        max_alerts=max_alerts,
+        unread_only=unread_only,
+        min_total_alerts=min_total_alerts,
+        order_by=order_by,
+        order_dir=order_dir,
+        limit=limit,
+        offset=offset,
+        db_path=db_path,
+    )
+    lines = [
+        "# Weekly Brief All Emails",
+        "",
+        f"- Emails scanned: {payload.get('emails_scanned', 0)}",
+        f"- Matched: {payload.get('matched', 0)}",
+        f"- Returned: {payload.get('returned', 0)}",
+        f"- Pagination: limit={payload.get('limit')} offset={payload.get('offset', 0)}",
+        f"- Paging: has_more={payload.get('has_more', False)} next_offset={payload.get('next_offset')} prev_offset={payload.get('prev_offset')}",
+        f"- Page: {payload.get('current_page', 1)}/{payload.get('total_pages', 1)} (effective_limit={payload.get('effective_limit')})",
+        f"- Unread-only mode: {payload.get('unread_only', False)}",
+        f"- Min total alerts filter: {payload.get('min_total_alerts', 0)}",
+        f"- Ordering: {payload.get('order_by', 'email')} {payload.get('order_dir', 'asc')}",
+        "",
+        "## Briefs",
+    ]
+    briefs = payload.get("briefs") or []
+    if not briefs:
+        lines.append("- none")
+    else:
+        for item in briefs:
+            lines.append(
+                f"- {item.get('email')}: total={item.get('total_alerts', 0)} unread={item.get('unread_alerts', 0)}"
+            )
+    return "\n".join(lines)
+
+
+def render_weekly_briefs_all_telegram_chunks(
+    days: int = 7,
+    max_alerts: int = 200,
+    unread_only: bool = False,
+    min_total_alerts: int = 0,
+    order_by: str = "email",
+    order_dir: str = "asc",
+    limit: int | None = None,
+    offset: int = 0,
+    db_path: str | None = None,
+    max_chars: int = 3500,
+) -> dict:
+    payload = build_weekly_briefs_for_all_emails(
+        days=days,
+        max_alerts=max_alerts,
+        unread_only=unread_only,
+        min_total_alerts=min_total_alerts,
+        order_by=order_by,
+        order_dir=order_dir,
+        limit=limit,
+        offset=offset,
+        db_path=db_path,
+    )
+    markdown = render_weekly_briefs_all_markdown(
+        days=days,
+        max_alerts=max_alerts,
+        unread_only=unread_only,
+        min_total_alerts=min_total_alerts,
+        order_by=order_by,
+        order_dir=order_dir,
+        limit=limit,
+        offset=offset,
+        db_path=db_path,
+    )
+    max_chars = max(100, min(max_chars, 4096))
+
+    chunks: list[str] = []
+    current: list[str] = []
+    current_len = 0
+    for line in markdown.split("\n"):
+        if len(line) > max_chars:
+            if current:
+                chunks.append("\n".join(current))
+                current = []
+                current_len = 0
+            for i in range(0, len(line), max_chars):
+                chunks.append(line[i : i + max_chars])
+            continue
+
+        line_len = len(line) + (1 if current else 0)
+        if current and (current_len + line_len) > max_chars:
+            chunks.append("\n".join(current))
+            current = [line]
+            current_len = len(line)
+            continue
+
+        current.append(line)
+        current_len += line_len
+
+    if current:
+        chunks.append("\n".join(current))
+
+    indexed_chunks = [f"[{idx}/{len(chunks)}]\n{chunk}" for idx, chunk in enumerate(chunks, start=1)]
+    return {
+        **payload,
+        "total_chars": len(markdown),
+        "max_chars": max_chars,
+        "chunk_count": len(chunks),
+        "chunks": chunks,
+        "chunks_with_index": indexed_chunks,
+    }
+
+
+def render_weekly_briefs_all_csv(
+    days: int = 7,
+    max_alerts: int = 200,
+    unread_only: bool = False,
+    min_total_alerts: int = 0,
+    order_by: str = "email",
+    order_dir: str = "asc",
+    limit: int | None = None,
+    offset: int = 0,
+    db_path: str | None = None,
+) -> str:
+    payload = build_weekly_briefs_for_all_emails(
+        days=days,
+        max_alerts=max_alerts,
+        unread_only=unread_only,
+        min_total_alerts=min_total_alerts,
+        order_by=order_by,
+        order_dir=order_dir,
+        limit=limit,
+        offset=offset,
+        db_path=db_path,
+    )
+
+    out = StringIO()
+    writer = csv.writer(out)
+    writer.writerow(
+        [
+            "emails_scanned",
+            "matched",
+            "returned",
+            "limit",
+            "offset",
+            "page_end",
+            "has_more",
+            "next_offset",
+            "prev_offset",
+            "effective_limit",
+            "current_page",
+            "total_pages",
+            "order_by",
+            "order_dir",
+            "days",
+            "max_alerts",
+            "unread_only",
+            "min_total_alerts",
+            "email",
+            "total_alerts",
+            "unread_alerts",
+            "risk_high",
+            "risk_medium",
+            "risk_low",
+        ]
+    )
+
+    briefs = payload.get("briefs") or []
+    if not briefs:
+        writer.writerow(
+            [
+                payload.get("emails_scanned", 0),
+                payload.get("matched", 0),
+                payload.get("returned", 0),
+                payload.get("limit"),
+                payload.get("offset", 0),
+                payload.get("page_end", 0),
+                payload.get("has_more", False),
+                payload.get("next_offset"),
+                payload.get("prev_offset"),
+                payload.get("effective_limit"),
+                payload.get("current_page", 1),
+                payload.get("total_pages", 1),
+                payload.get("order_by", "email"),
+                payload.get("order_dir", "asc"),
+                payload.get("days", days),
+                payload.get("max_alerts", max_alerts),
+                payload.get("unread_only", unread_only),
+                payload.get("min_total_alerts", min_total_alerts),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ]
+        )
+        return out.getvalue()
+
+    for item in briefs:
+        by_risk = item.get("by_risk") or {}
+        writer.writerow(
+            [
+                payload.get("emails_scanned", 0),
+                payload.get("matched", 0),
+                payload.get("returned", 0),
+                payload.get("limit"),
+                payload.get("offset", 0),
+                payload.get("page_end", 0),
+                payload.get("has_more", False),
+                payload.get("next_offset"),
+                payload.get("prev_offset"),
+                payload.get("effective_limit"),
+                payload.get("current_page", 1),
+                payload.get("total_pages", 1),
+                payload.get("order_by", "email"),
+                payload.get("order_dir", "asc"),
+                payload.get("days", days),
+                payload.get("max_alerts", max_alerts),
+                payload.get("unread_only", unread_only),
+                payload.get("min_total_alerts", min_total_alerts),
+                item.get("email"),
+                item.get("total_alerts", 0),
+                item.get("unread_alerts", 0),
+                by_risk.get("high", 0),
+                by_risk.get("medium", 0),
+                by_risk.get("low", 0),
+            ]
+        )
+    return out.getvalue()
+
+
+def build_weekly_briefs_all_packet(
+    days: int = 7,
+    max_alerts: int = 200,
+    unread_only: bool = False,
+    min_total_alerts: int = 0,
+    order_by: str = "email",
+    order_dir: str = "asc",
+    limit: int | None = None,
+    offset: int = 0,
+    db_path: str | None = None,
+    max_chars: int = 3500,
+) -> dict:
+    return {
+        "payload": build_weekly_briefs_for_all_emails(
+            days=days,
+            max_alerts=max_alerts,
+            unread_only=unread_only,
+            min_total_alerts=min_total_alerts,
+            order_by=order_by,
+            order_dir=order_dir,
+            limit=limit,
+            offset=offset,
+            db_path=db_path,
+        ),
+        "markdown": render_weekly_briefs_all_markdown(
+            days=days,
+            max_alerts=max_alerts,
+            unread_only=unread_only,
+            min_total_alerts=min_total_alerts,
+            order_by=order_by,
+            order_dir=order_dir,
+            limit=limit,
+            offset=offset,
+            db_path=db_path,
+        ),
+        "csv": render_weekly_briefs_all_csv(
+            days=days,
+            max_alerts=max_alerts,
+            unread_only=unread_only,
+            min_total_alerts=min_total_alerts,
+            order_by=order_by,
+            order_dir=order_dir,
+            limit=limit,
+            offset=offset,
+            db_path=db_path,
+        ),
+        "telegram": render_weekly_briefs_all_telegram_chunks(
+            days=days,
+            max_alerts=max_alerts,
+            unread_only=unread_only,
+            min_total_alerts=min_total_alerts,
+            order_by=order_by,
+            order_dir=order_dir,
+            limit=limit,
+            offset=offset,
+            db_path=db_path,
+            max_chars=max_chars,
+        ),
+    }
+
+
 def build_digest_previews_for_all_emails(
     max_alerts: int = 25,
     unread_only: bool = False,
