@@ -968,6 +968,61 @@ def build_digest_preview_packet(
     }
 
 
+def build_weekly_brief(
+    email: str,
+    days: int = 7,
+    max_alerts: int = 200,
+    db_path: str | None = None,
+) -> dict:
+    """Summarize recent alert activity for a watchlist owner (weekly brief MVP)."""
+    days = max(1, min(days, 30))
+    max_alerts = max(1, min(max_alerts, 1000))
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+    alerts = get_alert_feed(email=email, limit=max_alerts, db_path=db_path)
+    recent_alerts: list[dict] = []
+    for alert in alerts:
+        generated_raw = (alert.get("generated_at") or "").strip()
+        if not generated_raw:
+            continue
+        normalized = generated_raw.replace("Z", "+00:00")
+        try:
+            generated_at = datetime.fromisoformat(normalized)
+        except ValueError:
+            continue
+
+        if generated_at.tzinfo is None:
+            generated_at = generated_at.replace(tzinfo=timezone.utc)
+        if generated_at >= cutoff:
+            recent_alerts.append(alert)
+
+    by_risk = {"low": 0, "medium": 0, "high": 0}
+    by_franchise: dict[str, int] = {}
+    for alert in recent_alerts:
+        risk = str(alert.get("risk_level") or "").strip().lower()
+        if risk in by_risk:
+            by_risk[risk] += 1
+        slug = str(alert.get("franchise_slug") or "").strip()
+        if slug:
+            by_franchise[slug] = by_franchise.get(slug, 0) + 1
+
+    top_franchises = sorted(
+        [{"franchise_slug": slug, "count": count} for slug, count in by_franchise.items()],
+        key=lambda item: (-int(item["count"]), item["franchise_slug"]),
+    )[:10]
+
+    return {
+        "email": email,
+        "window_days": days,
+        "cutoff": cutoff.isoformat(),
+        "total_alerts": len(recent_alerts),
+        "unread_alerts": sum(1 for alert in recent_alerts if not bool(alert.get("read"))),
+        "by_risk": by_risk,
+        "top_franchises": top_franchises,
+        "alerts": recent_alerts,
+    }
+
+
 def build_digest_previews_for_all_emails(
     max_alerts: int = 25,
     unread_only: bool = False,

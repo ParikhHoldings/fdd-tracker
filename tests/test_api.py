@@ -213,6 +213,36 @@ def test_alerts_summary_endpoint():
     assert isinstance(data["top_unread_franchises"], list)
 
 
+def test_alerts_weekly_brief_endpoint_default_window():
+    email = f"weeklybrief-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+    seed_change_summary("chick-fil-a", ["litigation"], risk_level="medium")
+
+    r = client.get(f"/alerts/weekly-brief?email={email}")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["email"] == email
+    assert data["window_days"] == 7
+    assert data["total_alerts"] >= 2
+    assert data["by_risk"]["high"] >= 1
+    assert data["by_risk"]["medium"] >= 1
+    assert isinstance(data["top_franchises"], list)
+
+
+def test_alerts_weekly_brief_endpoint_custom_window_and_max_alerts():
+    email = f"weeklybriefcustom-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "orangetheory"})
+    seed_change_summary("orangetheory", ["financials"], risk_level="low")
+
+    r = client.get(f"/alerts/weekly-brief?email={email}&days=3&max_alerts=1")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["window_days"] == 3
+    assert data["total_alerts"] <= 1
+    assert data["by_risk"]["low"] >= 0
+
+
 
 def test_alerts_digest_run_for_email():
     email = f"digest-{uuid4().hex[:8]}@example.com"
