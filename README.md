@@ -10,7 +10,7 @@ Next.js 14 + TypeScript + Tailwind · Clerk · Stripe · Resend · Railway (Post
 
 ## Added backend scanner scaffold (this run)
 This run adds a lightweight Python service scaffold for filing ingestion, diffing, and alerts:
-- FastAPI endpoints (`/health`, `/franchises`, `/watchlists`, `/changes/{slug}`)
+- FastAPI endpoints (`/health`, `/franchises`, `/watchlists`, `/changes/{slug}`, `/changes/{slug}/insights`)
 - Ingestion stubs for FTC + registration-state portals
 - PDF extraction fallback utility
 - Diff categorization engine for fees/litigation/financials/unit counts
@@ -52,6 +52,12 @@ Each state record: `{state, franchise_name, filing_url, filed_on}`
 curl -X POST http://localhost:8000/ingest/refresh-state-sources -H "Content-Type: application/json" -d '{"states": ["CA", "IL"]}'
 ```
 This updates `data/sources/state_filings.json` with the latest parsed records.
+
+**Change history insights (risk/category trends):**
+```bash
+curl "http://localhost:8000/changes/chick-fil-a/insights?limit=200"
+```
+Returns trend rollups including `total_changes`, `by_risk`, `category_counts`, and `risk_trend_last_5`.
 
 **Watchlist alerts feed:**
 ```bash

@@ -34,6 +34,41 @@ def test_changes_endpoint_limit():
     assert len(r.json()["changes"]) == 1
 
 
+def test_change_insights_endpoint_shape_and_counts():
+    slug = f"insights-{uuid4().hex[:8]}"
+    seed_change_summary(slug, ["fees", "litigation"], risk_level="high")
+    seed_change_summary(slug, ["fees"], risk_level="medium")
+    seed_change_summary(slug, ["financials"], risk_level="low")
+
+    r = client.get(f"/changes/{slug}/insights?limit=10")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["franchise_slug"] == slug
+    assert data["total_changes"] == 3
+    assert data["by_risk"]["high"] == 1
+    assert data["by_risk"]["medium"] == 1
+    assert data["by_risk"]["low"] == 1
+    assert data["category_counts"]["fees"] == 2
+    assert data["latest_change_at"] is not None
+    assert data["first_change_at"] is not None
+    assert data["risk_trend_last_5"]["window"] == 3
+    assert len(data["risk_trend_last_5"]["series"]) == 3
+
+
+def test_change_insights_endpoint_empty():
+    slug = f"insights-empty-{uuid4().hex[:8]}"
+    r = client.get(f"/changes/{slug}/insights")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["franchise_slug"] == slug
+    assert data["total_changes"] == 0
+    assert data["latest_change_at"] is None
+    assert data["first_change_at"] is None
+    assert data["category_counts"] == {}
+    assert data["risk_trend_last_5"]["window"] == 0
+    assert data["risk_trend_last_5"]["series"] == []
+
+
 def test_create_watchlist_idempotency():
     payload = {"email": f"test-{uuid4().hex[:8]}@example.com", "franchise_slug": "chick-fil-a"}
     r1 = client.post("/watchlists", json=payload)

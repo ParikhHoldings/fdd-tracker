@@ -13,6 +13,7 @@ from fdd_tracker.services.store import (
     delete_watchlist,
     get_alert_feed,
     get_alert_summary,
+    get_change_insights,
     get_recent_changes,
     get_unread_alert_count,
     get_watchlists,
@@ -93,6 +94,11 @@ def changes(franchise_slug: str, limit: int = Query(default=20, ge=1, le=200)) -
         "franchise_slug": franchise_slug,
         "changes": get_recent_changes(franchise_slug=franchise_slug, limit=limit),
     }
+
+
+@app.get("/changes/{franchise_slug}/insights")
+def change_insights(franchise_slug: str, limit: int = Query(default=200, ge=1, le=500)) -> dict:
+    return get_change_insights(franchise_slug=franchise_slug, limit=limit)
 
 
 @app.post("/ingest/run")

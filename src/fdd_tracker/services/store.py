@@ -100,6 +100,52 @@ def get_recent_changes(franchise_slug: str, limit: int = 20, db_path: str | None
     return out
 
 
+def get_change_insights(franchise_slug: str, limit: int = 200, db_path: str | None = None) -> dict:
+    changes = get_recent_changes(franchise_slug=franchise_slug, limit=limit, db_path=db_path)
+
+    by_risk = {"low": 0, "medium": 0, "high": 0, "unknown": 0}
+    category_counts: dict[str, int] = {}
+
+    for change in changes:
+        risk = str(change.get("risk_level") or "unknown").lower()
+        if risk not in by_risk:
+            risk = "unknown"
+        by_risk[risk] += 1
+
+        for category in change.get("categories") or []:
+            key = str(category).strip().lower()
+            if not key:
+                continue
+            category_counts[key] = category_counts.get(key, 0) + 1
+
+    risk_scores = {"low": 1, "medium": 2, "high": 3, "unknown": 0}
+    risk_series = [str(item.get("risk_level") or "unknown").lower() for item in changes[:5]]
+    if len(risk_series) >= 2:
+        delta = risk_scores.get(risk_series[0], 0) - risk_scores.get(risk_series[-1], 0)
+        if delta > 0:
+            risk_direction = "up"
+        elif delta < 0:
+            risk_direction = "down"
+        else:
+            risk_direction = "flat"
+    else:
+        risk_direction = "flat"
+
+    return {
+        "franchise_slug": franchise_slug,
+        "total_changes": len(changes),
+        "by_risk": by_risk,
+        "category_counts": dict(sorted(category_counts.items(), key=lambda item: (-item[1], item[0]))),
+        "latest_change_at": changes[0]["generated_at"] if changes else None,
+        "first_change_at": changes[-1]["generated_at"] if changes else None,
+        "risk_trend_last_5": {
+            "window": min(len(risk_series), 5),
+            "series": risk_series,
+            "direction": risk_direction,
+        },
+    }
+
+
 def seed_change_summary(franchise_slug: str, categories: list[str], risk_level: str = "medium", db_path: str | None = None):
     summary = ChangeSummary(
         franchise_slug=franchise_slug,
