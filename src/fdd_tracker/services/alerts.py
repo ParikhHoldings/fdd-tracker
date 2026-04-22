@@ -97,6 +97,85 @@ def get_weekly_brief_all_options() -> dict:
     }
 
 
+def render_weekly_brief_all_options_markdown() -> str:
+    payload = get_weekly_brief_all_options()
+    lines = ["# Weekly Brief All Options", "", "## Defaults"]
+    for key in sorted((payload.get("defaults") or {}).keys()):
+        lines.append(f"- {key}: {payload['defaults'][key]}")
+
+    lines.extend(["", "## Constraints"])
+    for key in sorted((payload.get("constraints") or {}).keys()):
+        lines.append(f"- {key}: {json.dumps(payload['constraints'][key], sort_keys=True)}")
+
+    lines.extend(["", "## Surfaces"])
+    for key in sorted((payload.get("surfaces") or {}).keys()):
+        lines.append(f"- {key}: {payload['surfaces'][key]}")
+    return "\n".join(lines)
+
+
+def render_weekly_brief_all_options_telegram_chunks(max_chars: int = 3500) -> dict:
+    markdown = render_weekly_brief_all_options_markdown()
+    max_chars = max(100, min(max_chars, 4096))
+
+    chunks: list[str] = []
+    current: list[str] = []
+    current_len = 0
+    for line in markdown.split("\n"):
+        if len(line) > max_chars:
+            if current:
+                chunks.append("\n".join(current))
+                current = []
+                current_len = 0
+            for i in range(0, len(line), max_chars):
+                chunks.append(line[i : i + max_chars])
+            continue
+
+        line_len = len(line) + (1 if current else 0)
+        if current and (current_len + line_len) > max_chars:
+            chunks.append("\n".join(current))
+            current = [line]
+            current_len = len(line)
+            continue
+
+        current.append(line)
+        current_len += line_len
+
+    if current:
+        chunks.append("\n".join(current))
+
+    indexed_chunks = [f"[{idx}/{len(chunks)}]\n{chunk}" for idx, chunk in enumerate(chunks, start=1)]
+    return {
+        "total_chars": len(markdown),
+        "max_chars": max_chars,
+        "chunk_count": len(chunks),
+        "chunks": chunks,
+        "chunks_with_index": indexed_chunks,
+    }
+
+
+def render_weekly_brief_all_options_csv() -> str:
+    payload = get_weekly_brief_all_options()
+    out = StringIO()
+    writer = csv.writer(out)
+    writer.writerow(["section", "key", "value"])
+    for key, value in (payload.get("defaults") or {}).items():
+        writer.writerow(["defaults", key, value])
+    for key, value in (payload.get("constraints") or {}).items():
+        writer.writerow(["constraints", key, json.dumps(value, sort_keys=True)])
+    for key, value in (payload.get("surfaces") or {}).items():
+        writer.writerow(["surfaces", key, value])
+    return out.getvalue()
+
+
+def build_weekly_brief_all_options_packet(max_chars: int = 3500) -> dict:
+    return {
+        "options": get_weekly_brief_all_options(),
+        "markdown": render_weekly_brief_all_options_markdown(),
+        "csv": render_weekly_brief_all_options_csv(),
+        "telegram": render_weekly_brief_all_options_telegram_chunks(max_chars=max_chars),
+    }
+
+
 def render_weekly_brief_options_markdown() -> str:
     payload = get_weekly_brief_options()
     constraints = payload.get("constraints", {})

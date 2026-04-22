@@ -323,6 +323,30 @@ def test_alerts_weekly_brief_all_options_endpoint():
     assert data["surfaces"]["all"] == "/alerts/weekly-brief/all"
 
 
+def test_alerts_weekly_brief_all_options_export_endpoints():
+    md = client.get("/alerts/weekly-brief/all/options/markdown")
+    assert md.status_code == 200
+    assert "# Weekly Brief All Options" in md.json()["markdown"]
+
+    tg = client.get("/alerts/weekly-brief/all/options/telegram?max_chars=200")
+    assert tg.status_code == 200
+    tg_data = tg.json()
+    assert tg_data["chunk_count"] >= 1
+    assert tg_data["chunks_with_index"][0].startswith("[1/")
+
+    csv_resp = client.get("/alerts/weekly-brief/all/options/csv")
+    assert csv_resp.status_code == 200
+    assert "section,key,value" in csv_resp.json()["csv"]
+
+    packet = client.get("/alerts/weekly-brief/all/options/packet?max_chars=200")
+    assert packet.status_code == 200
+    packet_data = packet.json()
+    assert "options" in packet_data
+    assert "markdown" in packet_data
+    assert "csv" in packet_data
+    assert "telegram" in packet_data
+
+
 def test_alerts_weekly_brief_all_and_summary_endpoints():
     email_a = f"weeklybrief-all-a-{uuid4().hex[:8]}@example.com"
     email_b = f"weeklybrief-all-b-{uuid4().hex[:8]}@example.com"
