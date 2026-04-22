@@ -1515,6 +1515,316 @@ def summarize_weekly_briefs_for_all_emails(
     }
 
 
+def render_weekly_briefs_all_summary_markdown(
+    days: int = 7,
+    max_alerts: int = 200,
+    unread_only: bool = False,
+    min_total_alerts: int = 0,
+    order_by: str = "email",
+    order_dir: str = "asc",
+    limit: int | None = None,
+    offset: int = 0,
+    top_n: int = 10,
+    db_path: str | None = None,
+) -> str:
+    summary = summarize_weekly_briefs_for_all_emails(
+        days=days,
+        max_alerts=max_alerts,
+        unread_only=unread_only,
+        min_total_alerts=min_total_alerts,
+        order_by=order_by,
+        order_dir=order_dir,
+        limit=limit,
+        offset=offset,
+        top_n=top_n,
+        db_path=db_path,
+    )
+    lines = [
+        "# Weekly Brief All-Email Summary",
+        "",
+        f"- Emails scanned: {summary.get('emails_scanned', 0)}",
+        f"- Matched: {summary.get('matched', 0)}",
+        f"- Returned: {summary.get('returned', 0)}",
+        f"- Pagination: limit={summary.get('limit')} offset={summary.get('offset', 0)}",
+        f"- Paging: has_more={summary.get('has_more', False)} next_offset={summary.get('next_offset')} prev_offset={summary.get('prev_offset')}",
+        f"- Page: {summary.get('current_page', 1)}/{summary.get('total_pages', 1)} (effective_limit={summary.get('effective_limit')})",
+        f"- Unread-only mode: {summary.get('unread_only', False)}",
+        f"- Min total alerts filter: {summary.get('min_total_alerts', 0)}",
+        f"- Total alerts: {summary.get('total_alerts', 0)}",
+        f"- Total unread alerts: {summary.get('unread_alert_total', 0)}",
+        f"- Ordering: {summary.get('order_by', 'email')} {summary.get('order_dir', 'asc')}",
+        "",
+        f"## Top Unread Emails ({summary.get('top_n', top_n)})",
+    ]
+    top = summary.get("top_unread_emails") or []
+    if top:
+        for item in top:
+            lines.append(
+                f"- {item.get('email')}: unread={item.get('unread_alerts', 0)} total={item.get('total_alerts', 0)}"
+            )
+    else:
+        lines.append("- none")
+    return "\n".join(lines)
+
+
+def render_weekly_briefs_all_summary_telegram_chunks(
+    days: int = 7,
+    max_alerts: int = 200,
+    unread_only: bool = False,
+    min_total_alerts: int = 0,
+    order_by: str = "email",
+    order_dir: str = "asc",
+    limit: int | None = None,
+    offset: int = 0,
+    top_n: int = 10,
+    db_path: str | None = None,
+    max_chars: int = 3500,
+) -> dict:
+    summary = summarize_weekly_briefs_for_all_emails(
+        days=days,
+        max_alerts=max_alerts,
+        unread_only=unread_only,
+        min_total_alerts=min_total_alerts,
+        order_by=order_by,
+        order_dir=order_dir,
+        limit=limit,
+        offset=offset,
+        top_n=top_n,
+        db_path=db_path,
+    )
+    markdown = render_weekly_briefs_all_summary_markdown(
+        days=days,
+        max_alerts=max_alerts,
+        unread_only=unread_only,
+        min_total_alerts=min_total_alerts,
+        order_by=order_by,
+        order_dir=order_dir,
+        limit=limit,
+        offset=offset,
+        top_n=top_n,
+        db_path=db_path,
+    )
+    max_chars = max(100, min(max_chars, 4096))
+
+    chunks: list[str] = []
+    current: list[str] = []
+    current_len = 0
+    for line in markdown.split("\n"):
+        if len(line) > max_chars:
+            if current:
+                chunks.append("\n".join(current))
+                current = []
+                current_len = 0
+            for i in range(0, len(line), max_chars):
+                chunks.append(line[i : i + max_chars])
+            continue
+        line_len = len(line) + (1 if current else 0)
+        if current and (current_len + line_len) > max_chars:
+            chunks.append("\n".join(current))
+            current = [line]
+            current_len = len(line)
+            continue
+        current.append(line)
+        current_len += line_len
+
+    if current:
+        chunks.append("\n".join(current))
+
+    indexed_chunks = [f"[{idx}/{len(chunks)}]\n{chunk}" for idx, chunk in enumerate(chunks, start=1)]
+    return {
+        **summary,
+        "total_chars": len(markdown),
+        "max_chars": max_chars,
+        "chunk_count": len(chunks),
+        "chunks": chunks,
+        "chunks_with_index": indexed_chunks,
+    }
+
+
+def render_weekly_briefs_all_summary_csv(
+    days: int = 7,
+    max_alerts: int = 200,
+    unread_only: bool = False,
+    min_total_alerts: int = 0,
+    order_by: str = "email",
+    order_dir: str = "asc",
+    limit: int | None = None,
+    offset: int = 0,
+    top_n: int = 10,
+    db_path: str | None = None,
+) -> str:
+    summary = summarize_weekly_briefs_for_all_emails(
+        days=days,
+        max_alerts=max_alerts,
+        unread_only=unread_only,
+        min_total_alerts=min_total_alerts,
+        order_by=order_by,
+        order_dir=order_dir,
+        limit=limit,
+        offset=offset,
+        top_n=top_n,
+        db_path=db_path,
+    )
+    out = StringIO()
+    writer = csv.writer(out)
+    writer.writerow(
+        [
+            "emails_scanned",
+            "matched",
+            "returned",
+            "limit",
+            "offset",
+            "page_end",
+            "has_more",
+            "next_offset",
+            "prev_offset",
+            "effective_limit",
+            "current_page",
+            "total_pages",
+            "order_by",
+            "order_dir",
+            "days",
+            "max_alerts",
+            "unread_only",
+            "min_total_alerts",
+            "top_n",
+            "total_alerts",
+            "unread_alert_total",
+            "top_unread_email",
+            "top_unread_alerts",
+            "top_unread_total_alerts",
+        ]
+    )
+    top = summary.get("top_unread_emails") or []
+    if not top:
+        writer.writerow(
+            [
+                summary.get("emails_scanned", 0),
+                summary.get("matched", 0),
+                summary.get("returned", 0),
+                summary.get("limit"),
+                summary.get("offset", 0),
+                summary.get("page_end", 0),
+                summary.get("has_more", False),
+                summary.get("next_offset"),
+                summary.get("prev_offset"),
+                summary.get("effective_limit"),
+                summary.get("current_page", 1),
+                summary.get("total_pages", 1),
+                summary.get("order_by", "email"),
+                summary.get("order_dir", "asc"),
+                summary.get("days", days),
+                summary.get("max_alerts", max_alerts),
+                summary.get("unread_only", unread_only),
+                summary.get("min_total_alerts", min_total_alerts),
+                summary.get("top_n", top_n),
+                summary.get("total_alerts", 0),
+                summary.get("unread_alert_total", 0),
+                None,
+                None,
+                None,
+            ]
+        )
+        return out.getvalue()
+
+    for item in top:
+        writer.writerow(
+            [
+                summary.get("emails_scanned", 0),
+                summary.get("matched", 0),
+                summary.get("returned", 0),
+                summary.get("limit"),
+                summary.get("offset", 0),
+                summary.get("page_end", 0),
+                summary.get("has_more", False),
+                summary.get("next_offset"),
+                summary.get("prev_offset"),
+                summary.get("effective_limit"),
+                summary.get("current_page", 1),
+                summary.get("total_pages", 1),
+                summary.get("order_by", "email"),
+                summary.get("order_dir", "asc"),
+                summary.get("days", days),
+                summary.get("max_alerts", max_alerts),
+                summary.get("unread_only", unread_only),
+                summary.get("min_total_alerts", min_total_alerts),
+                summary.get("top_n", top_n),
+                summary.get("total_alerts", 0),
+                summary.get("unread_alert_total", 0),
+                item.get("email"),
+                item.get("unread_alerts", 0),
+                item.get("total_alerts", 0),
+            ]
+        )
+    return out.getvalue()
+
+
+def build_weekly_briefs_all_summary_packet(
+    days: int = 7,
+    max_alerts: int = 200,
+    unread_only: bool = False,
+    min_total_alerts: int = 0,
+    order_by: str = "email",
+    order_dir: str = "asc",
+    limit: int | None = None,
+    offset: int = 0,
+    top_n: int = 10,
+    db_path: str | None = None,
+    max_chars: int = 3500,
+) -> dict:
+    return {
+        "summary": summarize_weekly_briefs_for_all_emails(
+            days=days,
+            max_alerts=max_alerts,
+            unread_only=unread_only,
+            min_total_alerts=min_total_alerts,
+            order_by=order_by,
+            order_dir=order_dir,
+            limit=limit,
+            offset=offset,
+            top_n=top_n,
+            db_path=db_path,
+        ),
+        "markdown": render_weekly_briefs_all_summary_markdown(
+            days=days,
+            max_alerts=max_alerts,
+            unread_only=unread_only,
+            min_total_alerts=min_total_alerts,
+            order_by=order_by,
+            order_dir=order_dir,
+            limit=limit,
+            offset=offset,
+            top_n=top_n,
+            db_path=db_path,
+        ),
+        "csv": render_weekly_briefs_all_summary_csv(
+            days=days,
+            max_alerts=max_alerts,
+            unread_only=unread_only,
+            min_total_alerts=min_total_alerts,
+            order_by=order_by,
+            order_dir=order_dir,
+            limit=limit,
+            offset=offset,
+            top_n=top_n,
+            db_path=db_path,
+        ),
+        "telegram": render_weekly_briefs_all_summary_telegram_chunks(
+            days=days,
+            max_alerts=max_alerts,
+            unread_only=unread_only,
+            min_total_alerts=min_total_alerts,
+            order_by=order_by,
+            order_dir=order_dir,
+            limit=limit,
+            offset=offset,
+            top_n=top_n,
+            db_path=db_path,
+            max_chars=max_chars,
+        ),
+    }
+
+
 def render_weekly_briefs_all_markdown(
     days: int = 7,
     max_alerts: int = 200,

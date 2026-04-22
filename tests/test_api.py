@@ -381,6 +381,40 @@ def test_alerts_weekly_brief_all_and_summary_endpoints():
     assert len(summary_data["top_unread_emails"]) <= 1
 
 
+def test_alerts_weekly_brief_all_summary_export_endpoints():
+    email = f"weeklybrief-all-summary-export-{uuid4().hex[:8]}@example.com"
+    client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+
+    md = client.get(
+        "/alerts/weekly-brief/all/summary/markdown?days=7&max_alerts=200&limit=10&offset=0&top_n=5"
+    )
+    assert md.status_code == 200
+    assert "Weekly Brief All-Email Summary" in md.json()["markdown"]
+
+    tg = client.get(
+        "/alerts/weekly-brief/all/summary/telegram?days=7&max_alerts=200&limit=10&offset=0&top_n=5&max_chars=200"
+    )
+    assert tg.status_code == 200
+    tg_data = tg.json()
+    assert tg_data["chunk_count"] >= 1
+    assert tg_data["chunks_with_index"][0].startswith("[1/")
+
+    csv_resp = client.get("/alerts/weekly-brief/all/summary/csv?days=7&max_alerts=200&top_n=5")
+    assert csv_resp.status_code == 200
+    assert "emails_scanned,matched,returned,limit,offset,page_end" in csv_resp.json()["csv"]
+
+    packet = client.get(
+        "/alerts/weekly-brief/all/summary/packet?days=7&max_alerts=200&limit=10&offset=0&top_n=5&max_chars=200"
+    )
+    assert packet.status_code == 200
+    packet_data = packet.json()
+    assert "summary" in packet_data
+    assert "markdown" in packet_data
+    assert "csv" in packet_data
+    assert "telegram" in packet_data
+
+
 def test_alerts_weekly_brief_all_export_endpoints():
     email = f"weeklybrief-all-export-{uuid4().hex[:8]}@example.com"
     client.post("/watchlists", json={"email": email, "franchise_slug": "chick-fil-a"})
