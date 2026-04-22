@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
 from datetime import datetime, timezone
 
@@ -178,6 +180,93 @@ def compare_change_insights(left_slug: str, right_slug: str, limit: int = 200, d
             "higher_recent_risk": higher_recent_risk,
             "change_volume_delta": left["total_changes"] - right["total_changes"],
             "shared_categories": shared_categories,
+        },
+    }
+
+
+def render_change_comparison_markdown(payload: dict) -> str:
+    left = payload["left"]
+    right = payload["right"]
+    cmp = payload["comparison"]
+
+    return "\n".join(
+        [
+            "# Franchise Change Comparison",
+            "",
+            f"Left: {left['franchise_slug']}",
+            f"Right: {right['franchise_slug']}",
+            "",
+            "## Summary",
+            f"- Higher recent risk: {cmp['higher_recent_risk']}",
+            f"- Change volume delta (left-right): {cmp['change_volume_delta']}",
+            f"- Left recent risk score: {cmp['left_recent_risk_score']}",
+            f"- Right recent risk score: {cmp['right_recent_risk_score']}",
+            "",
+            "## Shared Categories",
+            ", ".join(cmp["shared_categories"]) if cmp["shared_categories"] else "none",
+        ]
+    )
+
+
+def render_change_comparison_telegram_chunks(payload: dict, max_chars: int = 2500) -> list[str]:
+    text = render_change_comparison_markdown(payload)
+    lines = text.splitlines()
+    chunks: list[str] = []
+    current = ""
+    for line in lines:
+        candidate = f"{current}\n{line}".strip() if current else line
+        if len(candidate) <= max_chars:
+            current = candidate
+            continue
+        if current:
+            chunks.append(current)
+            current = line
+        else:
+            chunks.append(line[:max_chars])
+            current = line[max_chars:]
+    if current:
+        chunks.append(current)
+    return [f"[{i+1}/{len(chunks)}] {chunk}" for i, chunk in enumerate(chunks)]
+
+
+def render_change_comparison_csv(payload: dict) -> str:
+    left = payload["left"]
+    right = payload["right"]
+    cmp = payload["comparison"]
+
+    out = io.StringIO()
+    w = csv.writer(out)
+    w.writerow([
+        "left_slug",
+        "right_slug",
+        "higher_recent_risk",
+        "change_volume_delta",
+        "left_recent_risk_score",
+        "right_recent_risk_score",
+        "shared_categories",
+    ])
+    w.writerow(
+        [
+            left["franchise_slug"],
+            right["franchise_slug"],
+            cmp["higher_recent_risk"],
+            cmp["change_volume_delta"],
+            cmp["left_recent_risk_score"],
+            cmp["right_recent_risk_score"],
+            "|".join(cmp["shared_categories"]),
+        ]
+    )
+    return out.getvalue()
+
+
+def build_change_comparison_packet(payload: dict, max_chars: int = 2500) -> dict:
+    return {
+        "comparison": payload,
+        "markdown": render_change_comparison_markdown(payload),
+        "csv": render_change_comparison_csv(payload),
+        "telegram": {
+            "max_chars": max_chars,
+            "chunks_with_index": render_change_comparison_telegram_chunks(payload, max_chars=max_chars),
         },
     }
 

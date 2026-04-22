@@ -97,6 +97,35 @@ def test_change_comparisons_endpoint_tie_on_empty():
     assert data["comparison"]["change_volume_delta"] == 0
 
 
+def test_change_comparisons_export_surfaces():
+    left = f"compare-export-left-{uuid4().hex[:8]}"
+    right = f"compare-export-right-{uuid4().hex[:8]}"
+    seed_change_summary(left, ["fees"], risk_level="high")
+    seed_change_summary(right, ["fees"], risk_level="low")
+
+    md = client.get(f"/change-comparisons/markdown?left_slug={left}&right_slug={right}")
+    assert md.status_code == 200
+    assert "# Franchise Change Comparison" in md.json()["markdown"]
+
+    tg = client.get(f"/change-comparisons/telegram?left_slug={left}&right_slug={right}&max_chars=220")
+    assert tg.status_code == 200
+    tg_data = tg.json()
+    assert tg_data["chunk_count"] >= 1
+    assert tg_data["chunks_with_index"][0].startswith("[1/")
+
+    csv_resp = client.get(f"/change-comparisons/csv?left_slug={left}&right_slug={right}")
+    assert csv_resp.status_code == 200
+    assert "left_slug,right_slug,higher_recent_risk" in csv_resp.json()["csv"]
+
+    packet = client.get(f"/change-comparisons/packet?left_slug={left}&right_slug={right}&max_chars=220")
+    assert packet.status_code == 200
+    packet_data = packet.json()
+    assert "comparison" in packet_data
+    assert "markdown" in packet_data
+    assert "csv" in packet_data
+    assert "telegram" in packet_data
+
+
 def test_create_watchlist_idempotency():
     payload = {"email": f"test-{uuid4().hex[:8]}@example.com", "franchise_slug": "chick-fil-a"}
     r1 = client.post("/watchlists", json=payload)
