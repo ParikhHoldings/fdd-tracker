@@ -59,6 +59,12 @@ curl "http://localhost:8000/changes/chick-fil-a/insights?limit=200"
 ```
 Returns trend rollups including `total_changes`, `by_risk`, `category_counts`, and `risk_trend_last_5`.
 
+**Compare two franchises by change history:**
+```bash
+curl "http://localhost:8000/change-comparisons?left_slug=chick-fil-a&right_slug=orangetheory&limit=200"
+```
+Returns side-by-side insights plus comparison signals (`higher_recent_risk`, `change_volume_delta`, and shared categories).
+
 **Watchlist alerts feed:**
 ```bash
 curl "http://localhost:8000/alerts?email=you@example.com&limit=25"

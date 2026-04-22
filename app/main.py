@@ -12,6 +12,7 @@ from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestio
 from fdd_tracker.services.store import (
     delete_watchlist,
     get_alert_feed,
+    compare_change_insights,
     get_alert_summary,
     get_change_insights,
     get_recent_changes,
@@ -99,6 +100,15 @@ def changes(franchise_slug: str, limit: int = Query(default=20, ge=1, le=200)) -
 @app.get("/changes/{franchise_slug}/insights")
 def change_insights(franchise_slug: str, limit: int = Query(default=200, ge=1, le=500)) -> dict:
     return get_change_insights(franchise_slug=franchise_slug, limit=limit)
+
+
+@app.get("/change-comparisons")
+def change_comparisons(
+    left_slug: str = Query(..., min_length=1),
+    right_slug: str = Query(..., min_length=1),
+    limit: int = Query(default=200, ge=1, le=500),
+) -> dict:
+    return compare_change_insights(left_slug=left_slug, right_slug=right_slug, limit=limit)
 
 
 @app.post("/ingest/run")

@@ -146,6 +146,42 @@ def get_change_insights(franchise_slug: str, limit: int = 200, db_path: str | No
     }
 
 
+def compare_change_insights(left_slug: str, right_slug: str, limit: int = 200, db_path: str | None = None) -> dict:
+    left = get_change_insights(franchise_slug=left_slug, limit=limit, db_path=db_path)
+    right = get_change_insights(franchise_slug=right_slug, limit=limit, db_path=db_path)
+
+    risk_scores = {"low": 1, "medium": 2, "high": 3, "unknown": 0}
+
+    def average_risk(series: list[str]) -> float:
+        if not series:
+            return 0.0
+        return round(sum(risk_scores.get(level, 0) for level in series) / len(series), 3)
+
+    left_recent_score = average_risk(left["risk_trend_last_5"]["series"])
+    right_recent_score = average_risk(right["risk_trend_last_5"]["series"])
+
+    if left_recent_score > right_recent_score:
+        higher_recent_risk = left_slug
+    elif right_recent_score > left_recent_score:
+        higher_recent_risk = right_slug
+    else:
+        higher_recent_risk = "tie"
+
+    shared_categories = sorted(set(left["category_counts"].keys()) & set(right["category_counts"].keys()))
+
+    return {
+        "left": left,
+        "right": right,
+        "comparison": {
+            "left_recent_risk_score": left_recent_score,
+            "right_recent_risk_score": right_recent_score,
+            "higher_recent_risk": higher_recent_risk,
+            "change_volume_delta": left["total_changes"] - right["total_changes"],
+            "shared_categories": shared_categories,
+        },
+    }
+
+
 def seed_change_summary(franchise_slug: str, categories: list[str], risk_level: str = "medium", db_path: str | None = None):
     summary = ChangeSummary(
         franchise_slug=franchise_slug,

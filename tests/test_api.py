@@ -69,6 +69,34 @@ def test_change_insights_endpoint_empty():
     assert data["risk_trend_last_5"]["series"] == []
 
 
+def test_change_comparisons_endpoint_shape_and_signal():
+    left = f"compare-left-{uuid4().hex[:8]}"
+    right = f"compare-right-{uuid4().hex[:8]}"
+
+    seed_change_summary(left, ["fees", "litigation"], risk_level="high")
+    seed_change_summary(left, ["fees"], risk_level="high")
+    seed_change_summary(right, ["fees"], risk_level="low")
+    seed_change_summary(right, ["financials"], risk_level="low")
+
+    r = client.get(f"/change-comparisons?left_slug={left}&right_slug={right}&limit=10")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["left"]["franchise_slug"] == left
+    assert data["right"]["franchise_slug"] == right
+    assert data["comparison"]["higher_recent_risk"] == left
+    assert "fees" in data["comparison"]["shared_categories"]
+
+
+def test_change_comparisons_endpoint_tie_on_empty():
+    left = f"compare-empty-left-{uuid4().hex[:8]}"
+    right = f"compare-empty-right-{uuid4().hex[:8]}"
+    r = client.get(f"/change-comparisons?left_slug={left}&right_slug={right}")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["comparison"]["higher_recent_risk"] == "tie"
+    assert data["comparison"]["change_volume_delta"] == 0
+
+
 def test_create_watchlist_idempotency():
     payload = {"email": f"test-{uuid4().hex[:8]}@example.com", "franchise_slug": "chick-fil-a"}
     r1 = client.post("/watchlists", json=payload)
