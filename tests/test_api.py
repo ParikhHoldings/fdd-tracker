@@ -126,6 +126,36 @@ def test_change_comparisons_export_surfaces():
     assert "telegram" in packet_data
 
 
+def test_change_comparisons_options_and_exports():
+    options = client.get("/change-comparisons/options")
+    assert options.status_code == 200
+    options_data = options.json()
+    assert options_data["defaults"]["limit"] == 200
+    assert options_data["constraints"]["max_chars"]["max"] == 10000
+
+    md = client.get("/change-comparisons/options/markdown")
+    assert md.status_code == 200
+    assert "# Change Comparison Options" in md.json()["markdown"]
+
+    tg = client.get("/change-comparisons/options/telegram?max_chars=220")
+    assert tg.status_code == 200
+    tg_data = tg.json()
+    assert tg_data["chunk_count"] >= 1
+    assert tg_data["chunks_with_index"][0].startswith("[1/")
+
+    csv_resp = client.get("/change-comparisons/options/csv")
+    assert csv_resp.status_code == 200
+    assert "section,key,value" in csv_resp.json()["csv"]
+
+    packet = client.get("/change-comparisons/options/packet?max_chars=220")
+    assert packet.status_code == 200
+    packet_data = packet.json()
+    assert "options" in packet_data
+    assert "markdown" in packet_data
+    assert "csv" in packet_data
+    assert "telegram" in packet_data
+
+
 def test_create_watchlist_idempotency():
     payload = {"email": f"test-{uuid4().hex[:8]}@example.com", "franchise_slug": "chick-fil-a"}
     r1 = client.post("/watchlists", json=payload)

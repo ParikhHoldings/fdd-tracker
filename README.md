@@ -66,8 +66,13 @@ curl "http://localhost:8000/change-comparisons/markdown?left_slug=chick-fil-a&ri
 curl "http://localhost:8000/change-comparisons/telegram?left_slug=chick-fil-a&right_slug=orangetheory&limit=200&max_chars=2500"
 curl "http://localhost:8000/change-comparisons/csv?left_slug=chick-fil-a&right_slug=orangetheory&limit=200"
 curl "http://localhost:8000/change-comparisons/packet?left_slug=chick-fil-a&right_slug=orangetheory&limit=200&max_chars=2500"
+curl "http://localhost:8000/change-comparisons/options"
+curl "http://localhost:8000/change-comparisons/options/markdown"
+curl "http://localhost:8000/change-comparisons/options/telegram?max_chars=2500"
+curl "http://localhost:8000/change-comparisons/options/csv"
+curl "http://localhost:8000/change-comparisons/options/packet?max_chars=2500"
 ```
-Returns side-by-side insights plus comparison signals (`higher_recent_risk`, `change_volume_delta`, and shared categories), with markdown/telegram/csv/packet export surfaces.
+Returns side-by-side insights plus comparison signals (`higher_recent_risk`, `change_volume_delta`, and shared categories), with markdown/telegram/csv/packet export surfaces and options contract endpoints.
 
 **Watchlist alerts feed:**
 ```bash

@@ -271,6 +271,86 @@ def build_change_comparison_packet(payload: dict, max_chars: int = 2500) -> dict
     }
 
 
+def get_change_comparison_options() -> dict:
+    return {
+        "constraints": {
+            "left_slug": {"type": "string", "required": True, "min_length": 1},
+            "right_slug": {"type": "string", "required": True, "min_length": 1},
+            "limit": {"type": "int", "min": 1, "max": 500},
+            "max_chars": {"type": "int", "min": 200, "max": 10000},
+        },
+        "defaults": {"limit": 200, "max_chars": 2500},
+        "surfaces": {
+            "options": "/change-comparisons/options",
+            "compare": "/change-comparisons",
+            "markdown": "/change-comparisons/markdown",
+            "telegram": "/change-comparisons/telegram",
+            "csv": "/change-comparisons/csv",
+            "packet": "/change-comparisons/packet",
+        },
+    }
+
+
+def render_change_comparison_options_markdown(options: dict) -> str:
+    return "\n".join(
+        [
+            "# Change Comparison Options",
+            "",
+            f"- limit: {options['constraints']['limit']['min']}..{options['constraints']['limit']['max']} (default {options['defaults']['limit']})",
+            f"- max_chars: {options['constraints']['max_chars']['min']}..{options['constraints']['max_chars']['max']} (default {options['defaults']['max_chars']})",
+            "",
+            "## Surfaces",
+            *[f"- {key}: {value}" for key, value in options["surfaces"].items()],
+        ]
+    )
+
+
+def render_change_comparison_options_telegram_chunks(options: dict, max_chars: int = 2500) -> list[str]:
+    text = render_change_comparison_options_markdown(options)
+    lines = text.splitlines()
+    chunks: list[str] = []
+    current = ""
+    for line in lines:
+        candidate = f"{current}\n{line}".strip() if current else line
+        if len(candidate) <= max_chars:
+            current = candidate
+            continue
+        if current:
+            chunks.append(current)
+            current = line
+        else:
+            chunks.append(line[:max_chars])
+            current = line[max_chars:]
+    if current:
+        chunks.append(current)
+    return [f"[{i+1}/{len(chunks)}] {chunk}" for i, chunk in enumerate(chunks)]
+
+
+def render_change_comparison_options_csv(options: dict) -> str:
+    out = io.StringIO()
+    w = csv.writer(out)
+    w.writerow(["section", "key", "value"])
+    for key, value in options["constraints"].items():
+        w.writerow(["constraints", key, json.dumps(value, sort_keys=True)])
+    for key, value in options["defaults"].items():
+        w.writerow(["defaults", key, value])
+    for key, value in options["surfaces"].items():
+        w.writerow(["surfaces", key, value])
+    return out.getvalue()
+
+
+def build_change_comparison_options_packet(options: dict, max_chars: int = 2500) -> dict:
+    return {
+        "options": options,
+        "markdown": render_change_comparison_options_markdown(options),
+        "csv": render_change_comparison_options_csv(options),
+        "telegram": {
+            "max_chars": max_chars,
+            "chunks_with_index": render_change_comparison_options_telegram_chunks(options, max_chars=max_chars),
+        },
+    }
+
+
 def seed_change_summary(franchise_slug: str, categories: list[str], risk_level: str = "medium", db_path: str | None = None):
     summary = ChangeSummary(
         franchise_slug=franchise_slug,
