@@ -200,6 +200,42 @@ def change_comparisons_options_packet(max_chars: int = Query(default=2500, ge=20
     return build_change_comparison_options_packet(options, max_chars=max_chars)
 
 
+@app.get("/buyer-reports/comparison-brief")
+def buyer_report_comparison_brief(
+    email: EmailStr,
+    left_slug: str = Query(..., min_length=1),
+    right_slug: str = Query(..., min_length=1),
+    days: int = Query(default=7, ge=1, le=30),
+    max_alerts: int = Query(default=200, ge=1, le=1000),
+    comparison_limit: int = Query(default=200, ge=1, le=500),
+    max_chars: int = Query(default=2500, ge=200, le=10000),
+) -> dict:
+    weekly_brief = build_weekly_brief(email=str(email), days=days, max_alerts=max_alerts)
+    comparison = compare_change_insights(left_slug=left_slug, right_slug=right_slug, limit=comparison_limit)
+    comparison_packet = build_change_comparison_packet(comparison, max_chars=max_chars)
+
+    summary_markdown = "\n".join(
+        [
+            f"# Buyer Report Bundle — {email}",
+            "",
+            f"- Weekly alerts: {weekly_brief['total_alerts']} (unread: {weekly_brief['unread_alerts']})",
+            f"- Comparison pair: {left_slug} vs {right_slug}",
+            f"- Higher recent risk: {comparison['comparison']['higher_recent_risk']}",
+            f"- Change volume delta (left-right): {comparison['comparison']['change_volume_delta']}",
+        ]
+    )
+
+    return {
+        "email": str(email),
+        "window_days": days,
+        "comparison_limit": comparison_limit,
+        "weekly_brief": weekly_brief,
+        "comparison": comparison,
+        "comparison_packet": comparison_packet,
+        "summary_markdown": summary_markdown,
+    }
+
+
 @app.post("/ingest/run")
 def ingest_run(payload: IngestRequest | None = None) -> dict:
     states = payload.states if payload else None

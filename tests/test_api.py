@@ -156,6 +156,30 @@ def test_change_comparisons_options_and_exports():
     assert "telegram" in packet_data
 
 
+def test_buyer_report_comparison_brief_bundle():
+    email = f"buyerbundle-{uuid4().hex[:8]}@example.com"
+    left = f"buyer-left-{uuid4().hex[:8]}"
+    right = f"buyer-right-{uuid4().hex[:8]}"
+
+    client.post("/watchlists", json={"email": email, "franchise_slug": left})
+    client.post("/watchlists", json={"email": email, "franchise_slug": right})
+    seed_change_summary(left, ["fees"], risk_level="high")
+    seed_change_summary(right, ["financials"], risk_level="low")
+
+    r = client.get(
+        f"/buyer-reports/comparison-brief?email={email}&left_slug={left}&right_slug={right}&days=7&max_alerts=50&comparison_limit=50&max_chars=220"
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["email"] == email
+    assert "weekly_brief" in data
+    assert "comparison" in data
+    assert "comparison_packet" in data
+    assert "summary_markdown" in data
+    assert data["comparison"]["left"]["franchise_slug"] == left
+    assert data["comparison_packet"]["telegram"]["chunks_with_index"][0].startswith("[1/")
+
+
 def test_create_watchlist_idempotency():
     payload = {"email": f"test-{uuid4().hex[:8]}@example.com", "franchise_slug": "chick-fil-a"}
     r1 = client.post("/watchlists", json=payload)
