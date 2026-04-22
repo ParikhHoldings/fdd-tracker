@@ -236,6 +236,154 @@ def buyer_report_comparison_brief(
     }
 
 
+@app.get("/buyer-reports/comparison-brief/options")
+def buyer_report_comparison_brief_options() -> dict:
+    return {
+        "constraints": {
+            "email": {"type": "email", "required": True},
+            "left_slug": {"type": "string", "required": True, "min_length": 1},
+            "right_slug": {"type": "string", "required": True, "min_length": 1},
+            "days": {"type": "int", "min": 1, "max": 30},
+            "max_alerts": {"type": "int", "min": 1, "max": 1000},
+            "comparison_limit": {"type": "int", "min": 1, "max": 500},
+            "max_chars": {"type": "int", "min": 200, "max": 10000},
+        },
+        "defaults": {"days": 7, "max_alerts": 200, "comparison_limit": 200, "max_chars": 2500},
+        "surfaces": {
+            "options": "/buyer-reports/comparison-brief/options",
+            "bundle": "/buyer-reports/comparison-brief",
+            "markdown": "/buyer-reports/comparison-brief/markdown",
+            "telegram": "/buyer-reports/comparison-brief/telegram",
+            "csv": "/buyer-reports/comparison-brief/csv",
+            "packet": "/buyer-reports/comparison-brief/packet",
+        },
+    }
+
+
+@app.get("/buyer-reports/comparison-brief/markdown")
+def buyer_report_comparison_brief_markdown(
+    email: EmailStr,
+    left_slug: str = Query(..., min_length=1),
+    right_slug: str = Query(..., min_length=1),
+    days: int = Query(default=7, ge=1, le=30),
+    max_alerts: int = Query(default=200, ge=1, le=1000),
+    comparison_limit: int = Query(default=200, ge=1, le=500),
+    max_chars: int = Query(default=2500, ge=200, le=10000),
+) -> dict:
+    payload = buyer_report_comparison_brief(
+        email=email,
+        left_slug=left_slug,
+        right_slug=right_slug,
+        days=days,
+        max_alerts=max_alerts,
+        comparison_limit=comparison_limit,
+        max_chars=max_chars,
+    )
+    return {"markdown": payload["summary_markdown"]}
+
+
+@app.get("/buyer-reports/comparison-brief/telegram")
+def buyer_report_comparison_brief_telegram(
+    email: EmailStr,
+    left_slug: str = Query(..., min_length=1),
+    right_slug: str = Query(..., min_length=1),
+    days: int = Query(default=7, ge=1, le=30),
+    max_alerts: int = Query(default=200, ge=1, le=1000),
+    comparison_limit: int = Query(default=200, ge=1, le=500),
+    max_chars: int = Query(default=2500, ge=200, le=10000),
+) -> dict:
+    payload = buyer_report_comparison_brief(
+        email=email,
+        left_slug=left_slug,
+        right_slug=right_slug,
+        days=days,
+        max_alerts=max_alerts,
+        comparison_limit=comparison_limit,
+        max_chars=max_chars,
+    )
+    chunks = [payload["summary_markdown"][i:i + max_chars] for i in range(0, len(payload["summary_markdown"]), max_chars)] or [""]
+    chunks = [f"[{i+1}/{len(chunks)}] {chunk}" for i, chunk in enumerate(chunks)]
+    return {"max_chars": max_chars, "chunk_count": len(chunks), "chunks_with_index": chunks}
+
+
+@app.get("/buyer-reports/comparison-brief/csv")
+def buyer_report_comparison_brief_csv(
+    email: EmailStr,
+    left_slug: str = Query(..., min_length=1),
+    right_slug: str = Query(..., min_length=1),
+    days: int = Query(default=7, ge=1, le=30),
+    max_alerts: int = Query(default=200, ge=1, le=1000),
+    comparison_limit: int = Query(default=200, ge=1, le=500),
+    max_chars: int = Query(default=2500, ge=200, le=10000),
+) -> dict:
+    payload = buyer_report_comparison_brief(
+        email=email,
+        left_slug=left_slug,
+        right_slug=right_slug,
+        days=days,
+        max_alerts=max_alerts,
+        comparison_limit=comparison_limit,
+        max_chars=max_chars,
+    )
+    cmp = payload["comparison"]["comparison"]
+    csv_text = (
+        "email,left_slug,right_slug,total_alerts,unread_alerts,higher_recent_risk,change_volume_delta\n"
+        f"{payload['email']},{left_slug},{right_slug},{payload['weekly_brief']['total_alerts']},{payload['weekly_brief']['unread_alerts']},{cmp['higher_recent_risk']},{cmp['change_volume_delta']}\n"
+    )
+    return {"csv": csv_text}
+
+
+@app.get("/buyer-reports/comparison-brief/packet")
+def buyer_report_comparison_brief_packet(
+    email: EmailStr,
+    left_slug: str = Query(..., min_length=1),
+    right_slug: str = Query(..., min_length=1),
+    days: int = Query(default=7, ge=1, le=30),
+    max_alerts: int = Query(default=200, ge=1, le=1000),
+    comparison_limit: int = Query(default=200, ge=1, le=500),
+    max_chars: int = Query(default=2500, ge=200, le=10000),
+) -> dict:
+    payload = buyer_report_comparison_brief(
+        email=email,
+        left_slug=left_slug,
+        right_slug=right_slug,
+        days=days,
+        max_alerts=max_alerts,
+        comparison_limit=comparison_limit,
+        max_chars=max_chars,
+    )
+    return {
+        "bundle": payload,
+        "markdown": buyer_report_comparison_brief_markdown(
+            email=email,
+            left_slug=left_slug,
+            right_slug=right_slug,
+            days=days,
+            max_alerts=max_alerts,
+            comparison_limit=comparison_limit,
+            max_chars=max_chars,
+        )["markdown"],
+        "csv": buyer_report_comparison_brief_csv(
+            email=email,
+            left_slug=left_slug,
+            right_slug=right_slug,
+            days=days,
+            max_alerts=max_alerts,
+            comparison_limit=comparison_limit,
+            max_chars=max_chars,
+        )["csv"],
+        "telegram": buyer_report_comparison_brief_telegram(
+            email=email,
+            left_slug=left_slug,
+            right_slug=right_slug,
+            days=days,
+            max_alerts=max_alerts,
+            comparison_limit=comparison_limit,
+            max_chars=max_chars,
+        ),
+    }
+
+
 @app.post("/ingest/run")
 def ingest_run(payload: IngestRequest | None = None) -> dict:
     states = payload.states if payload else None

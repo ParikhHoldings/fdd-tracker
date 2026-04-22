@@ -180,6 +180,44 @@ def test_buyer_report_comparison_brief_bundle():
     assert data["comparison_packet"]["telegram"]["chunks_with_index"][0].startswith("[1/")
 
 
+def test_buyer_report_comparison_brief_options_and_exports():
+    email = f"buyerbundle-exports-{uuid4().hex[:8]}@example.com"
+    left = f"buyer-export-left-{uuid4().hex[:8]}"
+    right = f"buyer-export-right-{uuid4().hex[:8]}"
+    client.post("/watchlists", json={"email": email, "franchise_slug": left})
+    client.post("/watchlists", json={"email": email, "franchise_slug": right})
+    seed_change_summary(left, ["fees"], risk_level="high")
+    seed_change_summary(right, ["financials"], risk_level="low")
+
+    options = client.get("/buyer-reports/comparison-brief/options")
+    assert options.status_code == 200
+    options_data = options.json()
+    assert options_data["defaults"]["days"] == 7
+    assert "/buyer-reports/comparison-brief/packet" in options_data["surfaces"]["packet"]
+
+    md = client.get(f"/buyer-reports/comparison-brief/markdown?email={email}&left_slug={left}&right_slug={right}")
+    assert md.status_code == 200
+    assert "Buyer Report Bundle" in md.json()["markdown"]
+
+    tg = client.get(f"/buyer-reports/comparison-brief/telegram?email={email}&left_slug={left}&right_slug={right}&max_chars=220")
+    assert tg.status_code == 200
+    tg_data = tg.json()
+    assert tg_data["chunk_count"] >= 1
+    assert tg_data["chunks_with_index"][0].startswith("[1/")
+
+    csv_resp = client.get(f"/buyer-reports/comparison-brief/csv?email={email}&left_slug={left}&right_slug={right}")
+    assert csv_resp.status_code == 200
+    assert "email,left_slug,right_slug,total_alerts" in csv_resp.json()["csv"]
+
+    packet = client.get(f"/buyer-reports/comparison-brief/packet?email={email}&left_slug={left}&right_slug={right}&max_chars=220")
+    assert packet.status_code == 200
+    packet_data = packet.json()
+    assert "bundle" in packet_data
+    assert "markdown" in packet_data
+    assert "csv" in packet_data
+    assert "telegram" in packet_data
+
+
 def test_create_watchlist_idempotency():
     payload = {"email": f"test-{uuid4().hex[:8]}@example.com", "franchise_slug": "chick-fil-a"}
     r1 = client.post("/watchlists", json=payload)

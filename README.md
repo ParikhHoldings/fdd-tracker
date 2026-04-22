@@ -72,6 +72,11 @@ curl "http://localhost:8000/change-comparisons/options/telegram?max_chars=2500"
 curl "http://localhost:8000/change-comparisons/options/csv"
 curl "http://localhost:8000/change-comparisons/options/packet?max_chars=2500"
 curl "http://localhost:8000/buyer-reports/comparison-brief?email=you@example.com&left_slug=chick-fil-a&right_slug=orangetheory&days=7&max_alerts=200&comparison_limit=200&max_chars=2500"
+curl "http://localhost:8000/buyer-reports/comparison-brief/options"
+curl "http://localhost:8000/buyer-reports/comparison-brief/markdown?email=you@example.com&left_slug=chick-fil-a&right_slug=orangetheory"
+curl "http://localhost:8000/buyer-reports/comparison-brief/telegram?email=you@example.com&left_slug=chick-fil-a&right_slug=orangetheory&max_chars=2500"
+curl "http://localhost:8000/buyer-reports/comparison-brief/csv?email=you@example.com&left_slug=chick-fil-a&right_slug=orangetheory"
+curl "http://localhost:8000/buyer-reports/comparison-brief/packet?email=you@example.com&left_slug=chick-fil-a&right_slug=orangetheory&max_chars=2500"
 ```
 Returns side-by-side insights plus comparison signals (`higher_recent_risk`, `change_volume_delta`, and shared categories), with markdown/telegram/csv/packet export surfaces and options contract endpoints. The buyer report bundle endpoint combines weekly brief + comparison + export packet for downstream delivery.
 
