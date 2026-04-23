@@ -59,6 +59,18 @@ curl "http://localhost:8000/changes/chick-fil-a/insights?limit=200"
 ```
 Returns trend rollups including `total_changes`, `by_risk`, `category_counts`, and `risk_trend_last_5`.
 
+**Franchise health signals (sentiment/complaints/mentions):**
+```bash
+curl -X POST http://localhost:8000/health-signals -H "Content-Type: application/json" -d '{"franchise_slug":"chick-fil-a","source":"glassdoor","observed_at":"2026-04-23T00:00:00Z","signal_name":"employee_sentiment","metric_value":4.3,"sentiment":"positive","metadata":{"sample_size":52}}'
+curl "http://localhost:8000/health-signals/chick-fil-a?limit=50"
+curl "http://localhost:8000/health-signals/chick-fil-a/summary?limit=200"
+curl "http://localhost:8000/health-signals/chick-fil-a/summary/markdown?limit=200"
+curl "http://localhost:8000/health-signals/chick-fil-a/summary/telegram?limit=200&max_chars=2500"
+curl "http://localhost:8000/health-signals/chick-fil-a/summary/csv?limit=200"
+curl "http://localhost:8000/health-signals/chick-fil-a/summary/packet?limit=200&max_chars=2500"
+```
+Supports deterministic signal ingest and summary export surfaces for operator-ready markdown/telegram/csv reporting.
+
 **Compare two franchises by change history:**
 ```bash
 curl "http://localhost:8000/change-comparisons?left_slug=chick-fil-a&right_slug=orangetheory&limit=200"

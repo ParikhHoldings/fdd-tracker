@@ -168,6 +168,92 @@ def get_health_signal_summary(
     }
 
 
+def render_health_signal_summary_markdown(payload: dict) -> str:
+    sentiments = payload.get("sentiment_counts", {})
+    sources = payload.get("by_source", {})
+    metrics = payload.get("metric_averages", {})
+    source_lines = [f"- {k}: {v}" for k, v in sources.items()] or ["- none"]
+    metric_lines = [f"- {k}: {v}" for k, v in metrics.items()] or ["- none"]
+
+    return "\n".join(
+        [
+            f"# Franchise Health Signals — {payload.get('franchise_slug')}",
+            "",
+            f"- Total signals: {payload.get('total_signals', 0)}",
+            f"- Source filter: {payload.get('source_filter') or 'all'}",
+            f"- Latest observed: {payload.get('latest_observed_at') or 'n/a'}",
+            f"- First observed: {payload.get('first_observed_at') or 'n/a'}",
+            "",
+            "## Sentiment",
+            f"- Positive: {sentiments.get('positive', 0)}",
+            f"- Neutral: {sentiments.get('neutral', 0)}",
+            f"- Negative: {sentiments.get('negative', 0)}",
+            f"- Unknown: {sentiments.get('unknown', 0)}",
+            "",
+            "## Sources",
+            *source_lines,
+            "",
+            "## Metric Averages",
+            *metric_lines,
+        ]
+    )
+
+
+def render_health_signal_summary_telegram_chunks(payload: dict, max_chars: int = 2500) -> list[str]:
+    text = render_health_signal_summary_markdown(payload)
+    lines = text.splitlines()
+    chunks: list[str] = []
+    current = ""
+    for line in lines:
+        candidate = f"{current}\n{line}".strip() if current else line
+        if len(candidate) <= max_chars:
+            current = candidate
+            continue
+        if current:
+            chunks.append(current)
+            current = line
+        else:
+            chunks.append(line[:max_chars])
+            current = line[max_chars:]
+    if current:
+        chunks.append(current)
+    return [f"[{i+1}/{len(chunks)}] {chunk}" for i, chunk in enumerate(chunks)]
+
+
+def render_health_signal_summary_csv(payload: dict) -> str:
+    out = io.StringIO()
+    w = csv.writer(out)
+    w.writerow(["section", "key", "value"])
+    w.writerow(["meta", "franchise_slug", payload.get("franchise_slug")])
+    w.writerow(["meta", "source_filter", payload.get("source_filter") or "all"])
+    w.writerow(["meta", "total_signals", payload.get("total_signals", 0)])
+    w.writerow(["meta", "latest_observed_at", payload.get("latest_observed_at") or ""])
+    w.writerow(["meta", "first_observed_at", payload.get("first_observed_at") or ""])
+    for key, value in (payload.get("sentiment_counts") or {}).items():
+        w.writerow(["sentiment", key, value])
+    for key, value in (payload.get("by_source") or {}).items():
+        w.writerow(["source", key, value])
+    for key, value in (payload.get("metric_averages") or {}).items():
+        w.writerow(["metric_average", key, value])
+    return out.getvalue()
+
+
+def build_health_signal_summary_packet(payload: dict, max_chars: int = 2500) -> dict:
+    markdown = render_health_signal_summary_markdown(payload)
+    csv_text = render_health_signal_summary_csv(payload)
+    telegram_chunks = render_health_signal_summary_telegram_chunks(payload, max_chars=max_chars)
+    return {
+        "summary": payload,
+        "markdown": markdown,
+        "csv": csv_text,
+        "telegram": {
+            "max_chars": max_chars,
+            "chunk_count": len(telegram_chunks),
+            "chunks_with_index": telegram_chunks,
+        },
+    }
+
+
 def insert_change_summary(summary: ChangeSummary, db_path: str | None = None) -> int:
     with get_conn(db_path) as conn:
         cur = conn.execute(

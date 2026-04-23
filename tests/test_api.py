@@ -67,6 +67,44 @@ def test_health_signals_endpoints():
     assert summary_data["sentiment_counts"]["positive"] == 1
 
 
+def test_health_signals_summary_export_endpoints():
+    slug = f"health-export-{uuid4().hex[:8]}"
+    create = client.post(
+        "/health-signals",
+        json={
+            "franchise_slug": slug,
+            "source": "bbb",
+            "observed_at": "2026-04-23T00:00:00Z",
+            "signal_name": "complaint_volume",
+            "metric_value": 9,
+            "sentiment": "negative",
+        },
+    )
+    assert create.status_code == 200
+
+    md = client.get(f"/health-signals/{slug}/summary/markdown")
+    assert md.status_code == 200
+    assert "Franchise Health Signals" in md.json()["markdown"]
+
+    tg = client.get(f"/health-signals/{slug}/summary/telegram?max_chars=220")
+    assert tg.status_code == 200
+    tg_data = tg.json()
+    assert tg_data["chunk_count"] >= 1
+    assert tg_data["chunks_with_index"][0].startswith("[1/")
+
+    csv_resp = client.get(f"/health-signals/{slug}/summary/csv")
+    assert csv_resp.status_code == 200
+    assert "section,key,value" in csv_resp.json()["csv"]
+
+    packet = client.get(f"/health-signals/{slug}/summary/packet?max_chars=220")
+    assert packet.status_code == 200
+    packet_data = packet.json()
+    assert "summary" in packet_data
+    assert "markdown" in packet_data
+    assert "csv" in packet_data
+    assert packet_data["telegram"]["chunks_with_index"][0].startswith("[1/")
+
+
 def test_change_insights_endpoint_shape_and_counts():
     slug = f"insights-{uuid4().hex[:8]}"
     seed_change_summary(slug, ["fees", "litigation"], risk_level="high")

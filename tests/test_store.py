@@ -2,6 +2,7 @@ from datetime import date, datetime, timezone
 
 from fdd_tracker.models import Filing, HealthSignal
 from fdd_tracker.services.store import (
+    build_health_signal_summary_packet,
     delete_watchlist,
     get_alert_feed,
     get_alert_summary,
@@ -13,6 +14,9 @@ from fdd_tracker.services.store import (
     list_health_signals,
     mark_alert_read,
     mark_alerts_read_for_franchise,
+    render_health_signal_summary_csv,
+    render_health_signal_summary_markdown,
+    render_health_signal_summary_telegram_chunks,
     seed_change_summary,
     upsert_health_signal,
     upsert_filing,
@@ -276,3 +280,37 @@ def test_health_signal_summary_rollups(tmp_path):
     assert summary["sentiment_counts"]["negative"] == 1
     assert summary["metric_averages"]["complaint_volume"] == 12
     assert summary["metric_averages"]["employee_sentiment"] == 4.0
+
+
+def test_health_signal_summary_export_surfaces(tmp_path):
+    db = str(tmp_path / "test.db")
+    observed_at = datetime(2026, 4, 23, 0, 0, tzinfo=timezone.utc)
+    upsert_health_signal(
+        HealthSignal(
+            franchise_slug="brand-export",
+            source="glassdoor",
+            observed_at=observed_at,
+            signal_name="employee_sentiment",
+            metric_value=4.1,
+            sentiment="positive",
+        ),
+        db_path=db,
+    )
+    payload = get_health_signal_summary("brand-export", db_path=db)
+
+    markdown = render_health_signal_summary_markdown(payload)
+    assert "Franchise Health Signals" in markdown
+
+    telegram = render_health_signal_summary_telegram_chunks(payload, max_chars=220)
+    assert len(telegram) >= 1
+    assert telegram[0].startswith("[1/")
+
+    csv_data = render_health_signal_summary_csv(payload)
+    assert "section,key,value" in csv_data
+    assert "meta,franchise_slug,brand-export" in csv_data
+
+    packet = build_health_signal_summary_packet(payload, max_chars=220)
+    assert "summary" in packet
+    assert "markdown" in packet
+    assert "csv" in packet
+    assert packet["telegram"]["chunks_with_index"][0].startswith("[1/")
