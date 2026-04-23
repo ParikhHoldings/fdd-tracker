@@ -315,11 +315,19 @@ def buyer_report_comparison_brief(
     days: int = Query(default=7, ge=1, le=30),
     max_alerts: int = Query(default=200, ge=1, le=1000),
     comparison_limit: int = Query(default=200, ge=1, le=500),
+    include_health_signals: bool = Query(default=False),
+    health_limit: int = Query(default=200, ge=1, le=500),
     max_chars: int = Query(default=2500, ge=200, le=10000),
 ) -> dict:
     weekly_brief = build_weekly_brief(email=str(email), days=days, max_alerts=max_alerts)
     comparison = compare_change_insights(left_slug=left_slug, right_slug=right_slug, limit=comparison_limit)
     comparison_packet = build_change_comparison_packet(comparison, max_chars=max_chars)
+    health_summaries = None
+    if include_health_signals:
+        health_summaries = {
+            "left": get_health_signal_summary(franchise_slug=left_slug, limit=health_limit),
+            "right": get_health_signal_summary(franchise_slug=right_slug, limit=health_limit),
+        }
 
     summary_markdown = "\n".join(
         [
@@ -329,6 +337,12 @@ def buyer_report_comparison_brief(
             f"- Comparison pair: {left_slug} vs {right_slug}",
             f"- Higher recent risk: {comparison['comparison']['higher_recent_risk']}",
             f"- Change volume delta (left-right): {comparison['comparison']['change_volume_delta']}",
+            (
+                f"- Health signals (left/right): "
+                f"{health_summaries['left']['total_signals']}/{health_summaries['right']['total_signals']}"
+                if health_summaries
+                else "- Health signals: not included"
+            ),
         ]
     )
 
@@ -336,9 +350,12 @@ def buyer_report_comparison_brief(
         "email": str(email),
         "window_days": days,
         "comparison_limit": comparison_limit,
+        "include_health_signals": include_health_signals,
+        "health_limit": health_limit,
         "weekly_brief": weekly_brief,
         "comparison": comparison,
         "comparison_packet": comparison_packet,
+        "health_summaries": health_summaries,
         "summary_markdown": summary_markdown,
     }
 
@@ -353,6 +370,8 @@ def buyer_report_comparison_brief_options() -> dict:
             "days": {"type": "int", "min": 1, "max": 30},
             "max_alerts": {"type": "int", "min": 1, "max": 1000},
             "comparison_limit": {"type": "int", "min": 1, "max": 500},
+            "include_health_signals": {"type": "bool"},
+            "health_limit": {"type": "int", "min": 1, "max": 500},
             "max_chars": {"type": "int", "min": 200, "max": 10000},
             "template_variant": {"type": "string", "enum": ["executive", "analyst", "concise"]},
         },
@@ -360,6 +379,8 @@ def buyer_report_comparison_brief_options() -> dict:
             "days": 7,
             "max_alerts": 200,
             "comparison_limit": 200,
+            "include_health_signals": False,
+            "health_limit": 200,
             "max_chars": 2500,
             "template_variant": "executive",
         },
@@ -384,6 +405,8 @@ def buyer_report_comparison_brief_markdown(
     days: int = Query(default=7, ge=1, le=30),
     max_alerts: int = Query(default=200, ge=1, le=1000),
     comparison_limit: int = Query(default=200, ge=1, le=500),
+    include_health_signals: bool = Query(default=False),
+    health_limit: int = Query(default=200, ge=1, le=500),
     max_chars: int = Query(default=2500, ge=200, le=10000),
 ) -> dict:
     payload = buyer_report_comparison_brief(
@@ -393,6 +416,8 @@ def buyer_report_comparison_brief_markdown(
         days=days,
         max_alerts=max_alerts,
         comparison_limit=comparison_limit,
+        include_health_signals=include_health_signals,
+        health_limit=health_limit,
         max_chars=max_chars,
     )
     return {"markdown": payload["summary_markdown"]}
@@ -406,6 +431,8 @@ def buyer_report_comparison_brief_telegram(
     days: int = Query(default=7, ge=1, le=30),
     max_alerts: int = Query(default=200, ge=1, le=1000),
     comparison_limit: int = Query(default=200, ge=1, le=500),
+    include_health_signals: bool = Query(default=False),
+    health_limit: int = Query(default=200, ge=1, le=500),
     max_chars: int = Query(default=2500, ge=200, le=10000),
 ) -> dict:
     payload = buyer_report_comparison_brief(
@@ -415,6 +442,8 @@ def buyer_report_comparison_brief_telegram(
         days=days,
         max_alerts=max_alerts,
         comparison_limit=comparison_limit,
+        include_health_signals=include_health_signals,
+        health_limit=health_limit,
         max_chars=max_chars,
     )
     chunks = [payload["summary_markdown"][i:i + max_chars] for i in range(0, len(payload["summary_markdown"]), max_chars)] or [""]
@@ -430,6 +459,8 @@ def buyer_report_comparison_brief_csv(
     days: int = Query(default=7, ge=1, le=30),
     max_alerts: int = Query(default=200, ge=1, le=1000),
     comparison_limit: int = Query(default=200, ge=1, le=500),
+    include_health_signals: bool = Query(default=False),
+    health_limit: int = Query(default=200, ge=1, le=500),
     max_chars: int = Query(default=2500, ge=200, le=10000),
 ) -> dict:
     payload = buyer_report_comparison_brief(
@@ -439,6 +470,8 @@ def buyer_report_comparison_brief_csv(
         days=days,
         max_alerts=max_alerts,
         comparison_limit=comparison_limit,
+        include_health_signals=include_health_signals,
+        health_limit=health_limit,
         max_chars=max_chars,
     )
     cmp = payload["comparison"]["comparison"]
@@ -457,6 +490,8 @@ def buyer_report_comparison_brief_packet(
     days: int = Query(default=7, ge=1, le=30),
     max_alerts: int = Query(default=200, ge=1, le=1000),
     comparison_limit: int = Query(default=200, ge=1, le=500),
+    include_health_signals: bool = Query(default=False),
+    health_limit: int = Query(default=200, ge=1, le=500),
     max_chars: int = Query(default=2500, ge=200, le=10000),
 ) -> dict:
     payload = buyer_report_comparison_brief(
@@ -466,6 +501,8 @@ def buyer_report_comparison_brief_packet(
         days=days,
         max_alerts=max_alerts,
         comparison_limit=comparison_limit,
+        include_health_signals=include_health_signals,
+        health_limit=health_limit,
         max_chars=max_chars,
     )
     return {
@@ -477,6 +514,8 @@ def buyer_report_comparison_brief_packet(
             days=days,
             max_alerts=max_alerts,
             comparison_limit=comparison_limit,
+            include_health_signals=include_health_signals,
+            health_limit=health_limit,
             max_chars=max_chars,
         )["markdown"],
         "csv": buyer_report_comparison_brief_csv(
@@ -486,6 +525,8 @@ def buyer_report_comparison_brief_packet(
             days=days,
             max_alerts=max_alerts,
             comparison_limit=comparison_limit,
+            include_health_signals=include_health_signals,
+            health_limit=health_limit,
             max_chars=max_chars,
         )["csv"],
         "telegram": buyer_report_comparison_brief_telegram(
@@ -495,6 +536,8 @@ def buyer_report_comparison_brief_packet(
             days=days,
             max_alerts=max_alerts,
             comparison_limit=comparison_limit,
+            include_health_signals=include_health_signals,
+            health_limit=health_limit,
             max_chars=max_chars,
         ),
     }
@@ -505,6 +548,7 @@ def _build_buyer_report_template_variants(payload: dict) -> dict:
     weekly = payload["weekly_brief"]
     left_slug = payload["comparison"]["left"]["franchise_slug"]
     right_slug = payload["comparison"]["right"]["franchise_slug"]
+    health = payload.get("health_summaries")
 
     executive = "\n".join(
         [
@@ -524,8 +568,13 @@ def _build_buyer_report_template_variants(payload: dict) -> dict:
             f"- Right recent trend: {payload['comparison']['right']['risk_trend_last_5']['series']}",
             f"- Left by risk: {payload['comparison']['left']['by_risk']}",
             f"- Right by risk: {payload['comparison']['right']['by_risk']}",
-        ]
-    )
+                (
+                    f"- Health signals totals (left/right): {health['left']['total_signals']}/{health['right']['total_signals']}"
+                    if health
+                    else "- Health signals totals (left/right): n/a"
+                ),
+            ]
+        )
     concise = (
         f"{left_slug} vs {right_slug}: risk={comparison['higher_recent_risk']}; "
         f"delta={comparison['change_volume_delta']}; alerts={weekly['total_alerts']}"
@@ -542,6 +591,8 @@ def buyer_report_comparison_brief_templates(
     days: int = Query(default=7, ge=1, le=30),
     max_alerts: int = Query(default=200, ge=1, le=1000),
     comparison_limit: int = Query(default=200, ge=1, le=500),
+    include_health_signals: bool = Query(default=False),
+    health_limit: int = Query(default=200, ge=1, le=500),
     max_chars: int = Query(default=2500, ge=200, le=10000),
 ) -> dict:
     payload = buyer_report_comparison_brief(
@@ -551,6 +602,8 @@ def buyer_report_comparison_brief_templates(
         days=days,
         max_alerts=max_alerts,
         comparison_limit=comparison_limit,
+        include_health_signals=include_health_signals,
+        health_limit=health_limit,
         max_chars=max_chars,
     )
     variants = _build_buyer_report_template_variants(payload)
@@ -566,6 +619,8 @@ def buyer_report_comparison_brief_templates_packet(
     days: int = Query(default=7, ge=1, le=30),
     max_alerts: int = Query(default=200, ge=1, le=1000),
     comparison_limit: int = Query(default=200, ge=1, le=500),
+    include_health_signals: bool = Query(default=False),
+    health_limit: int = Query(default=200, ge=1, le=500),
     max_chars: int = Query(default=2500, ge=200, le=10000),
 ) -> dict:
     template_payload = buyer_report_comparison_brief_templates(
@@ -576,6 +631,8 @@ def buyer_report_comparison_brief_templates_packet(
         days=days,
         max_alerts=max_alerts,
         comparison_limit=comparison_limit,
+        include_health_signals=include_health_signals,
+        health_limit=health_limit,
         max_chars=max_chars,
     )
     chunk_source = template_payload["content"]

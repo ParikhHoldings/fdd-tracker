@@ -249,6 +249,50 @@ def test_buyer_report_comparison_brief_bundle():
     assert "summary_markdown" in data
     assert data["comparison"]["left"]["franchise_slug"] == left
     assert data["comparison_packet"]["telegram"]["chunks_with_index"][0].startswith("[1/")
+    assert data["health_summaries"] is None
+
+
+def test_buyer_report_comparison_brief_bundle_with_health_signals():
+    email = f"buyerbundle-health-{uuid4().hex[:8]}@example.com"
+    left = f"buyer-health-left-{uuid4().hex[:8]}"
+    right = f"buyer-health-right-{uuid4().hex[:8]}"
+
+    client.post("/watchlists", json={"email": email, "franchise_slug": left})
+    client.post("/watchlists", json={"email": email, "franchise_slug": right})
+    seed_change_summary(left, ["fees"], risk_level="high")
+    seed_change_summary(right, ["financials"], risk_level="low")
+    client.post(
+        "/health-signals",
+        json={
+            "franchise_slug": left,
+            "source": "glassdoor",
+            "observed_at": "2026-04-23T00:00:00Z",
+            "signal_name": "employee_sentiment",
+            "metric_value": 4.2,
+            "sentiment": "positive",
+        },
+    )
+    client.post(
+        "/health-signals",
+        json={
+            "franchise_slug": right,
+            "source": "bbb",
+            "observed_at": "2026-04-23T01:00:00Z",
+            "signal_name": "complaint_volume",
+            "metric_value": 9,
+            "sentiment": "negative",
+        },
+    )
+
+    r = client.get(
+        f"/buyer-reports/comparison-brief?email={email}&left_slug={left}&right_slug={right}&include_health_signals=true&health_limit=50"
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["include_health_signals"] is True
+    assert data["health_summaries"]["left"]["franchise_slug"] == left
+    assert data["health_summaries"]["right"]["franchise_slug"] == right
+    assert "Health signals (left/right):" in data["summary_markdown"]
 
 
 def test_buyer_report_comparison_brief_options_and_exports():
@@ -264,6 +308,8 @@ def test_buyer_report_comparison_brief_options_and_exports():
     assert options.status_code == 200
     options_data = options.json()
     assert options_data["defaults"]["days"] == 7
+    assert options_data["defaults"]["include_health_signals"] is False
+    assert options_data["defaults"]["health_limit"] == 200
     assert options_data["defaults"]["template_variant"] == "executive"
     assert "/buyer-reports/comparison-brief/packet" in options_data["surfaces"]["packet"]
     assert "/buyer-reports/comparison-brief/templates" in options_data["surfaces"]["templates"]
