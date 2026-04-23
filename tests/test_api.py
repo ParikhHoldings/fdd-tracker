@@ -193,7 +193,9 @@ def test_buyer_report_comparison_brief_options_and_exports():
     assert options.status_code == 200
     options_data = options.json()
     assert options_data["defaults"]["days"] == 7
+    assert options_data["defaults"]["template_variant"] == "executive"
     assert "/buyer-reports/comparison-brief/packet" in options_data["surfaces"]["packet"]
+    assert "/buyer-reports/comparison-brief/templates" in options_data["surfaces"]["templates"]
 
     md = client.get(f"/buyer-reports/comparison-brief/markdown?email={email}&left_slug={left}&right_slug={right}")
     assert md.status_code == 200
@@ -216,6 +218,25 @@ def test_buyer_report_comparison_brief_options_and_exports():
     assert "markdown" in packet_data
     assert "csv" in packet_data
     assert "telegram" in packet_data
+
+    templates = client.get(
+        f"/buyer-reports/comparison-brief/templates?email={email}&left_slug={left}&right_slug={right}&template_variant=analyst"
+    )
+    assert templates.status_code == 200
+    templates_data = templates.json()
+    assert templates_data["selected"] == "analyst"
+    assert "executive" in templates_data["variants"]
+    assert "analyst" in templates_data["variants"]
+    assert "concise" in templates_data["variants"]
+
+    templates_packet = client.get(
+        f"/buyer-reports/comparison-brief/templates/packet?email={email}&left_slug={left}&right_slug={right}&template_variant=concise&max_chars=220"
+    )
+    assert templates_packet.status_code == 200
+    templates_packet_data = templates_packet.json()
+    assert templates_packet_data["selected"] == "concise"
+    assert "telegram" in templates_packet_data
+    assert templates_packet_data["telegram"]["chunks_with_index"][0].startswith("[1/")
 
 
 def test_create_watchlist_idempotency():

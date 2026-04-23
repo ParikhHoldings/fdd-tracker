@@ -77,8 +77,10 @@ curl "http://localhost:8000/buyer-reports/comparison-brief/markdown?email=you@ex
 curl "http://localhost:8000/buyer-reports/comparison-brief/telegram?email=you@example.com&left_slug=chick-fil-a&right_slug=orangetheory&max_chars=2500"
 curl "http://localhost:8000/buyer-reports/comparison-brief/csv?email=you@example.com&left_slug=chick-fil-a&right_slug=orangetheory"
 curl "http://localhost:8000/buyer-reports/comparison-brief/packet?email=you@example.com&left_slug=chick-fil-a&right_slug=orangetheory&max_chars=2500"
+curl "http://localhost:8000/buyer-reports/comparison-brief/templates?email=you@example.com&left_slug=chick-fil-a&right_slug=orangetheory&template_variant=executive"
+curl "http://localhost:8000/buyer-reports/comparison-brief/templates/packet?email=you@example.com&left_slug=chick-fil-a&right_slug=orangetheory&template_variant=concise&max_chars=2500"
 ```
-Returns side-by-side insights plus comparison signals (`higher_recent_risk`, `change_volume_delta`, and shared categories), with markdown/telegram/csv/packet export surfaces and options contract endpoints. The buyer report bundle endpoint combines weekly brief + comparison + export packet for downstream delivery.
+Returns side-by-side insights plus comparison signals (`higher_recent_risk`, `change_volume_delta`, and shared categories), with markdown/telegram/csv/packet export surfaces and options contract endpoints. The buyer report bundle endpoint combines weekly brief + comparison + export packet for downstream delivery, plus deterministic template variants (`executive`, `analyst`, `concise`) for buyer-facing distribution.
 
 **Watchlist alerts feed:**
 ```bash

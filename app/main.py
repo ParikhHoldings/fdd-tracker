@@ -247,8 +247,15 @@ def buyer_report_comparison_brief_options() -> dict:
             "max_alerts": {"type": "int", "min": 1, "max": 1000},
             "comparison_limit": {"type": "int", "min": 1, "max": 500},
             "max_chars": {"type": "int", "min": 200, "max": 10000},
+            "template_variant": {"type": "string", "enum": ["executive", "analyst", "concise"]},
         },
-        "defaults": {"days": 7, "max_alerts": 200, "comparison_limit": 200, "max_chars": 2500},
+        "defaults": {
+            "days": 7,
+            "max_alerts": 200,
+            "comparison_limit": 200,
+            "max_chars": 2500,
+            "template_variant": "executive",
+        },
         "surfaces": {
             "options": "/buyer-reports/comparison-brief/options",
             "bundle": "/buyer-reports/comparison-brief",
@@ -256,6 +263,8 @@ def buyer_report_comparison_brief_options() -> dict:
             "telegram": "/buyer-reports/comparison-brief/telegram",
             "csv": "/buyer-reports/comparison-brief/csv",
             "packet": "/buyer-reports/comparison-brief/packet",
+            "templates": "/buyer-reports/comparison-brief/templates",
+            "templates_packet": "/buyer-reports/comparison-brief/templates/packet",
         },
     }
 
@@ -381,6 +390,95 @@ def buyer_report_comparison_brief_packet(
             comparison_limit=comparison_limit,
             max_chars=max_chars,
         ),
+    }
+
+
+def _build_buyer_report_template_variants(payload: dict) -> dict:
+    comparison = payload["comparison"]["comparison"]
+    weekly = payload["weekly_brief"]
+    left_slug = payload["comparison"]["left"]["franchise_slug"]
+    right_slug = payload["comparison"]["right"]["franchise_slug"]
+
+    executive = "\n".join(
+        [
+            f"Buyer Brief: {left_slug} vs {right_slug}",
+            f"Weekly alerts: {weekly['total_alerts']} (unread {weekly['unread_alerts']})",
+            f"Risk leader: {comparison['higher_recent_risk']}",
+            f"Change delta: {comparison['change_volume_delta']}",
+            f"Shared categories: {', '.join(comparison['shared_categories']) or 'none'}",
+        ]
+    )
+    analyst = "\n".join(
+        [
+            payload["summary_markdown"],
+            "",
+            "## Analyst Notes",
+            f"- Left recent trend: {payload['comparison']['left']['risk_trend_last_5']['series']}",
+            f"- Right recent trend: {payload['comparison']['right']['risk_trend_last_5']['series']}",
+            f"- Left by risk: {payload['comparison']['left']['by_risk']}",
+            f"- Right by risk: {payload['comparison']['right']['by_risk']}",
+        ]
+    )
+    concise = (
+        f"{left_slug} vs {right_slug}: risk={comparison['higher_recent_risk']}; "
+        f"delta={comparison['change_volume_delta']}; alerts={weekly['total_alerts']}"
+    )
+    return {"executive": executive, "analyst": analyst, "concise": concise}
+
+
+@app.get("/buyer-reports/comparison-brief/templates")
+def buyer_report_comparison_brief_templates(
+    email: EmailStr,
+    left_slug: str = Query(..., min_length=1),
+    right_slug: str = Query(..., min_length=1),
+    template_variant: str = Query(default="executive", pattern="^(executive|analyst|concise)$"),
+    days: int = Query(default=7, ge=1, le=30),
+    max_alerts: int = Query(default=200, ge=1, le=1000),
+    comparison_limit: int = Query(default=200, ge=1, le=500),
+    max_chars: int = Query(default=2500, ge=200, le=10000),
+) -> dict:
+    payload = buyer_report_comparison_brief(
+        email=email,
+        left_slug=left_slug,
+        right_slug=right_slug,
+        days=days,
+        max_alerts=max_alerts,
+        comparison_limit=comparison_limit,
+        max_chars=max_chars,
+    )
+    variants = _build_buyer_report_template_variants(payload)
+    return {"selected": template_variant, "content": variants[template_variant], "variants": variants}
+
+
+@app.get("/buyer-reports/comparison-brief/templates/packet")
+def buyer_report_comparison_brief_templates_packet(
+    email: EmailStr,
+    left_slug: str = Query(..., min_length=1),
+    right_slug: str = Query(..., min_length=1),
+    template_variant: str = Query(default="executive", pattern="^(executive|analyst|concise)$"),
+    days: int = Query(default=7, ge=1, le=30),
+    max_alerts: int = Query(default=200, ge=1, le=1000),
+    comparison_limit: int = Query(default=200, ge=1, le=500),
+    max_chars: int = Query(default=2500, ge=200, le=10000),
+) -> dict:
+    template_payload = buyer_report_comparison_brief_templates(
+        email=email,
+        left_slug=left_slug,
+        right_slug=right_slug,
+        template_variant=template_variant,
+        days=days,
+        max_alerts=max_alerts,
+        comparison_limit=comparison_limit,
+        max_chars=max_chars,
+    )
+    chunk_source = template_payload["content"]
+    chunks = [chunk_source[i:i + max_chars] for i in range(0, len(chunk_source), max_chars)] or [""]
+    chunks = [f"[{i+1}/{len(chunks)}] {chunk}" for i, chunk in enumerate(chunks)]
+    return {
+        "selected": template_payload["selected"],
+        "content": template_payload["content"],
+        "variants": template_payload["variants"],
+        "telegram": {"max_chars": max_chars, "chunk_count": len(chunks), "chunks_with_index": chunks},
     }
 
 
