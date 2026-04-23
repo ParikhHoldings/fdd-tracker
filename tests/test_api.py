@@ -34,6 +34,39 @@ def test_changes_endpoint_limit():
     assert len(r.json()["changes"]) == 1
 
 
+def test_health_signals_endpoints():
+    slug = f"health-{uuid4().hex[:8]}"
+
+    create = client.post(
+        "/health-signals",
+        json={
+            "franchise_slug": slug,
+            "source": "glassdoor",
+            "observed_at": "2026-04-23T00:00:00Z",
+            "signal_name": "employee_sentiment",
+            "metric_value": 4.3,
+            "sentiment": "positive",
+            "metadata": {"sample_size": 52},
+        },
+    )
+    assert create.status_code == 200
+    assert create.json()["stored"] is True
+
+    listing = client.get(f"/health-signals/{slug}?limit=10")
+    assert listing.status_code == 200
+    list_data = listing.json()
+    assert list_data["franchise_slug"] == slug
+    assert len(list_data["signals"]) == 1
+    assert list_data["signals"][0]["source"] == "glassdoor"
+
+    summary = client.get(f"/health-signals/{slug}/summary")
+    assert summary.status_code == 200
+    summary_data = summary.json()
+    assert summary_data["franchise_slug"] == slug
+    assert summary_data["total_signals"] == 1
+    assert summary_data["sentiment_counts"]["positive"] == 1
+
+
 def test_change_insights_endpoint_shape_and_counts():
     slug = f"insights-{uuid4().hex[:8]}"
     seed_change_summary(slug, ["fees", "litigation"], risk_level="high")

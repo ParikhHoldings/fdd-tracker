@@ -59,6 +59,22 @@ def ensure_db(path: str | None = None) -> str:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS health_signals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                franchise_slug TEXT NOT NULL,
+                source TEXT NOT NULL,
+                observed_at TEXT NOT NULL,
+                signal_name TEXT NOT NULL,
+                metric_value REAL,
+                sentiment TEXT,
+                notes TEXT,
+                metadata_json TEXT NOT NULL DEFAULT '{}',
+                UNIQUE(franchise_slug, source, observed_at, signal_name)
+            )
+            """
+        )
         conn.commit()
     return str(db_path)
 

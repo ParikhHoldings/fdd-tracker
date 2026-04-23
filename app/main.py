@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from datetime import date
+from datetime import date, datetime, timezone
 from fastapi import FastAPI, Query
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 from fdd_tracker.db import ensure_db
-from fdd_tracker.models import Filing
+from fdd_tracker.models import Filing, HealthSignal
 from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_all_summary_packet, build_digest_preview_packet, build_digest_previews_all_packet, build_digest_previews_for_all_emails, build_latest_run_incident_export_packet, build_latest_run_incident_payload, build_provider_catalog_options_packet, build_provider_details_options_packet, build_provider_health_options_packet, build_provider_health_summary_options_packet, build_provider_health_summary_packet, build_provider_recommendations_options_packet, build_provider_recommendations_packet, build_run_incident_export_packet, build_run_incident_payload, build_weekly_brief, build_weekly_brief_all_options_packet, build_weekly_brief_options_packet, build_weekly_brief_packet, build_weekly_briefs_all_packet, build_weekly_briefs_all_summary_packet, build_weekly_briefs_for_all_emails, dispatch_outbox, enforce_live_dispatch_gate, get_alerts_cron_options, get_alerts_cron_preflight, get_alerts_cron_status, get_cron_history_options, get_digest_preview_all_options, get_digest_preview_options, get_digest_run_options, get_dispatch_provider_catalog, get_integrity_dashboard_snapshot, get_latest_cron_history_entry, get_latest_run_id, get_latest_run_integrity_issue_details, get_latest_run_integrity_report, get_outbox_dispatch_options, get_outbox_retry_failed_options, get_provider_catalog_options, get_provider_details, get_provider_details_options, get_provider_health_details, get_provider_health_options, get_provider_health_summary_options, get_provider_recommendations, get_provider_recommendations_options, get_provider_smoke_test_options, get_weekly_brief_all_options, get_weekly_brief_options, list_provider_health, get_retention_prune_options, get_run_artifact_summary, get_run_integrity_issue_details, get_run_integrity_report, list_cron_history, list_failing_run_integrity_reports, list_failed_outbox, list_latest_run_events, list_outbox, list_recent_run_integrity_reports, list_run_events, list_sent_outbox, prune_alert_artifacts, recover_alerts_cron_lock, render_digest_preview_all_summary_csv, render_digest_preview_all_summary_markdown, render_digest_preview_all_summary_telegram_chunks, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, render_digest_previews_all_csv, render_digest_previews_all_markdown, render_digest_previews_all_telegram_chunks, render_integrity_dashboard_markdown, render_integrity_dashboard_telegram_chunks, render_latest_run_events_csv, render_latest_run_incident_csv, render_latest_run_incident_markdown, render_latest_run_incident_telegram_chunks, render_latest_run_integrity_issues_csv, render_latest_run_integrity_issues_markdown, render_latest_run_integrity_issues_telegram_chunks, render_provider_catalog_options_csv, render_provider_catalog_options_markdown, render_provider_catalog_options_telegram_chunks, render_provider_details_options_csv, render_provider_details_options_markdown, render_provider_details_options_telegram_chunks, render_provider_health_options_csv, render_provider_health_options_markdown, render_provider_health_options_telegram_chunks, render_provider_health_recommendations_csv, render_provider_health_recommendations_markdown, render_provider_health_recommendations_telegram_chunks, render_provider_health_summary_csv, render_provider_health_summary_markdown, render_provider_health_summary_options_csv, render_provider_health_summary_options_markdown, render_provider_health_summary_options_telegram_chunks, render_provider_health_summary_telegram_chunks, render_provider_recommendations_csv, render_provider_recommendations_markdown, render_provider_recommendations_options_csv, render_provider_recommendations_options_markdown, render_provider_recommendations_options_telegram_chunks, render_provider_recommendations_telegram_chunks, render_run_events_csv, render_run_incident_csv, render_run_incident_markdown, render_run_incident_telegram_chunks, render_run_integrity_issues_csv, render_run_integrity_issues_markdown, render_run_integrity_issues_telegram_chunks, render_weekly_brief_all_options_csv, render_weekly_brief_all_options_markdown, render_weekly_brief_all_options_telegram_chunks, render_weekly_brief_csv, render_weekly_brief_markdown, render_weekly_brief_options_csv, render_weekly_brief_options_markdown, render_weekly_brief_options_telegram_chunks, render_weekly_briefs_all_csv, render_weekly_briefs_all_markdown, render_weekly_briefs_all_summary_csv, render_weekly_briefs_all_summary_markdown, render_weekly_briefs_all_summary_telegram_chunks, render_weekly_briefs_all_telegram_chunks, render_weekly_brief_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, run_provider_smoke_test, summarize_digest_previews_for_all_emails, summarize_integrity_trends, summarize_provider_health, summarize_provider_health_recommendations, summarize_recent_run_integrity, summarize_weekly_briefs_for_all_emails, build_provider_health_recommendations_packet
 from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestion
 from fdd_tracker.services.store import (
@@ -14,10 +14,12 @@ from fdd_tracker.services.store import (
     build_change_comparison_packet,
     compare_change_insights,
     delete_watchlist,
+    get_health_signal_summary,
     get_alert_feed,
     get_alert_summary,
     get_change_comparison_options,
     get_change_insights,
+    list_health_signals,
     get_recent_changes,
     get_unread_alert_count,
     get_watchlists,
@@ -29,6 +31,7 @@ from fdd_tracker.services.store import (
     render_change_comparison_options_telegram_chunks,
     render_change_comparison_telegram_chunks,
     mark_alerts_read_for_franchise,
+    upsert_health_signal,
     upsert_filing,
     upsert_watchlist,
 )
@@ -58,6 +61,17 @@ class FilingIn(BaseModel):
     filed_on: date | None = None
     document_url: str
     document_hash: str | None = None
+
+
+class HealthSignalIn(BaseModel):
+    franchise_slug: str
+    source: str
+    observed_at: str | None = None
+    signal_name: str
+    metric_value: float | None = None
+    sentiment: str | None = None
+    notes: str | None = None
+    metadata: dict = Field(default_factory=dict)
 
 
 class IngestRequest(BaseModel):
@@ -109,6 +123,45 @@ def changes(franchise_slug: str, limit: int = Query(default=20, ge=1, le=200)) -
 @app.get("/changes/{franchise_slug}/insights")
 def change_insights(franchise_slug: str, limit: int = Query(default=200, ge=1, le=500)) -> dict:
     return get_change_insights(franchise_slug=franchise_slug, limit=limit)
+
+
+@app.post("/health-signals")
+def create_health_signal(payload: HealthSignalIn) -> dict:
+    observed_at = payload.observed_at
+    signal = HealthSignal(
+        franchise_slug=payload.franchise_slug,
+        source=payload.source,
+        observed_at=datetime.fromisoformat(observed_at.replace("Z", "+00:00")) if observed_at else datetime.now(timezone.utc),
+        signal_name=payload.signal_name,
+        metric_value=payload.metric_value,
+        sentiment=payload.sentiment,
+        notes=payload.notes,
+        metadata=payload.metadata,
+    )
+    changed = upsert_health_signal(signal)
+    return {"stored": True, "changed_rows": changed}
+
+
+@app.get("/health-signals/{franchise_slug}")
+def health_signals(
+    franchise_slug: str,
+    source: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+) -> dict:
+    return {
+        "franchise_slug": franchise_slug,
+        "source": source,
+        "signals": list_health_signals(franchise_slug=franchise_slug, source=source, limit=limit),
+    }
+
+
+@app.get("/health-signals/{franchise_slug}/summary")
+def health_signals_summary(
+    franchise_slug: str,
+    source: str | None = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=500),
+) -> dict:
+    return get_health_signal_summary(franchise_slug=franchise_slug, source=source, limit=limit)
 
 
 @app.get("/change-comparisons")

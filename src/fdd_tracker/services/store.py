@@ -6,7 +6,7 @@ import json
 from datetime import datetime, timezone
 
 from fdd_tracker.db import get_conn
-from fdd_tracker.models import ChangeSummary, Filing
+from fdd_tracker.models import ChangeSummary, Filing, HealthSignal
 
 
 def upsert_filing(filing: Filing, db_path: str | None = None) -> int:
@@ -54,6 +54,118 @@ def get_latest_filings(franchise_slug: str, limit: int = 2, db_path: str | None 
         }
         for row in rows
     ]
+
+
+def upsert_health_signal(signal: HealthSignal, db_path: str | None = None) -> int:
+    with get_conn(db_path) as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO health_signals(
+                franchise_slug, source, observed_at, signal_name, metric_value, sentiment, notes, metadata_json
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(franchise_slug, source, observed_at, signal_name)
+            DO UPDATE SET
+                metric_value=excluded.metric_value,
+                sentiment=excluded.sentiment,
+                notes=excluded.notes,
+                metadata_json=excluded.metadata_json
+            """,
+            (
+                signal.franchise_slug,
+                signal.source,
+                signal.observed_at.isoformat(),
+                signal.signal_name,
+                signal.metric_value,
+                signal.sentiment,
+                signal.notes,
+                json.dumps(signal.metadata or {}),
+            ),
+        )
+        conn.commit()
+        return cur.rowcount
+
+
+def list_health_signals(
+    franchise_slug: str,
+    source: str | None = None,
+    limit: int = 100,
+    db_path: str | None = None,
+) -> list[dict]:
+    query = """
+        SELECT franchise_slug, source, observed_at, signal_name, metric_value, sentiment, notes, metadata_json
+        FROM health_signals
+        WHERE franchise_slug = ?
+    """
+    params: list = [franchise_slug]
+    if source:
+        query += " AND source = ?"
+        params.append(source)
+    query += " ORDER BY observed_at DESC, id DESC LIMIT ?"
+    params.append(limit)
+
+    with get_conn(db_path) as conn:
+        rows = conn.execute(query, tuple(params)).fetchall()
+
+    return [
+        {
+            "franchise_slug": row["franchise_slug"],
+            "source": row["source"],
+            "observed_at": row["observed_at"],
+            "signal_name": row["signal_name"],
+            "metric_value": row["metric_value"],
+            "sentiment": row["sentiment"],
+            "notes": row["notes"],
+            "metadata": json.loads(row["metadata_json"] or "{}"),
+        }
+        for row in rows
+    ]
+
+
+def get_health_signal_summary(
+    franchise_slug: str,
+    source: str | None = None,
+    limit: int = 200,
+    db_path: str | None = None,
+) -> dict:
+    items = list_health_signals(franchise_slug=franchise_slug, source=source, limit=limit, db_path=db_path)
+
+    sentiment_counts: dict[str, int] = {"positive": 0, "neutral": 0, "negative": 0, "unknown": 0}
+    by_source: dict[str, int] = {}
+    signal_sums: dict[str, float] = {}
+    signal_counts: dict[str, int] = {}
+
+    for item in items:
+        source_name = str(item.get("source") or "unknown")
+        by_source[source_name] = by_source.get(source_name, 0) + 1
+
+        sentiment = str(item.get("sentiment") or "unknown").lower().strip()
+        if sentiment not in sentiment_counts:
+            sentiment = "unknown"
+        sentiment_counts[sentiment] += 1
+
+        metric_value = item.get("metric_value")
+        signal_name = str(item.get("signal_name") or "unknown").strip().lower() or "unknown"
+        if metric_value is not None:
+            signal_sums[signal_name] = signal_sums.get(signal_name, 0.0) + float(metric_value)
+            signal_counts[signal_name] = signal_counts.get(signal_name, 0) + 1
+
+    metric_averages = {
+        key: round(signal_sums[key] / signal_counts[key], 4)
+        for key in sorted(signal_sums.keys())
+        if signal_counts.get(key, 0) > 0
+    }
+
+    return {
+        "franchise_slug": franchise_slug,
+        "source_filter": source,
+        "total_signals": len(items),
+        "latest_observed_at": items[0]["observed_at"] if items else None,
+        "first_observed_at": items[-1]["observed_at"] if items else None,
+        "by_source": dict(sorted(by_source.items(), key=lambda kv: (-kv[1], kv[0]))),
+        "sentiment_counts": sentiment_counts,
+        "metric_averages": metric_averages,
+    }
 
 
 def insert_change_summary(summary: ChangeSummary, db_path: str | None = None) -> int:

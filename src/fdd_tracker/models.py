@@ -24,3 +24,14 @@ class ChangeSummary(BaseModel):
     categories: list[str] = Field(default_factory=list)
     highlights: list[str] = Field(default_factory=list)
     risk_level: str = "medium"
+
+
+class HealthSignal(BaseModel):
+    franchise_slug: str
+    source: str
+    observed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    signal_name: str
+    metric_value: float | None = None
+    sentiment: str | None = None
+    notes: str | None = None
+    metadata: dict = Field(default_factory=dict)

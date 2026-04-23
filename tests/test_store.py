@@ -1,17 +1,20 @@
-from datetime import date
+from datetime import date, datetime, timezone
 
-from fdd_tracker.models import Filing
+from fdd_tracker.models import Filing, HealthSignal
 from fdd_tracker.services.store import (
     delete_watchlist,
     get_alert_feed,
     get_alert_summary,
+    get_health_signal_summary,
     get_latest_filings,
     get_recent_changes,
     get_unread_alert_count,
     get_watchlists,
+    list_health_signals,
     mark_alert_read,
     mark_alerts_read_for_franchise,
     seed_change_summary,
+    upsert_health_signal,
     upsert_filing,
     upsert_watchlist,
 )
@@ -203,3 +206,73 @@ def test_alert_feed_filters_and_summary(tmp_path):
     assert summary["unread_alerts"] == 2
     assert summary["by_risk"] == {"low": 1, "medium": 1, "high": 1}
     assert len(summary["top_unread_franchises"]) >= 1
+
+
+def test_health_signal_upsert_and_list(tmp_path):
+    db = str(tmp_path / "test.db")
+    observed_at = datetime(2026, 4, 23, 0, 0, tzinfo=timezone.utc)
+
+    row = upsert_health_signal(
+        HealthSignal(
+            franchise_slug="chick-fil-a",
+            source="glassdoor",
+            observed_at=observed_at,
+            signal_name="employee_sentiment",
+            metric_value=4.2,
+            sentiment="positive",
+            metadata={"sample_size": 120},
+        ),
+        db_path=db,
+    )
+    assert row == 1
+
+    rows = list_health_signals("chick-fil-a", db_path=db)
+    assert len(rows) == 1
+    assert rows[0]["signal_name"] == "employee_sentiment"
+    assert rows[0]["metadata"]["sample_size"] == 120
+
+
+def test_health_signal_summary_rollups(tmp_path):
+    db = str(tmp_path / "test.db")
+    base_time = datetime(2026, 4, 23, 0, 0, tzinfo=timezone.utc)
+
+    upsert_health_signal(
+        HealthSignal(
+            franchise_slug="brand-x",
+            source="glassdoor",
+            observed_at=base_time,
+            signal_name="employee_sentiment",
+            metric_value=4.0,
+            sentiment="positive",
+        ),
+        db_path=db,
+    )
+    upsert_health_signal(
+        HealthSignal(
+            franchise_slug="brand-x",
+            source="bbb",
+            observed_at=base_time.replace(hour=1),
+            signal_name="complaint_volume",
+            metric_value=12,
+            sentiment="negative",
+        ),
+        db_path=db,
+    )
+    upsert_health_signal(
+        HealthSignal(
+            franchise_slug="brand-x",
+            source="reddit",
+            observed_at=base_time.replace(hour=2),
+            signal_name="mention_volume",
+            metric_value=28,
+            sentiment="neutral",
+        ),
+        db_path=db,
+    )
+
+    summary = get_health_signal_summary("brand-x", db_path=db)
+    assert summary["total_signals"] == 3
+    assert summary["sentiment_counts"]["positive"] == 1
+    assert summary["sentiment_counts"]["negative"] == 1
+    assert summary["metric_averages"]["complaint_volume"] == 12
+    assert summary["metric_averages"]["employee_sentiment"] == 4.0
