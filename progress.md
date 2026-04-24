@@ -112,3 +112,9 @@ Keep the FDD Tracker staging deployment healthy and verify the app boots cleanly
 - Set valid staging env vars for Clerk publishable key (`CLERK_PUBLISHABLE_KEY` and `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`) so middleware/runtime no longer crashes on auth bootstrap.
 - Switched Railway start command to `npm start`; deploy `1780946b-d087-4a09-ba74-4d733ce48b06` reached `SUCCESS` and logs show `next start` ready.
 - Next step: spot-check the live staging app and only touch code if a real runtime gap appears.
+
+## 2026-04-24 21:25 UTC
+- Spot-checked live Railway staging after `5c138f4` deploy: `/` and `/auth/sign-in` returned 200, but `/franchises`, `/watchlist`, `/dashboard`, and `/profile` returned 404 due Clerk middleware-level `auth.protect()` rewriting signed-out smoke checks to an internal `/clerk_*` path.
+- Fixed staging smoke-check blocker by simplifying middleware to provide Clerk request context only and leaving route handling to page-level auth (`/dashboard` still redirects via page code; static app pages can render for review).
+- Verified local production build with `npm run build`.
+- Next step: commit, deploy to Railway staging, and rerun live smoke checks.
