@@ -118,3 +118,16 @@ Keep the FDD Tracker staging deployment healthy and verify the app boots cleanly
 - Fixed staging smoke-check blocker by simplifying middleware to provide Clerk request context only and leaving route handling to page-level auth (`/dashboard` still redirects via page code; static app pages can render for review).
 - Verified local production build with `npm run build`.
 - Next step: commit, deploy to Railway staging, and rerun live smoke checks.
+
+## 2026-04-24 21:31 UTC
+- Pushed staging commit `b0afefa` and deployed it to Railway staging with `railway up --detach`.
+- Railway deployment `98d1faae-11e5-47bd-ad9f-5f3cf1cf018a` reached `SUCCESS`.
+- Live staging smoke checks passed at `https://fdd-tracker-staging-staging.up.railway.app`:
+  - `/` → 200
+  - `/franchises` → 200
+  - `/watchlist` → 200
+  - `/profile` → 200
+  - `/auth/sign-in` → 200
+  - `/dashboard` → 200 and renders sign-in for signed-out users
+- Known deployment note: current Railway service serves the Next.js staging app; FastAPI service routes like `/health` are not exposed on this frontend service yet.
+- Next step: create/wire a separate Railway API service or route strategy before marking the full MVP staging deployment ready for Nathan review.
