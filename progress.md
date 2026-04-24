@@ -1,7 +1,12 @@
 # Progress — FDD Tracker
 
 ## Current goal
-Harden the FDD Tracker MVP around ingestion, diffs, alerts, and operational observability.
+Keep the FDD Tracker staging deployment healthy and verify the app boots cleanly on Railway.
+
+## 2026-04-24 18:40 UTC
+- Re-grounded after the dispatch-policy build finished and verified the repo is clean on `staging...origin/staging`.
+- Confirmed the latest commit is `dc28a46 Add buyer report dispatch policy` and there are no local changes pending.
+- Next step is staging deploy readiness verification, not more local code churn.
 
 ## 2026-04-24 05:50 UTC
 - Re-grounded on AGENTS, SOUL, USER, MEMORY, HEARTBEAT, and the portfolio control layer.
@@ -11,12 +16,12 @@ Harden the FDD Tracker MVP around ingestion, diffs, alerts, and operational obse
 - Next step: run the repo checks and inspect the highest-leverage gap.
 
 ## In progress
-- Baseline verification of the app and Python scanner surfaces.
+- Staging Railway deployment is live; verify the app surface and keep the deploy config aligned.
 
 ## Next steps
-- Run tests/build checks.
-- Fix the highest-leverage issue if one appears.
+- Confirm the live staging app responds as expected.
 - Update docs or backlog if reality changed.
+- Only touch code if a real runtime gap appears.
 
 ## 2026-04-24 06:15 UTC
 - Patched Clerk provider initialization to use a valid publishable key fallback during prerender/build so Next 14 build no longer crashes on auth pages.
@@ -101,3 +106,9 @@ Harden the FDD Tracker MVP around ingestion, diffs, alerts, and operational obse
   - `./.venv/bin/pytest -q`
   - `npm run build`
 - Next step: push the dispatch-policy commit, then continue toward staging deploy readiness checks.
+
+## 2026-04-24 18:49 UTC
+- Completed Railway staging deployment for `fdd-tracker-staging` after fixing Clerk runtime envs and start command wiring.
+- Set valid staging env vars for Clerk publishable key (`CLERK_PUBLISHABLE_KEY` and `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`) so middleware/runtime no longer crashes on auth bootstrap.
+- Switched Railway start command to `npm start`; deploy `1780946b-d087-4a09-ba74-4d733ce48b06` reached `SUCCESS` and logs show `next start` ready.
+- Next step: spot-check the live staging app and only touch code if a real runtime gap appears.
