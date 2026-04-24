@@ -2847,8 +2847,6 @@ def build_digest_preview_all_summary_packet(
 
 
 def write_digest_outbox(payload: DigestPayload, outbox_path: str | None = None, run_id: str | None = None) -> str:
-    path = Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl")
-    path.parent.mkdir(parents=True, exist_ok=True)
     row = {
         "email": payload.email,
         "unread_count": payload.unread_count,
@@ -2858,6 +2856,12 @@ def write_digest_outbox(payload: DigestPayload, outbox_path: str | None = None, 
         "queued_at": _now_iso(),
         "run_id": run_id,
     }
+    return write_outbox_row(row=row, outbox_path=outbox_path)
+
+
+def write_outbox_row(row: dict, outbox_path: str | None = None) -> str:
+    path = Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl")
+    path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(row) + "\n")
     return str(path)

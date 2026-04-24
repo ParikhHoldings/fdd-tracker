@@ -67,3 +67,17 @@ Harden the FDD Tracker MVP around ingestion, diffs, alerts, and operational obse
   - `./.venv/bin/pytest -q`
   - `npm run build`
 - Next step: keep moving on delivery/ops hardening by adding provider-ready dispatch adapters for buyer-report envelopes.
+
+## 2026-04-24 15:15 UTC
+- Attempted required Claude Code path for heavy build (`cd /project && claude --permission-mode bypassPermissions --print ...`); blocked again by root security restriction on bypassPermissions.
+- Shipped buyer-report outbox queueing for delivery envelopes:
+  - Added generic `write_outbox_row` service helper and routed digest outbox writes through it.
+  - Added POST `/buyer-reports/comparison-brief/delivery-envelope/queue` to create a buyer-report envelope and append a dispatch-ready outbox row (`kind=buyer-report-envelope`) with metadata/run_id.
+  - Extended delivery-envelope options surfaces to expose queue endpoint.
+  - Added API regression coverage for queue success path + invalid channel guard and outbox visibility.
+  - Updated README runbook with queue curl example.
+- Verified with:
+  - `./.venv/bin/pytest -q tests/test_api.py -k 'buyer_report_comparison_brief_options_and_exports'`
+  - `./.venv/bin/pytest -q`
+  - `npm run build`
+- Next step: add dispatch policy routing by channel (`email` via provider, `telegram/slack` as explicit manual/adapter-required) so queue rows can be processed safely without ambiguity.

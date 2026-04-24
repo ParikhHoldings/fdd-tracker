@@ -361,6 +361,7 @@ def test_buyer_report_comparison_brief_options_and_exports():
     delivery_options_data = delivery_options.json()
     assert delivery_options_data["defaults"]["channel"] == "telegram"
     assert delivery_options_data["constraints"]["channel"]["enum"] == ["email", "telegram", "slack"]
+    assert "/buyer-reports/comparison-brief/delivery-envelope/queue" in delivery_options_data["surfaces"]["queue"]
 
     delivery = client.get(
         f"/buyer-reports/comparison-brief/delivery-envelope?email={email}&left_slug={left}&right_slug={right}&channel=telegram&template_variant=executive&max_chars=220"
@@ -380,6 +381,44 @@ def test_buyer_report_comparison_brief_options_and_exports():
     )
     assert delivery_email.status_code == 200
     assert delivery_email.json()["envelope"]["delivery_metadata"]["delivery_mode"] == "email"
+
+    queue = client.post(
+        "/buyer-reports/comparison-brief/delivery-envelope/queue",
+        json={
+            "email": email,
+            "left_slug": left,
+            "right_slug": right,
+            "channel": "email",
+            "template_variant": "executive",
+            "run_id": "buyer-queue-test",
+        },
+    )
+    assert queue.status_code == 200
+    queue_data = queue.json()
+    assert queue_data["queued"] is True
+    assert queue_data["run_id"] == "buyer-queue-test"
+    assert queue_data["outbox_row"]["kind"] == "buyer-report-envelope"
+    assert queue_data["outbox_row"]["channel"] == "email"
+    assert queue_data["outbox_row"]["metadata"]["dispatch_ready"] is True
+
+    outbox = client.get("/alerts/outbox?limit=20")
+    assert outbox.status_code == 200
+    outbox_items = outbox.json()["items"]
+    assert any(item.get("run_id") == "buyer-queue-test" for item in outbox_items)
+
+    queue_invalid = client.post(
+        "/buyer-reports/comparison-brief/delivery-envelope/queue",
+        json={
+            "email": email,
+            "left_slug": left,
+            "right_slug": right,
+            "channel": "fax",
+            "template_variant": "executive",
+        },
+    )
+    assert queue_invalid.status_code == 200
+    assert queue_invalid.json()["queued"] is False
+    assert queue_invalid.json()["error"] == "unsupported_channel"
 
 
 def test_create_watchlist_idempotency():

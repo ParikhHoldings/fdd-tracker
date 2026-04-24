@@ -7,7 +7,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from fdd_tracker.db import ensure_db
 from fdd_tracker.models import Filing, HealthSignal
-from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_all_summary_packet, build_digest_preview_packet, build_digest_previews_all_packet, build_digest_previews_for_all_emails, build_latest_run_incident_export_packet, build_latest_run_incident_payload, build_provider_catalog_options_packet, build_provider_details_options_packet, build_provider_health_options_packet, build_provider_health_summary_options_packet, build_provider_health_summary_packet, build_provider_recommendations_options_packet, build_provider_recommendations_packet, build_run_incident_export_packet, build_run_incident_payload, build_weekly_brief, build_weekly_brief_all_options_packet, build_weekly_brief_options_packet, build_weekly_brief_packet, build_weekly_briefs_all_packet, build_weekly_briefs_all_summary_packet, build_weekly_briefs_for_all_emails, dispatch_outbox, enforce_live_dispatch_gate, get_alerts_cron_options, get_alerts_cron_preflight, get_alerts_cron_status, get_cron_history_options, get_digest_preview_all_options, get_digest_preview_options, get_digest_run_options, get_dispatch_provider_catalog, get_integrity_dashboard_snapshot, get_latest_cron_history_entry, get_latest_run_id, get_latest_run_integrity_issue_details, get_latest_run_integrity_report, get_outbox_dispatch_options, get_outbox_retry_failed_options, get_provider_catalog_options, get_provider_details, get_provider_details_options, get_provider_health_details, get_provider_health_options, get_provider_health_summary_options, get_provider_recommendations, get_provider_recommendations_options, get_provider_smoke_test_options, get_weekly_brief_all_options, get_weekly_brief_options, list_provider_health, get_retention_prune_options, get_run_artifact_summary, get_run_integrity_issue_details, get_run_integrity_report, list_cron_history, list_failing_run_integrity_reports, list_failed_outbox, list_latest_run_events, list_outbox, list_recent_run_integrity_reports, list_run_events, list_sent_outbox, prune_alert_artifacts, recover_alerts_cron_lock, render_digest_preview_all_summary_csv, render_digest_preview_all_summary_markdown, render_digest_preview_all_summary_telegram_chunks, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, render_digest_previews_all_csv, render_digest_previews_all_markdown, render_digest_previews_all_telegram_chunks, render_integrity_dashboard_markdown, render_integrity_dashboard_telegram_chunks, render_latest_run_events_csv, render_latest_run_incident_csv, render_latest_run_incident_markdown, render_latest_run_incident_telegram_chunks, render_latest_run_integrity_issues_csv, render_latest_run_integrity_issues_markdown, render_latest_run_integrity_issues_telegram_chunks, render_provider_catalog_options_csv, render_provider_catalog_options_markdown, render_provider_catalog_options_telegram_chunks, render_provider_details_options_csv, render_provider_details_options_markdown, render_provider_details_options_telegram_chunks, render_provider_health_options_csv, render_provider_health_options_markdown, render_provider_health_options_telegram_chunks, render_provider_health_recommendations_csv, render_provider_health_recommendations_markdown, render_provider_health_recommendations_telegram_chunks, render_provider_health_summary_csv, render_provider_health_summary_markdown, render_provider_health_summary_options_csv, render_provider_health_summary_options_markdown, render_provider_health_summary_options_telegram_chunks, render_provider_health_summary_telegram_chunks, render_provider_recommendations_csv, render_provider_recommendations_markdown, render_provider_recommendations_options_csv, render_provider_recommendations_options_markdown, render_provider_recommendations_options_telegram_chunks, render_provider_recommendations_telegram_chunks, render_run_events_csv, render_run_incident_csv, render_run_incident_markdown, render_run_incident_telegram_chunks, render_run_integrity_issues_csv, render_run_integrity_issues_markdown, render_run_integrity_issues_telegram_chunks, render_weekly_brief_all_options_csv, render_weekly_brief_all_options_markdown, render_weekly_brief_all_options_telegram_chunks, render_weekly_brief_csv, render_weekly_brief_markdown, render_weekly_brief_options_csv, render_weekly_brief_options_markdown, render_weekly_brief_options_telegram_chunks, render_weekly_briefs_all_csv, render_weekly_briefs_all_markdown, render_weekly_briefs_all_summary_csv, render_weekly_briefs_all_summary_markdown, render_weekly_briefs_all_summary_telegram_chunks, render_weekly_briefs_all_telegram_chunks, render_weekly_brief_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, run_provider_smoke_test, summarize_digest_previews_for_all_emails, summarize_integrity_trends, summarize_provider_health, summarize_provider_health_recommendations, summarize_recent_run_integrity, summarize_weekly_briefs_for_all_emails, build_provider_health_recommendations_packet
+from fdd_tracker.services.alerts import build_digest_preview, build_digest_preview_all_summary_packet, build_digest_preview_packet, build_digest_previews_all_packet, build_digest_previews_for_all_emails, build_latest_run_incident_export_packet, build_latest_run_incident_payload, build_provider_catalog_options_packet, build_provider_details_options_packet, build_provider_health_options_packet, build_provider_health_summary_options_packet, build_provider_health_summary_packet, build_provider_recommendations_options_packet, build_provider_recommendations_packet, build_run_incident_export_packet, build_run_incident_payload, build_weekly_brief, build_weekly_brief_all_options_packet, build_weekly_brief_options_packet, build_weekly_brief_packet, build_weekly_briefs_all_packet, build_weekly_briefs_all_summary_packet, build_weekly_briefs_for_all_emails, dispatch_outbox, enforce_live_dispatch_gate, get_alerts_cron_options, get_alerts_cron_preflight, get_alerts_cron_status, get_cron_history_options, get_digest_preview_all_options, get_digest_preview_options, get_digest_run_options, get_dispatch_provider_catalog, get_integrity_dashboard_snapshot, get_latest_cron_history_entry, get_latest_run_id, get_latest_run_integrity_issue_details, get_latest_run_integrity_report, get_outbox_dispatch_options, get_outbox_retry_failed_options, get_provider_catalog_options, get_provider_details, get_provider_details_options, get_provider_health_details, get_provider_health_options, get_provider_health_summary_options, get_provider_recommendations, get_provider_recommendations_options, get_provider_smoke_test_options, get_weekly_brief_all_options, get_weekly_brief_options, list_provider_health, get_retention_prune_options, get_run_artifact_summary, get_run_integrity_issue_details, get_run_integrity_report, list_cron_history, list_failing_run_integrity_reports, list_failed_outbox, list_latest_run_events, list_outbox, list_recent_run_integrity_reports, list_run_events, list_sent_outbox, prune_alert_artifacts, recover_alerts_cron_lock, render_digest_preview_all_summary_csv, render_digest_preview_all_summary_markdown, render_digest_preview_all_summary_telegram_chunks, render_digest_preview_csv, render_digest_preview_markdown, render_digest_preview_telegram_chunks, render_digest_previews_all_csv, render_digest_previews_all_markdown, render_digest_previews_all_telegram_chunks, render_integrity_dashboard_markdown, render_integrity_dashboard_telegram_chunks, render_latest_run_events_csv, render_latest_run_incident_csv, render_latest_run_incident_markdown, render_latest_run_incident_telegram_chunks, render_latest_run_integrity_issues_csv, render_latest_run_integrity_issues_markdown, render_latest_run_integrity_issues_telegram_chunks, render_provider_catalog_options_csv, render_provider_catalog_options_markdown, render_provider_catalog_options_telegram_chunks, render_provider_details_options_csv, render_provider_details_options_markdown, render_provider_details_options_telegram_chunks, render_provider_health_options_csv, render_provider_health_options_markdown, render_provider_health_options_telegram_chunks, render_provider_health_recommendations_csv, render_provider_health_recommendations_markdown, render_provider_health_recommendations_telegram_chunks, render_provider_health_summary_csv, render_provider_health_summary_markdown, render_provider_health_summary_options_csv, render_provider_health_summary_options_markdown, render_provider_health_summary_options_telegram_chunks, render_provider_health_summary_telegram_chunks, render_provider_recommendations_csv, render_provider_recommendations_markdown, render_provider_recommendations_options_csv, render_provider_recommendations_options_markdown, render_provider_recommendations_options_telegram_chunks, render_provider_recommendations_telegram_chunks, render_run_events_csv, render_run_incident_csv, render_run_incident_markdown, render_run_incident_telegram_chunks, render_run_integrity_issues_csv, render_run_integrity_issues_markdown, render_run_integrity_issues_telegram_chunks, render_weekly_brief_all_options_csv, render_weekly_brief_all_options_markdown, render_weekly_brief_all_options_telegram_chunks, render_weekly_brief_csv, render_weekly_brief_markdown, render_weekly_brief_options_csv, render_weekly_brief_options_markdown, render_weekly_brief_options_telegram_chunks, render_weekly_briefs_all_csv, render_weekly_briefs_all_markdown, render_weekly_briefs_all_summary_csv, render_weekly_briefs_all_summary_markdown, render_weekly_briefs_all_summary_telegram_chunks, render_weekly_briefs_all_telegram_chunks, render_weekly_brief_telegram_chunks, retry_failed_outbox, run_alerts_cron_tick, run_digest_for_all_emails, run_digest_for_email, run_provider_smoke_test, summarize_digest_previews_for_all_emails, summarize_integrity_trends, summarize_provider_health, summarize_provider_health_recommendations, summarize_recent_run_integrity, summarize_weekly_briefs_for_all_emails, build_provider_health_recommendations_packet, write_outbox_row
 from fdd_tracker.services.ingest import refresh_state_source_cache, run_ingestion
 from fdd_tracker.services.store import (
     build_health_signal_summary_packet,
@@ -80,6 +80,21 @@ class HealthSignalIn(BaseModel):
 
 class IngestRequest(BaseModel):
     states: list[str] | None = None
+
+
+class BuyerReportDeliveryQueueIn(BaseModel):
+    email: EmailStr
+    left_slug: str
+    right_slug: str
+    channel: str = "telegram"
+    template_variant: str = "executive"
+    days: int = 7
+    max_alerts: int = 200
+    comparison_limit: int = 200
+    include_health_signals: bool = False
+    health_limit: int = 200
+    max_chars: int = 2500
+    run_id: str | None = None
 
 
 @app.get("/health")
@@ -701,6 +716,7 @@ def buyer_report_comparison_brief_delivery_envelope_options() -> dict:
         "surfaces": {
             "options": "/buyer-reports/comparison-brief/delivery-envelope/options",
             "delivery_envelope": "/buyer-reports/comparison-brief/delivery-envelope",
+            "queue": "/buyer-reports/comparison-brief/delivery-envelope/queue",
         },
     }
 
@@ -745,6 +761,57 @@ def buyer_report_comparison_brief_delivery_envelope(
             "health_limit": payload["health_limit"],
         },
         "envelope": envelope,
+    }
+
+
+@app.post("/buyer-reports/comparison-brief/delivery-envelope/queue")
+def buyer_report_comparison_brief_delivery_envelope_queue(payload: BuyerReportDeliveryQueueIn) -> dict:
+    channel = payload.channel.strip().lower()
+    template_variant = payload.template_variant.strip().lower()
+
+    if channel not in {"email", "telegram", "slack"}:
+        return {"queued": False, "error": "unsupported_channel", "supported": ["email", "telegram", "slack"]}
+    if template_variant not in {"executive", "analyst", "concise"}:
+        return {"queued": False, "error": "unsupported_template_variant", "supported": ["executive", "analyst", "concise"]}
+
+    bundle = buyer_report_comparison_brief(
+        email=payload.email,
+        left_slug=payload.left_slug,
+        right_slug=payload.right_slug,
+        days=max(1, min(payload.days, 30)),
+        max_alerts=max(1, min(payload.max_alerts, 1000)),
+        comparison_limit=max(1, min(payload.comparison_limit, 500)),
+        include_health_signals=payload.include_health_signals,
+        health_limit=max(1, min(payload.health_limit, 500)),
+        max_chars=max(200, min(payload.max_chars, 10000)),
+    )
+    envelope = _build_buyer_report_delivery_envelope(
+        payload=bundle,
+        template_variant=template_variant,
+        channel=channel,
+        max_chars=max(200, min(payload.max_chars, 10000)),
+    )
+
+    run_id = payload.run_id or f"buyer-report-{int(datetime.now(timezone.utc).timestamp())}"
+    outbox_row = {
+        "kind": "buyer-report-envelope",
+        "channel": channel,
+        "template_variant": template_variant,
+        "email": bundle["email"],
+        "subject": envelope["subject"],
+        "body": envelope["content"],
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "queued_at": datetime.now(timezone.utc).isoformat(),
+        "run_id": run_id,
+        "metadata": envelope["delivery_metadata"],
+    }
+    outbox_path = write_outbox_row(row=outbox_row)
+
+    return {
+        "queued": True,
+        "run_id": run_id,
+        "outbox_path": outbox_path,
+        "outbox_row": outbox_row,
     }
 
 

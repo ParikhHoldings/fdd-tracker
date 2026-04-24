@@ -93,8 +93,11 @@ curl "http://localhost:8000/buyer-reports/comparison-brief/templates?email=you@e
 curl "http://localhost:8000/buyer-reports/comparison-brief/templates/packet?email=you@example.com&left_slug=chick-fil-a&right_slug=orangetheory&template_variant=concise&max_chars=2500"
 curl "http://localhost:8000/buyer-reports/comparison-brief/delivery-envelope/options"
 curl "http://localhost:8000/buyer-reports/comparison-brief/delivery-envelope?email=you@example.com&left_slug=chick-fil-a&right_slug=orangetheory&channel=telegram&template_variant=executive&max_chars=2500"
+curl -X POST "http://localhost:8000/buyer-reports/comparison-brief/delivery-envelope/queue" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","left_slug":"chick-fil-a","right_slug":"orangetheory","channel":"email","template_variant":"executive"}'
 ```
-Returns side-by-side insights plus comparison signals (`higher_recent_risk`, `change_volume_delta`, and shared categories), with markdown/telegram/csv/packet export surfaces and options contract endpoints. The buyer report bundle endpoint combines weekly brief + comparison + export packet for downstream delivery, plus deterministic template variants (`executive`, `analyst`, `concise`) for buyer-facing distribution. Delivery-envelope surfaces generate channel-ready payloads (`email`, `telegram`, `slack`) with deterministic chunking and dispatch metadata.
+Returns side-by-side insights plus comparison signals (`higher_recent_risk`, `change_volume_delta`, and shared categories), with markdown/telegram/csv/packet export surfaces and options contract endpoints. The buyer report bundle endpoint combines weekly brief + comparison + export packet for downstream delivery, plus deterministic template variants (`executive`, `analyst`, `concise`) for buyer-facing distribution. Delivery-envelope surfaces generate channel-ready payloads (`email`, `telegram`, `slack`) with deterministic chunking and dispatch metadata, and can queue dispatch-ready envelope rows to outbox.
 
 **Watchlist alerts feed:**
 ```bash
