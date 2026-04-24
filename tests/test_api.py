@@ -375,12 +375,14 @@ def test_buyer_report_comparison_brief_options_and_exports():
     assert delivery_data["envelope"]["telegram"]["chunks_with_index"][0].startswith("[1/")
     assert delivery_data["envelope"]["delivery_metadata"]["dispatch_ready"] is True
     assert delivery_data["envelope"]["delivery_metadata"]["delivery_mode"] == "message"
+    assert delivery_data["envelope"]["delivery_metadata"]["dispatch_policy"]["route"] == "manual_adapter_required"
 
     delivery_email = client.get(
         f"/buyer-reports/comparison-brief/delivery-envelope?email={email}&left_slug={left}&right_slug={right}&channel=email&template_variant=concise"
     )
     assert delivery_email.status_code == 200
     assert delivery_email.json()["envelope"]["delivery_metadata"]["delivery_mode"] == "email"
+    assert delivery_email.json()["envelope"]["delivery_metadata"]["dispatch_policy"]["route"] == "provider_email"
 
     queue = client.post(
         "/buyer-reports/comparison-brief/delivery-envelope/queue",
@@ -400,6 +402,7 @@ def test_buyer_report_comparison_brief_options_and_exports():
     assert queue_data["outbox_row"]["kind"] == "buyer-report-envelope"
     assert queue_data["outbox_row"]["channel"] == "email"
     assert queue_data["outbox_row"]["metadata"]["dispatch_ready"] is True
+    assert queue_data["outbox_row"]["dispatch_policy"]["route"] == "provider_email"
 
     outbox = client.get("/alerts/outbox?limit=20")
     assert outbox.status_code == 200

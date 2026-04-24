@@ -87,3 +87,17 @@ Harden the FDD Tracker MVP around ingestion, diffs, alerts, and operational obse
 - Normalized outbox row writes and sent/failed outbox filters to use lower-cased emails for deterministic lookup.
 - Verified with `./.venv/bin/pytest -q` and a direct mixed-case email smoke check against watchlist, digest preview, outbox, and smoke-test helpers.
 - Next step: keep the dispatch-policy work moving, now with email handling aligned across read/write surfaces.
+
+## 2026-04-24 18:36 UTC
+- Attempted required Claude Code path (`cd /project && claude --permission-mode bypassPermissions --print ...`); still blocked by root security restriction on bypass permissions.
+- Shipped buyer-report dispatch-policy routing:
+  - Added deterministic outbox-row dispatch policy metadata.
+  - Email buyer-report envelopes are provider-dispatchable through existing outbox dispatch.
+  - Telegram/slack buyer-report envelopes are explicitly marked `manual_adapter_required` and moved to failed/manual bucket instead of being sent through email providers.
+  - Queue responses and delivery metadata now expose the dispatch policy.
+  - README runbook documents the channel routing behavior.
+- Verified with:
+  - `./.venv/bin/pytest -q tests/test_alerts_service.py::test_dispatch_outbox_routes_buyer_report_channels_by_policy tests/test_alerts_service.py::test_dispatch_outbox_includes_delivery_metadata tests/test_alerts_service.py::test_dispatch_outbox_failure_bucket_and_retry tests/test_api.py::test_buyer_report_comparison_brief_options_and_exports`
+  - `./.venv/bin/pytest -q`
+  - `npm run build`
+- Next step: push the dispatch-policy commit, then continue toward staging deploy readiness checks.

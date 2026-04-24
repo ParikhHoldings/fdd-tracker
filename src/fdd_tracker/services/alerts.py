@@ -2874,11 +2874,35 @@ def write_digest_outbox(payload: DigestPayload, outbox_path: str | None = None, 
     return write_outbox_row(row=row, outbox_path=outbox_path)
 
 
+def get_outbox_row_dispatch_policy(row: dict) -> dict:
+    """Return deterministic dispatch policy for queued outbox rows."""
+    kind = row.get("kind") or "alert-digest"
+    channel = (row.get("channel") or "email").strip().lower() if isinstance(row.get("channel"), str) else "email"
+
+    if kind == "buyer-report-envelope" and channel in {"telegram", "slack"}:
+        return {
+            "dispatchable": False,
+            "route": "manual_adapter_required",
+            "reason": f"{channel}-adapter-required",
+            "channel": channel,
+            "allowed_live_providers": [],
+        }
+
+    return {
+        "dispatchable": True,
+        "route": "provider_email",
+        "reason": "provider-dispatchable",
+        "channel": channel,
+        "allowed_live_providers": ["resend"],
+    }
+
+
 def write_outbox_row(row: dict, outbox_path: str | None = None) -> str:
     path = Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl")
     path.parent.mkdir(parents=True, exist_ok=True)
     if isinstance(row.get("email"), str):
         row = {**row, "email": _normalize_email(row["email"])}
+    row = {**row, "dispatch_policy": row.get("dispatch_policy") or get_outbox_row_dispatch_policy(row)}
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(row) + "\n")
     return str(path)
@@ -3930,11 +3954,19 @@ def dispatch_outbox(
 
     dispatched_lines: list[str] = []
     failed_lines: list[str] = []
+    skipped_manual_lines: list[str] = []
     for line in to_dispatch:
         row = json.loads(line)
         row["delivery_provider"] = provider_name
         row["delivery_mode"] = "dry_run" if dry_run else "live"
-        if row.get("force_fail"):
+        row["dispatch_policy"] = row.get("dispatch_policy") or get_outbox_row_dispatch_policy(row)
+        if not row["dispatch_policy"].get("dispatchable", True):
+            row["delivery_status"] = "manual_adapter_required"
+            row["failure_reason"] = row["dispatch_policy"].get("reason", "manual-adapter-required")
+            row["failed_at"] = _now_iso()
+            failed_lines.append(json.dumps(row) + "\n")
+            skipped_manual_lines.append(json.dumps(row) + "\n")
+        elif row.get("force_fail"):
             row["failure_reason"] = row.get("failure_reason", "forced failure")
             row["failed_at"] = _now_iso()
             failed_lines.append(json.dumps(row) + "\n")
@@ -3974,6 +4006,7 @@ def dispatch_outbox(
     return {
         "dispatched": len(dispatched_lines),
         "failed": len(failed_lines),
+        "skipped_manual": len(skipped_manual_lines),
         "remaining": len(remaining),
         "sent_path": str(sent),
         "failed_path": str(failed),

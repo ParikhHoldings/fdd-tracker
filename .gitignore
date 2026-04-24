@@ -34,3 +34,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# python/runtime artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+/data/
+*.bak.audit-*

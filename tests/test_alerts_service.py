@@ -915,6 +915,57 @@ def test_dispatch_outbox_includes_delivery_metadata(tmp_path):
     assert sent_row["delivery_status"] == "simulated_sent"
     assert "provider_message_id" in sent_row
 
+def test_dispatch_outbox_routes_buyer_report_channels_by_policy(tmp_path):
+    outbox = tmp_path / "alert_outbox.jsonl"
+    sent = tmp_path / "alert_outbox_sent.jsonl"
+    failed = tmp_path / "alert_outbox_failed.jsonl"
+    rows = [
+        {
+            "kind": "buyer-report-envelope",
+            "channel": "email",
+            "email": "Buyer@Example.COM",
+            "subject": "Email buyer brief",
+            "body": "email body",
+            "generated_at": "2026-01-01T00:00:00Z",
+            "run_id": "buyer-email",
+        },
+        {
+            "kind": "buyer-report-envelope",
+            "channel": "telegram",
+            "email": "buyer@example.com",
+            "subject": "Telegram buyer brief",
+            "body": "telegram body",
+            "generated_at": "2026-01-01T00:00:00Z",
+            "run_id": "buyer-telegram",
+        },
+    ]
+    outbox.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
+
+    result = dispatch_outbox(
+        limit=10,
+        outbox_path=str(outbox),
+        sent_path=str(sent),
+        failed_path=str(failed),
+        dry_run=True,
+        provider="noop",
+    )
+
+    assert result["dispatched"] == 1
+    assert result["failed"] == 1
+    assert result["skipped_manual"] == 1
+    assert result["remaining"] == 0
+
+    sent_row = json.loads(sent.read_text(encoding="utf-8").strip())
+    assert sent_row["run_id"] == "buyer-email"
+    assert sent_row["dispatch_policy"]["route"] == "provider_email"
+    assert sent_row["delivery_status"] == "simulated_sent"
+
+    failed_row = json.loads(failed.read_text(encoding="utf-8").strip())
+    assert failed_row["run_id"] == "buyer-telegram"
+    assert failed_row["delivery_status"] == "manual_adapter_required"
+    assert failed_row["dispatch_policy"]["route"] == "manual_adapter_required"
+    assert failed_row["failure_reason"] == "telegram-adapter-required"
+
 
 def test_validate_dispatch_provider_catalog_and_rejection():
     from fdd_tracker.services.alerts import get_dispatch_provider_catalog, validate_dispatch_provider
