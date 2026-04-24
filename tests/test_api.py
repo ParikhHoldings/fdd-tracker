@@ -465,6 +465,64 @@ def test_delete_watchlist_endpoint():
     assert r2.json()["deleted"] == 0
 
 
+def test_watchlist_and_alert_endpoints_case_normalized():
+    email = f"Casey-{uuid4().hex[:8]}@Example.COM"
+    franchise_slug = " Chick-Fil-A "
+
+    create = client.post("/watchlists", json={"email": email, "franchise_slug": franchise_slug})
+    assert create.status_code == 200
+    create_data = create.json()
+    assert create_data["created"] is True
+    assert create_data["item"]["email"] == email.strip().lower()
+    assert create_data["item"]["franchise_slug"] == "chick-fil-a"
+
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high")
+    seed_change_summary("CHICK-FIL-A", ["litigation"], risk_level="medium")
+
+    alerts = client.get(
+        "/alerts",
+        params={"email": f" {email.upper()} ", "franchise_slug": " CHICK-FIL-A ", "limit": 10},
+    )
+    assert alerts.status_code == 200
+    alerts_data = alerts.json()
+    assert alerts_data["email"] == f"{email.split('@')[0].upper()}@example.com"
+    assert len(alerts_data["alerts"]) >= 2
+    assert all(item["franchise_slug"] == "chick-fil-a" for item in alerts_data["alerts"])
+
+    first = alerts_data["alerts"][0]
+    mark = client.post(
+        "/alerts/read",
+        json={
+            "email": email,
+            "franchise_slug": " CHICK-FIL-A ",
+            "generated_at": first["generated_at"],
+        },
+    )
+    assert mark.status_code == 200
+    assert mark.json()["marked"] is True
+
+    unread = client.get("/alerts/unread-count", params={"email": f" {email.lower()} "})
+    assert unread.status_code == 200
+    assert unread.json()["unread_count"] >= 1
+
+    summary = client.get("/alerts/summary", params={"email": email.upper()})
+    assert summary.status_code == 200
+    summary_data = summary.json()
+    assert summary_data["total_alerts"] >= 2
+    assert summary_data["unread_alerts"] >= 1
+
+    bulk = client.post(
+        "/alerts/read/franchise",
+        params={"email": email.upper(), "franchise_slug": " chick-fil-a "},
+    )
+    assert bulk.status_code == 200
+    assert bulk.json()["marked"] >= 1
+
+    unread_after = client.get("/alerts/unread-count", params={"email": email})
+    assert unread_after.status_code == 200
+    assert unread_after.json()["unread_count"] == 0
+
+
 def test_ingest_run_returns_summary_keys():
     r = client.post("/ingest/run", json={})
     assert r.status_code == 200

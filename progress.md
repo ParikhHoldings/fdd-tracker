@@ -146,3 +146,8 @@ Keep the FDD Tracker staging deployment healthy and verify the app boots cleanly
   - `/buyer-reports/comparison-brief/options` → 200
 - Updated README with frontend/API staging URLs and API smoke-check commands.
 - Next step: mark FDD Tracker ready for Nathan review; both frontend and API staging are live.
+
+## 2026-04-24 15:42 UTC
+- Re-verified the new mixed-case watchlist/alert regression directly with `./.venv/bin/pytest -q tests/test_api.py -k case_normalized`.
+- Result: passing.
+- No new code changes were needed for this check; the existing API hardening coverage still holds.
