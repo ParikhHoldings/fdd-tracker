@@ -47,3 +47,9 @@ Harden the FDD Tracker MVP around ingestion, diffs, alerts, and operational obse
   - Case-insensitive watchlist/email normalization + digest/telegram metadata consistency fixes.
   - Removed duplicated integrity-issue renderer implementations and expanded regression coverage.
 - Next step: commit + push this verified hardening batch and update builder state/reporting.
+
+## 2026-04-24 10:40 UTC
+- Cleaned generated runtime artifacts from the repo working tree (`__pycache__` directories and `data/`).
+- Verified the hardening commit is already on `staging` as `71a004b` and matches `origin/staging`.
+- Confirmed the repo is clean with `git status -sb` showing `## staging...origin/staging`.
+- Builder state/reporting can now treat the verified FDD hardening batch as shipped.
