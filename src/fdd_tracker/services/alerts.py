@@ -2271,6 +2271,8 @@ def render_digest_previews_all_telegram_chunks(
         max_alerts=max_alerts,
         unread_only=unread_only,
         min_unread=min_unread,
+        order_by=order_by,
+        order_dir=order_dir,
         limit=limit,
         offset=offset,
         db_path=db_path,
@@ -2306,8 +2308,8 @@ def render_digest_previews_all_telegram_chunks(
         "max_alerts": max_alerts,
         "unread_only": unread_only,
         "min_unread": max(0, min(min_unread, 10_000)),
-        "limit": limit,
-        "offset": max(0, offset),
+        "limit": payload.get("limit"),
+        "offset": payload.get("offset", 0),
         "has_more": payload.get("has_more", False),
         "next_offset": payload.get("next_offset"),
         "prev_offset": payload.get("prev_offset"),
@@ -2618,6 +2620,8 @@ def render_digest_preview_all_summary_telegram_chunks(
         max_alerts=max_alerts,
         unread_only=unread_only,
         min_unread=min_unread,
+        order_by=order_by,
+        order_dir=order_dir,
         limit=limit,
         offset=offset,
         top_n=top_n,
@@ -2654,8 +2658,8 @@ def render_digest_preview_all_summary_telegram_chunks(
         "max_alerts": max_alerts,
         "unread_only": unread_only,
         "min_unread": max(0, min(min_unread, 10_000)),
-        "limit": limit,
-        "offset": max(0, offset),
+        "limit": summary.get("limit"),
+        "offset": summary.get("offset", 0),
         "has_more": summary.get("has_more", False),
         "next_offset": summary.get("next_offset"),
         "prev_offset": summary.get("prev_offset"),
@@ -4864,145 +4868,6 @@ def get_latest_run_integrity_issue_details(
             failed_path=failed_path,
         ),
     }
-
-
-def render_run_integrity_issues_markdown(
-    run_id: str,
-    history_path: str | None = None,
-    sent_path: str | None = None,
-    failed_path: str | None = None,
-) -> str:
-    details = get_run_integrity_issue_details(
-        run_id=run_id,
-        history_path=history_path,
-        sent_path=sent_path,
-        failed_path=failed_path,
-    )
-    if details.get("ok"):
-        return "\n".join(
-            [
-                f"# Run Integrity Issues — {run_id}",
-                "",
-                "- Status: OK",
-                "- Issue count: 0",
-            ]
-        )
-
-    lines = [
-        f"# Run Integrity Issues — {run_id}",
-        "",
-        "- Status: FAILING",
-        f"- Issue count: {details.get('issue_count', 0)}",
-        "",
-        "## Issues",
-    ]
-    for idx, issue in enumerate(details.get("issues", []), start=1):
-        lines.extend(
-            [
-                f"{idx}. {issue.get('issue')} (severity={issue.get('severity')})",
-                f"   action: {issue.get('recommended_action')}",
-            ]
-        )
-    return "\n".join(lines)
-
-
-def render_run_integrity_issues_telegram_chunks(
-    run_id: str,
-    history_path: str | None = None,
-    sent_path: str | None = None,
-    failed_path: str | None = None,
-    max_chars: int = 3500,
-) -> dict:
-    max_chars = max(100, min(max_chars, 4096))
-    markdown = render_run_integrity_issues_markdown(
-        run_id=run_id,
-        history_path=history_path,
-        sent_path=sent_path,
-        failed_path=failed_path,
-    )
-    chunks: list[str] = []
-    current: list[str] = []
-    current_len = 0
-    for line in markdown.split("\n"):
-        if len(line) > max_chars:
-            if current:
-                chunks.append("\n".join(current))
-                current = []
-                current_len = 0
-            for i in range(0, len(line), max_chars):
-                chunks.append(line[i : i + max_chars])
-            continue
-        line_len = len(line) + (1 if current else 0)
-        if current and (current_len + line_len) > max_chars:
-            chunks.append("\n".join(current))
-            current = [line]
-            current_len = len(line)
-            continue
-        current.append(line)
-        current_len += line_len
-
-    if current:
-        chunks.append("\n".join(current))
-
-    indexed_chunks = [f"[{idx}/{len(chunks)}]\n{chunk}" for idx, chunk in enumerate(chunks, start=1)]
-
-    return {
-        "run_id": run_id,
-        "total_chars": len(markdown),
-        "max_chars": max_chars,
-        "chunk_count": len(chunks),
-        "chunks": chunks,
-        "chunks_with_index": indexed_chunks,
-    }
-
-
-def render_latest_run_integrity_issues_markdown(
-    history_path: str | None = None,
-    sent_path: str | None = None,
-    failed_path: str | None = None,
-) -> dict:
-    run_id = get_latest_run_id(history_path=history_path)
-    if not run_id:
-        return {"exists": False, "run_id": None, "markdown": ""}
-    return {
-        "exists": True,
-        "run_id": run_id,
-        "markdown": render_run_integrity_issues_markdown(
-            run_id=run_id,
-            history_path=history_path,
-            sent_path=sent_path,
-            failed_path=failed_path,
-        ),
-    }
-
-
-def render_latest_run_integrity_issues_telegram_chunks(
-    history_path: str | None = None,
-    sent_path: str | None = None,
-    failed_path: str | None = None,
-    max_chars: int = 3500,
-) -> dict:
-    run_id = get_latest_run_id(history_path=history_path)
-    if not run_id:
-        return {
-            "exists": False,
-            "run_id": None,
-            "total_chars": 0,
-            "max_chars": max(100, min(max_chars, 4096)),
-            "chunk_count": 0,
-            "chunks": [],
-            "chunks_with_index": [],
-        }
-
-    payload = render_run_integrity_issues_telegram_chunks(
-        run_id=run_id,
-        history_path=history_path,
-        sent_path=sent_path,
-        failed_path=failed_path,
-        max_chars=max_chars,
-    )
-    payload["exists"] = True
-    return payload
 
 
 def render_run_integrity_issues_csv(

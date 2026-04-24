@@ -237,3 +237,32 @@ class TestRefreshStateSourceCache:
                 rows = json.load(f)
             assert len(rows) == 2
             assert {r["state"] for r in rows} == {"CA", "IL"}
+
+    def test_refresh_state_source_cache_writes_deterministic_order(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_path = str(Path(tmpdir) / "state_filings.json")
+
+            ca_text = """
+            <rss><channel>
+              <item><title>Zeta CA</title><link>https://ca.example/zeta.pdf</link><filed_on>2026-04-05</filed_on></item>
+              <item><title>Alpha CA</title><link>https://ca.example/alpha.pdf</link><filed_on>2026-04-01</filed_on></item>
+            </channel></rss>
+            """
+            il_text = """
+            <feed>
+              <entry><company>Beta IL</company><link href=\"https://il.example/beta.pdf\"/><effective_date>04/02/2026</effective_date></entry>
+            </feed>
+            """
+
+            refresh_state_source_cache(
+                states=["CA", "IL"],
+                output_path=out_path,
+                ca_text=ca_text,
+                il_text=il_text,
+            )
+
+            with open(out_path, "r", encoding="utf-8") as f:
+                rows = json.load(f)
+
+            ordered_names = [row["franchise_name"] for row in rows]
+            assert ordered_names == ["Alpha CA", "Zeta CA", "Beta IL"]

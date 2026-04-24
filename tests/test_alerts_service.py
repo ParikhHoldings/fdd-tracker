@@ -136,7 +136,18 @@ def test_build_digest_previews_for_all_emails(tmp_path):
     assert "Ordering: email asc" in markdown
     assert "Top Unread Emails (1)" in markdown
 
-    telegram = render_digest_preview_all_summary_telegram_chunks(max_alerts=10, unread_only=False, min_unread=1, limit=1, offset=0, top_n=1, db_path=db, max_chars=200)
+    telegram = render_digest_preview_all_summary_telegram_chunks(
+        max_alerts=10,
+        unread_only=False,
+        min_unread=1,
+        order_by="unread_count",
+        order_dir="desc",
+        limit=1,
+        offset=0,
+        top_n=1,
+        db_path=db,
+        max_chars=200,
+    )
     assert telegram["chunk_count"] >= 1
     assert telegram["min_unread"] == 1
     assert telegram["limit"] == 1
@@ -149,6 +160,9 @@ def test_build_digest_previews_for_all_emails(tmp_path):
     assert "total_pages" in telegram
     assert "order_by" in telegram
     assert "order_dir" in telegram
+    assert telegram["order_by"] == "unread_count"
+    assert telegram["order_dir"] == "desc"
+    assert "Ordering: unread_count desc" in "\n".join(telegram["chunks"])
     assert telegram["top_n"] == 1
     assert telegram["chunks_with_index"][0].startswith("[1/")
 
@@ -171,7 +185,17 @@ def test_build_digest_previews_for_all_emails(tmp_path):
     assert "Min unread filter: 1" in all_markdown
     assert "Pagination: limit=1 offset=0" in all_markdown
 
-    all_telegram = render_digest_previews_all_telegram_chunks(max_alerts=10, unread_only=False, min_unread=1, limit=1, offset=0, db_path=db, max_chars=200)
+    all_telegram = render_digest_previews_all_telegram_chunks(
+        max_alerts=10,
+        unread_only=False,
+        min_unread=1,
+        order_by="unread_count",
+        order_dir="desc",
+        limit=1,
+        offset=0,
+        db_path=db,
+        max_chars=200,
+    )
     assert all_telegram["min_unread"] == 1
     assert all_telegram["limit"] == 1
     assert all_telegram["offset"] == 0
@@ -183,6 +207,9 @@ def test_build_digest_previews_for_all_emails(tmp_path):
     assert "total_pages" in all_telegram
     assert "order_by" in all_telegram
     assert "order_dir" in all_telegram
+    assert all_telegram["order_by"] == "unread_count"
+    assert all_telegram["order_dir"] == "desc"
+    assert "Ordering: unread_count desc" in "\n".join(all_telegram["chunks"])
     assert all_telegram["chunk_count"] >= 1
     assert all_telegram["chunks_with_index"][0].startswith("[1/")
 
@@ -196,6 +223,33 @@ def test_build_digest_previews_for_all_emails(tmp_path):
     assert "markdown" in all_packet
     assert "csv" in all_packet
     assert "telegram" in all_packet and all_packet["telegram"]["chunk_count"] >= 1
+
+    all_telegram_high_offset = render_digest_previews_all_telegram_chunks(
+        max_alerts=10,
+        unread_only=False,
+        min_unread=0,
+        order_by="email",
+        order_dir="asc",
+        limit=1,
+        offset=999,
+        db_path=db,
+        max_chars=200,
+    )
+    assert all_telegram_high_offset["offset"] == 2
+
+    summary_telegram_high_offset = render_digest_preview_all_summary_telegram_chunks(
+        max_alerts=10,
+        unread_only=False,
+        min_unread=0,
+        order_by="email",
+        order_dir="asc",
+        limit=1,
+        offset=999,
+        top_n=1,
+        db_path=db,
+        max_chars=200,
+    )
+    assert summary_telegram_high_offset["offset"] == 2
 
 
 def test_digest_preview_all_options_contract():

@@ -10,6 +10,7 @@ from fdd_tracker.services.store import (
     get_latest_filings,
     get_recent_changes,
     get_unread_alert_count,
+    get_watchlist_emails,
     get_watchlists,
     list_health_signals,
     mark_alert_read,
@@ -74,6 +75,28 @@ def test_get_watchlists_filter_by_email(tmp_path):
     a_items = get_watchlists(email="a@example.com", db_path=db)
     assert len(a_items) == 2
     assert all(item["email"] == "a@example.com" for item in a_items)
+
+
+def test_watchlist_email_is_normalized_and_idempotent_case_insensitive(tmp_path):
+    db = str(tmp_path / "test.db")
+
+    result1 = upsert_watchlist("User@Example.COM", "chick-fil-a", db_path=db)
+    result2 = upsert_watchlist("user@example.com", "chick-fil-a", db_path=db)
+
+    assert result1["created"] is True
+    assert result2["created"] is False
+    assert result1["id"] == result2["id"]
+    assert result1["email"] == "user@example.com"
+
+
+def test_get_watchlist_emails_dedupes_case_variants(tmp_path):
+    db = str(tmp_path / "test.db")
+    upsert_watchlist("First@Example.com", "chick-fil-a", db_path=db)
+    upsert_watchlist("first@example.com", "orangetheory", db_path=db)
+    upsert_watchlist("second@example.com", "chick-fil-a", db_path=db)
+
+    emails = get_watchlist_emails(db_path=db)
+    assert emails == ["first@example.com", "second@example.com"]
 
 
 def test_delete_watchlist(tmp_path):
@@ -141,6 +164,16 @@ def test_get_alert_feed_for_watchlist(tmp_path):
     assert alerts[0]["risk_level"] == "high"
     assert alerts[0]["categories"] == ["fees"]
     assert alerts[0]["read"] is False
+
+
+def test_alert_feed_lookup_is_case_insensitive_for_email(tmp_path):
+    db = str(tmp_path / "test.db")
+    upsert_watchlist("Alerts@Example.com", "chick-fil-a", db_path=db)
+    seed_change_summary("chick-fil-a", ["fees"], risk_level="high", db_path=db)
+
+    alerts = get_alert_feed("ALERTS@example.com", db_path=db)
+    assert len(alerts) == 1
+    assert alerts[0]["email"] == "alerts@example.com"
 
 
 def test_mark_alert_read_and_reflect_in_feed(tmp_path):

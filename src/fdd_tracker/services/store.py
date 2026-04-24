@@ -642,7 +642,7 @@ def get_watchlist_emails(db_path: str | None = None) -> list[str]:
     with get_conn(db_path) as conn:
         rows = conn.execute(
             """
-            SELECT DISTINCT email
+            SELECT DISTINCT LOWER(email) AS email
             FROM watchlists
             ORDER BY email ASC
             """

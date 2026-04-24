@@ -203,6 +203,18 @@ def refresh_state_source_cache(
         il_text=il_text,
     )
 
+    # Deterministic-first ordering for recurring cache refreshes.
+    # This keeps file diffs stable across cron/watchdog runs.
+    records = sorted(
+        records,
+        key=lambda r: (
+            r.state,
+            r.franchise_name.lower(),
+            r.filing_url,
+            r.filed_on or "",
+        ),
+    )
+
     # Convert dataclass records to dicts for JSON serialization
     records_dicts = [asdict(r) for r in records]
 
