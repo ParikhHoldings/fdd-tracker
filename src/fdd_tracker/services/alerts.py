@@ -18,6 +18,10 @@ ALL_WEEKLY_BRIEF_ORDER_BY_OPTIONS = ["email", "total_alerts", "unread_alerts"]
 ALL_WEEKLY_BRIEF_ORDER_DIR_OPTIONS = ["asc", "desc"]
 
 
+def _normalize_email(email: str) -> str:
+    return email.strip().lower()
+
+
 def get_digest_preview_options() -> dict:
     return {
         "constraints": {
@@ -1021,6 +1025,7 @@ def _build_digest_body(email: str, alerts: list[dict]) -> str:
 
 
 def build_digest_payload(email: str, max_alerts: int = 25, db_path: str | None = None) -> DigestPayload | None:
+    email = _normalize_email(email)
     alerts = get_alert_feed(email=email, limit=max_alerts, unread_only=True, db_path=db_path)
     if not alerts:
         return None
@@ -1037,6 +1042,7 @@ def build_digest_payload(email: str, max_alerts: int = 25, db_path: str | None =
 
 def build_digest_preview(email: str, max_alerts: int = 25, db_path: str | None = None) -> dict:
     """Build a deterministic digest preview payload without mutating outbox/read state."""
+    email = _normalize_email(email)
     payload = build_digest_payload(email=email, max_alerts=max_alerts, db_path=db_path)
     if payload is None:
         return {
@@ -1061,6 +1067,7 @@ def build_digest_preview(email: str, max_alerts: int = 25, db_path: str | None =
 
 
 def render_digest_preview_markdown(email: str, max_alerts: int = 25, db_path: str | None = None) -> str:
+    email = _normalize_email(email)
     preview = build_digest_preview(email=email, max_alerts=max_alerts, db_path=db_path)
     lines = [
         f"# Digest Preview — {email}",
@@ -1084,6 +1091,7 @@ def render_digest_preview_telegram_chunks(
     db_path: str | None = None,
     max_chars: int = 3500,
 ) -> dict:
+    email = _normalize_email(email)
     markdown = render_digest_preview_markdown(email=email, max_alerts=max_alerts, db_path=db_path)
     max_chars = max(100, min(max_chars, 4096))
 
@@ -1125,6 +1133,7 @@ def render_digest_preview_telegram_chunks(
 
 
 def render_digest_preview_csv(email: str, max_alerts: int = 25, db_path: str | None = None) -> str:
+    email = _normalize_email(email)
     preview = build_digest_preview(email=email, max_alerts=max_alerts, db_path=db_path)
     alerts = preview.get("alerts") or []
 
@@ -1180,6 +1189,7 @@ def build_digest_preview_packet(
     db_path: str | None = None,
     max_chars: int = 3500,
 ) -> dict:
+    email = _normalize_email(email)
     return {
         "email": email,
         "preview": build_digest_preview(email=email, max_alerts=max_alerts, db_path=db_path),
@@ -1201,6 +1211,7 @@ def build_weekly_brief(
     db_path: str | None = None,
 ) -> dict:
     """Summarize recent alert activity for a watchlist owner (weekly brief MVP)."""
+    email = _normalize_email(email)
     days = max(1, min(days, 30))
     max_alerts = max(1, min(max_alerts, 1000))
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
@@ -1255,6 +1266,7 @@ def render_weekly_brief_markdown(
     max_alerts: int = 200,
     db_path: str | None = None,
 ) -> str:
+    email = _normalize_email(email)
     payload = build_weekly_brief(email=email, days=days, max_alerts=max_alerts, db_path=db_path)
     lines = [
         f"# Weekly Brief — {payload['email']}",
@@ -1282,6 +1294,7 @@ def render_weekly_brief_telegram_chunks(
     db_path: str | None = None,
     max_chars: int = 3500,
 ) -> dict:
+    email = _normalize_email(email)
     markdown = render_weekly_brief_markdown(email=email, days=days, max_alerts=max_alerts, db_path=db_path)
     max_chars = max(100, min(max_chars, 4096))
     chunks: list[str] = []
@@ -1328,6 +1341,7 @@ def render_weekly_brief_csv(
     max_alerts: int = 200,
     db_path: str | None = None,
 ) -> str:
+    email = _normalize_email(email)
     payload = build_weekly_brief(email=email, days=days, max_alerts=max_alerts, db_path=db_path)
     output = StringIO()
     fieldnames = ["email", "window_days", "total_alerts", "unread_alerts", "risk_high", "risk_medium", "risk_low", "franchise_slug", "count"]
@@ -1372,6 +1386,7 @@ def build_weekly_brief_packet(
     db_path: str | None = None,
     max_chars: int = 3500,
 ) -> dict:
+    email = _normalize_email(email)
     return {
         "email": email,
         "brief": build_weekly_brief(email=email, days=days, max_alerts=max_alerts, db_path=db_path),
@@ -2848,7 +2863,7 @@ def build_digest_preview_all_summary_packet(
 
 def write_digest_outbox(payload: DigestPayload, outbox_path: str | None = None, run_id: str | None = None) -> str:
     row = {
-        "email": payload.email,
+        "email": _normalize_email(payload.email),
         "unread_count": payload.unread_count,
         "subject": payload.subject,
         "body": payload.body,
@@ -2862,6 +2877,8 @@ def write_digest_outbox(payload: DigestPayload, outbox_path: str | None = None, 
 def write_outbox_row(row: dict, outbox_path: str | None = None) -> str:
     path = Path(outbox_path) if outbox_path else _default_data_path("alert_outbox.jsonl")
     path.parent.mkdir(parents=True, exist_ok=True)
+    if isinstance(row.get("email"), str):
+        row = {**row, "email": _normalize_email(row["email"])}
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(row) + "\n")
     return str(path)
@@ -2890,7 +2907,8 @@ def _list_jsonl_records(
         rows = [json.loads(line) for line in f if line.strip()]
 
     if email:
-        rows = [row for row in rows if row.get("email") == email]
+        normalized_email = _normalize_email(email)
+        rows = [row for row in rows if isinstance(row.get("email"), str) and _normalize_email(row.get("email")) == normalized_email]
     if run_id:
         rows = [row for row in rows if row.get("run_id") == run_id]
 
@@ -4009,6 +4027,7 @@ def _dispatch_via_resend(payload: dict) -> dict:
 
 def run_provider_smoke_test(provider: str, email: str, dry_run: bool = True) -> dict:
     provider_name = (provider or "noop").strip().lower() or "noop"
+    email = _normalize_email(email)
     validation = validate_dispatch_provider(provider=provider_name, dry_run=dry_run)
 
     if not validation.get("ok", False):

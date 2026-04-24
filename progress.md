@@ -81,3 +81,9 @@ Harden the FDD Tracker MVP around ingestion, diffs, alerts, and operational obse
   - `./.venv/bin/pytest -q`
   - `npm run build`
 - Next step: add dispatch policy routing by channel (`email` via provider, `telegram/slack` as explicit manual/adapter-required) so queue rows can be processed safely without ambiguity.
+
+## 2026-04-24 15:37 UTC
+- Hardened email canonicalization across alert/digest/provider helpers so mixed-case addresses resolve and report consistently.
+- Normalized outbox row writes and sent/failed outbox filters to use lower-cased emails for deterministic lookup.
+- Verified with `./.venv/bin/pytest -q` and a direct mixed-case email smoke check against watchlist, digest preview, outbox, and smoke-test helpers.
+- Next step: keep the dispatch-policy work moving, now with email handling aligned across read/write surfaces.

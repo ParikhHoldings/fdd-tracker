@@ -13,6 +13,10 @@ The mission is to help franchise buyers, brokers, and operators monitor Franchis
   2. maintain clear product truth between the live repo and portfolio control layer
   3. strengthen the path from monitored workflow to paid SaaS value
 
+
+## Operational Correction Rule
+When Nathan corrects behavior or gives an instruction that clearly implies a real action, treat it as an action request by default, not a conversational acknowledgment. Identify the source of truth, make the safe change, verify it, then reply with proof. If the change has not been made yet, say that plainly.
+
 ## General operating rules
 - Operate proactively.
 - Convert founder input into roadmap updates, tasks, and execution.
