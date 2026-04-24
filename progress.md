@@ -53,3 +53,17 @@ Harden the FDD Tracker MVP around ingestion, diffs, alerts, and operational obse
 - Verified the hardening commit is already on `staging` as `71a004b` and matches `origin/staging`.
 - Confirmed the repo is clean with `git status -sb` showing `## staging...origin/staging`.
 - Builder state/reporting can now treat the verified FDD hardening batch as shipped.
+
+## 2026-04-24 12:13 UTC
+- Attempted the required Claude Code path: `cd /project && claude --permission-mode bypassPermissions --print ...`; command failed in this runtime because bypassPermissions is blocked under root (`--dangerously-skip-permissions cannot be used with root/sudo privileges`).
+- Shipped a new buyer-report delivery automation surface:
+  - Added `/buyer-reports/comparison-brief/delivery-envelope` for channel-ready (`email`/`telegram`/`slack`) dispatch payloads with deterministic chunking and delivery metadata.
+  - Added `/buyer-reports/comparison-brief/delivery-envelope/options` and wired delivery surfaces into main buyer-report options output.
+  - Added helper functions in `app/main.py` for deterministic text chunking and envelope assembly.
+  - Added API regression coverage in `tests/test_api.py` for delivery options + envelope behavior.
+  - Updated README curl runbook with the new delivery endpoints.
+- Verified with:
+  - `./.venv/bin/pytest -q tests/test_api.py -k 'buyer_report_comparison_brief_options_and_exports or buyer_report_comparison_brief_bundle'`
+  - `./.venv/bin/pytest -q`
+  - `npm run build`
+- Next step: keep moving on delivery/ops hardening by adding provider-ready dispatch adapters for buyer-report envelopes.

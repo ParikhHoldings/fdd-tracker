@@ -313,6 +313,7 @@ def test_buyer_report_comparison_brief_options_and_exports():
     assert options_data["defaults"]["template_variant"] == "executive"
     assert "/buyer-reports/comparison-brief/packet" in options_data["surfaces"]["packet"]
     assert "/buyer-reports/comparison-brief/templates" in options_data["surfaces"]["templates"]
+    assert "/buyer-reports/comparison-brief/delivery-envelope" in options_data["surfaces"]["delivery_envelope"]
 
     md = client.get(f"/buyer-reports/comparison-brief/markdown?email={email}&left_slug={left}&right_slug={right}")
     assert md.status_code == 200
@@ -354,6 +355,31 @@ def test_buyer_report_comparison_brief_options_and_exports():
     assert templates_packet_data["selected"] == "concise"
     assert "telegram" in templates_packet_data
     assert templates_packet_data["telegram"]["chunks_with_index"][0].startswith("[1/")
+
+    delivery_options = client.get("/buyer-reports/comparison-brief/delivery-envelope/options")
+    assert delivery_options.status_code == 200
+    delivery_options_data = delivery_options.json()
+    assert delivery_options_data["defaults"]["channel"] == "telegram"
+    assert delivery_options_data["constraints"]["channel"]["enum"] == ["email", "telegram", "slack"]
+
+    delivery = client.get(
+        f"/buyer-reports/comparison-brief/delivery-envelope?email={email}&left_slug={left}&right_slug={right}&channel=telegram&template_variant=executive&max_chars=220"
+    )
+    assert delivery.status_code == 200
+    delivery_data = delivery.json()
+    assert delivery_data["bundle"]["email"] == email
+    assert delivery_data["envelope"]["channel"] == "telegram"
+    assert delivery_data["envelope"]["template_variant"] == "executive"
+    assert delivery_data["envelope"]["subject"].startswith("FDD Buyer Brief:")
+    assert delivery_data["envelope"]["telegram"]["chunks_with_index"][0].startswith("[1/")
+    assert delivery_data["envelope"]["delivery_metadata"]["dispatch_ready"] is True
+    assert delivery_data["envelope"]["delivery_metadata"]["delivery_mode"] == "message"
+
+    delivery_email = client.get(
+        f"/buyer-reports/comparison-brief/delivery-envelope?email={email}&left_slug={left}&right_slug={right}&channel=email&template_variant=concise"
+    )
+    assert delivery_email.status_code == 200
+    assert delivery_email.json()["envelope"]["delivery_metadata"]["delivery_mode"] == "email"
 
 
 def test_create_watchlist_idempotency():

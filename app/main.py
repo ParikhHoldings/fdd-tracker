@@ -393,6 +393,8 @@ def buyer_report_comparison_brief_options() -> dict:
             "packet": "/buyer-reports/comparison-brief/packet",
             "templates": "/buyer-reports/comparison-brief/templates",
             "templates_packet": "/buyer-reports/comparison-brief/templates/packet",
+            "delivery_envelope": "/buyer-reports/comparison-brief/delivery-envelope",
+            "delivery_options": "/buyer-reports/comparison-brief/delivery-envelope/options",
         },
     }
 
@@ -582,6 +584,44 @@ def _build_buyer_report_template_variants(payload: dict) -> dict:
     return {"executive": executive, "analyst": analyst, "concise": concise}
 
 
+def _chunk_text_with_index(text: str, max_chars: int) -> list[str]:
+    chunks = [text[i:i + max_chars] for i in range(0, len(text), max_chars)] or [""]
+    return [f"[{i+1}/{len(chunks)}] {chunk}" for i, chunk in enumerate(chunks)]
+
+
+def _build_buyer_report_delivery_envelope(
+    payload: dict,
+    template_variant: str,
+    channel: str,
+    max_chars: int,
+) -> dict:
+    variants = _build_buyer_report_template_variants(payload)
+    content = variants[template_variant]
+    chunks = _chunk_text_with_index(content, max_chars=max_chars)
+    left_slug = payload["comparison"]["left"]["franchise_slug"]
+    right_slug = payload["comparison"]["right"]["franchise_slug"]
+    subject = f"FDD Buyer Brief: {left_slug} vs {right_slug}"
+
+    return {
+        "channel": channel,
+        "template_variant": template_variant,
+        "subject": subject,
+        "content": content,
+        "telegram": {"max_chars": max_chars, "chunk_count": len(chunks), "chunks_with_index": chunks},
+        "delivery_metadata": {
+            "dispatch_ready": True,
+            "content_chars": len(content),
+            "max_chars": max_chars,
+            "email_to": payload["email"],
+            "comparison_pair": {"left_slug": left_slug, "right_slug": right_slug},
+            "window_days": payload["window_days"],
+            "weekly_alerts": payload["weekly_brief"]["total_alerts"],
+            "weekly_unread": payload["weekly_brief"]["unread_alerts"],
+            "delivery_mode": "message" if channel in {"telegram", "slack"} else "email",
+        },
+    }
+
+
 @app.get("/buyer-reports/comparison-brief/templates")
 def buyer_report_comparison_brief_templates(
     email: EmailStr,
@@ -643,6 +683,68 @@ def buyer_report_comparison_brief_templates_packet(
         "content": template_payload["content"],
         "variants": template_payload["variants"],
         "telegram": {"max_chars": max_chars, "chunk_count": len(chunks), "chunks_with_index": chunks},
+    }
+
+
+@app.get("/buyer-reports/comparison-brief/delivery-envelope/options")
+def buyer_report_comparison_brief_delivery_envelope_options() -> dict:
+    options = buyer_report_comparison_brief_options()
+    return {
+        "constraints": {
+            **options["constraints"],
+            "channel": {"type": "string", "enum": ["email", "telegram", "slack"]},
+        },
+        "defaults": {
+            **options["defaults"],
+            "channel": "telegram",
+        },
+        "surfaces": {
+            "options": "/buyer-reports/comparison-brief/delivery-envelope/options",
+            "delivery_envelope": "/buyer-reports/comparison-brief/delivery-envelope",
+        },
+    }
+
+
+@app.get("/buyer-reports/comparison-brief/delivery-envelope")
+def buyer_report_comparison_brief_delivery_envelope(
+    email: EmailStr,
+    left_slug: str = Query(..., min_length=1),
+    right_slug: str = Query(..., min_length=1),
+    channel: str = Query(default="telegram", pattern="^(email|telegram|slack)$"),
+    template_variant: str = Query(default="executive", pattern="^(executive|analyst|concise)$"),
+    days: int = Query(default=7, ge=1, le=30),
+    max_alerts: int = Query(default=200, ge=1, le=1000),
+    comparison_limit: int = Query(default=200, ge=1, le=500),
+    include_health_signals: bool = Query(default=False),
+    health_limit: int = Query(default=200, ge=1, le=500),
+    max_chars: int = Query(default=2500, ge=200, le=10000),
+) -> dict:
+    payload = buyer_report_comparison_brief(
+        email=email,
+        left_slug=left_slug,
+        right_slug=right_slug,
+        days=days,
+        max_alerts=max_alerts,
+        comparison_limit=comparison_limit,
+        include_health_signals=include_health_signals,
+        health_limit=health_limit,
+        max_chars=max_chars,
+    )
+    envelope = _build_buyer_report_delivery_envelope(
+        payload=payload,
+        template_variant=template_variant,
+        channel=channel,
+        max_chars=max_chars,
+    )
+    return {
+        "bundle": {
+            "email": payload["email"],
+            "window_days": payload["window_days"],
+            "comparison_limit": payload["comparison_limit"],
+            "include_health_signals": payload["include_health_signals"],
+            "health_limit": payload["health_limit"],
+        },
+        "envelope": envelope,
     }
 
 
