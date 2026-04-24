@@ -9,7 +9,16 @@ from fdd_tracker.db import get_conn
 from fdd_tracker.models import ChangeSummary, Filing, HealthSignal
 
 
+def _normalize_email(email: str) -> str:
+    return email.strip().lower()
+
+
+def _normalize_franchise_slug(franchise_slug: str) -> str:
+    return franchise_slug.strip().lower()
+
+
 def upsert_filing(filing: Filing, db_path: str | None = None) -> int:
+    normalized_slug = _normalize_franchise_slug(filing.franchise_slug)
     with get_conn(db_path) as conn:
         cur = conn.execute(
             """
@@ -19,7 +28,7 @@ def upsert_filing(filing: Filing, db_path: str | None = None) -> int:
             DO UPDATE SET filed_on=excluded.filed_on, document_hash=excluded.document_hash
             """,
             (
-                filing.franchise_slug,
+                normalized_slug,
                 filing.source,
                 filing.filed_on.isoformat() if filing.filed_on else None,
                 filing.document_url,
@@ -32,6 +41,7 @@ def upsert_filing(filing: Filing, db_path: str | None = None) -> int:
 
 def get_latest_filings(franchise_slug: str, limit: int = 2, db_path: str | None = None) -> list[dict]:
     """Get latest filings for a franchise, ordered by filed_on desc nulls last, then id desc."""
+    normalized_slug = _normalize_franchise_slug(franchise_slug)
     with get_conn(db_path) as conn:
         rows = conn.execute(
             """
@@ -41,7 +51,7 @@ def get_latest_filings(franchise_slug: str, limit: int = 2, db_path: str | None 
             ORDER BY filed_on IS NULL, filed_on DESC, id DESC
             LIMIT ?
             """,
-            (franchise_slug, limit),
+            (normalized_slug, limit),
         ).fetchall()
     return [
         {
@@ -255,6 +265,7 @@ def build_health_signal_summary_packet(payload: dict, max_chars: int = 2500) -> 
 
 
 def insert_change_summary(summary: ChangeSummary, db_path: str | None = None) -> int:
+    normalized_slug = _normalize_franchise_slug(summary.franchise_slug)
     with get_conn(db_path) as conn:
         cur = conn.execute(
             """
@@ -262,7 +273,7 @@ def insert_change_summary(summary: ChangeSummary, db_path: str | None = None) ->
             VALUES (?, ?, ?, ?, ?)
             """,
             (
-                summary.franchise_slug,
+                normalized_slug,
                 summary.generated_at.isoformat(),
                 json.dumps(summary.categories),
                 json.dumps(summary.highlights),
@@ -274,6 +285,7 @@ def insert_change_summary(summary: ChangeSummary, db_path: str | None = None) ->
 
 
 def get_recent_changes(franchise_slug: str, limit: int = 20, db_path: str | None = None) -> list[dict]:
+    normalized_slug = _normalize_franchise_slug(franchise_slug)
     with get_conn(db_path) as conn:
         rows = conn.execute(
             """
@@ -283,7 +295,7 @@ def get_recent_changes(franchise_slug: str, limit: int = 20, db_path: str | None
             ORDER BY generated_at DESC
             LIMIT ?
             """,
-            (franchise_slug, limit),
+            (normalized_slug, limit),
         ).fetchall()
 
     out = []
@@ -551,7 +563,7 @@ def build_change_comparison_options_packet(options: dict, max_chars: int = 2500)
 
 def seed_change_summary(franchise_slug: str, categories: list[str], risk_level: str = "medium", db_path: str | None = None):
     summary = ChangeSummary(
-        franchise_slug=franchise_slug,
+        franchise_slug=_normalize_franchise_slug(franchise_slug),
         generated_at=datetime.now(timezone.utc),
         categories=categories,
         highlights=["seeded"],
@@ -561,6 +573,8 @@ def seed_change_summary(franchise_slug: str, categories: list[str], risk_level: 
 
 
 def upsert_watchlist(email: str, franchise_slug: str, db_path: str | None = None) -> dict:
+    normalized_email = _normalize_email(email)
+    normalized_slug = _normalize_franchise_slug(franchise_slug)
     with get_conn(db_path) as conn:
         cur = conn.execute(
             """
@@ -568,7 +582,7 @@ def upsert_watchlist(email: str, franchise_slug: str, db_path: str | None = None
             VALUES (?, ?)
             ON CONFLICT(email, franchise_slug) DO NOTHING
             """,
-            (email, franchise_slug),
+            (normalized_email, normalized_slug),
         )
         conn.commit()
         created = cur.rowcount > 0
@@ -579,7 +593,7 @@ def upsert_watchlist(email: str, franchise_slug: str, db_path: str | None = None
             FROM watchlists
             WHERE email = ? AND franchise_slug = ?
             """,
-            (email, franchise_slug),
+            (normalized_email, normalized_slug),
         ).fetchone()
 
     return {
@@ -592,8 +606,9 @@ def upsert_watchlist(email: str, franchise_slug: str, db_path: str | None = None
 
 
 def get_watchlists(email: str | None = None, db_path: str | None = None) -> list[dict]:
+    normalized_email = _normalize_email(email) if email else None
     with get_conn(db_path) as conn:
-        if email:
+        if normalized_email:
             rows = conn.execute(
                 """
                 SELECT id, email, franchise_slug, created_at
@@ -601,7 +616,7 @@ def get_watchlists(email: str | None = None, db_path: str | None = None) -> list
                 WHERE email = ?
                 ORDER BY created_at DESC
                 """,
-                (email,),
+                (normalized_email,),
             ).fetchall()
         else:
             rows = conn.execute(
@@ -623,7 +638,6 @@ def get_watchlists(email: str | None = None, db_path: str | None = None) -> list
     ]
 
 
-
 def get_watchlist_emails(db_path: str | None = None) -> list[str]:
     with get_conn(db_path) as conn:
         rows = conn.execute(
@@ -635,14 +649,17 @@ def get_watchlist_emails(db_path: str | None = None) -> list[str]:
         ).fetchall()
     return [row["email"] for row in rows]
 
+
 def delete_watchlist(email: str, franchise_slug: str, db_path: str | None = None) -> int:
+    normalized_email = _normalize_email(email)
+    normalized_slug = _normalize_franchise_slug(franchise_slug)
     with get_conn(db_path) as conn:
         cur = conn.execute(
             """
             DELETE FROM watchlists
             WHERE email = ? AND franchise_slug = ?
             """,
-            (email, franchise_slug),
+            (normalized_email, normalized_slug),
         )
         conn.commit()
         return cur.rowcount
@@ -657,6 +674,9 @@ def get_alert_feed(
     db_path: str | None = None,
 ) -> list[dict]:
     """Return alert feed entries by joining a user's watchlist to recent change summaries."""
+    normalized_email = _normalize_email(email)
+    normalized_slug = _normalize_franchise_slug(franchise_slug) if franchise_slug else None
+
     query = """
             SELECT
                 w.email,
@@ -674,7 +694,7 @@ def get_alert_feed(
              AND ar.generated_at = c.generated_at
             WHERE w.email = ?
     """
-    params: list = [email]
+    params: list = [normalized_email]
 
     if risk_levels:
         placeholders = ",".join("?" for _ in risk_levels)
@@ -684,9 +704,9 @@ def get_alert_feed(
     if unread_only:
         query += " AND ar.id IS NULL"
 
-    if franchise_slug:
+    if normalized_slug:
         query += " AND w.franchise_slug = ?"
-        params.append(franchise_slug)
+        params.append(normalized_slug)
 
     query += " ORDER BY c.generated_at DESC LIMIT ?"
     params.append(limit)
@@ -710,6 +730,8 @@ def get_alert_feed(
 
 
 def mark_alert_read(email: str, franchise_slug: str, generated_at: str, db_path: str | None = None) -> int:
+    normalized_email = _normalize_email(email)
+    normalized_slug = _normalize_franchise_slug(franchise_slug)
     with get_conn(db_path) as conn:
         cur = conn.execute(
             """
@@ -717,7 +739,7 @@ def mark_alert_read(email: str, franchise_slug: str, generated_at: str, db_path:
             VALUES (?, ?, ?)
             ON CONFLICT(email, franchise_slug, generated_at) DO NOTHING
             """,
-            (email, franchise_slug, generated_at),
+            (normalized_email, normalized_slug, generated_at),
         )
         conn.commit()
         return cur.rowcount
@@ -725,6 +747,8 @@ def mark_alert_read(email: str, franchise_slug: str, generated_at: str, db_path:
 
 def mark_alerts_read_for_franchise(email: str, franchise_slug: str, db_path: str | None = None) -> int:
     """Mark all currently unread alerts as read for a user+franchise."""
+    normalized_email = _normalize_email(email)
+    normalized_slug = _normalize_franchise_slug(franchise_slug)
     with get_conn(db_path) as conn:
         rows = conn.execute(
             """
@@ -739,7 +763,7 @@ def mark_alerts_read_for_franchise(email: str, franchise_slug: str, db_path: str
               AND w.franchise_slug = ?
               AND ar.id IS NULL
             """,
-            (email, franchise_slug),
+            (normalized_email, normalized_slug),
         ).fetchall()
 
         inserted = 0
@@ -750,7 +774,7 @@ def mark_alerts_read_for_franchise(email: str, franchise_slug: str, db_path: str
                 VALUES (?, ?, ?)
                 ON CONFLICT(email, franchise_slug, generated_at) DO NOTHING
                 """,
-                (email, franchise_slug, row["generated_at"]),
+                (normalized_email, normalized_slug, row["generated_at"]),
             )
             inserted += cur.rowcount
 
@@ -759,6 +783,7 @@ def mark_alerts_read_for_franchise(email: str, franchise_slug: str, db_path: str
 
 
 def get_unread_alert_count(email: str, db_path: str | None = None) -> int:
+    normalized_email = _normalize_email(email)
     with get_conn(db_path) as conn:
         row = conn.execute(
             """
@@ -772,13 +797,13 @@ def get_unread_alert_count(email: str, db_path: str | None = None) -> int:
             WHERE w.email = ?
               AND ar.id IS NULL
             """,
-            (email,),
+            (normalized_email,),
         ).fetchone()
     return int(row["unread_count"])
 
 
-
 def get_alert_summary(email: str, db_path: str | None = None) -> dict:
+    normalized_email = _normalize_email(email)
     with get_conn(db_path) as conn:
         totals = conn.execute(
             """
@@ -793,7 +818,7 @@ def get_alert_summary(email: str, db_path: str | None = None) -> dict:
              AND ar.generated_at = c.generated_at
             WHERE w.email = ?
             """,
-            (email,),
+            (normalized_email,),
         ).fetchone()
 
         risk_rows = conn.execute(
@@ -804,7 +829,7 @@ def get_alert_summary(email: str, db_path: str | None = None) -> dict:
             WHERE w.email = ?
             GROUP BY c.risk_level
             """,
-            (email,),
+            (normalized_email,),
         ).fetchall()
 
         top_unread = conn.execute(
@@ -822,7 +847,7 @@ def get_alert_summary(email: str, db_path: str | None = None) -> dict:
             ORDER BY unread_count DESC, c.franchise_slug ASC
             LIMIT 5
             """,
-            (email,),
+            (normalized_email,),
         ).fetchall()
 
     by_risk = {"low": 0, "medium": 0, "high": 0}

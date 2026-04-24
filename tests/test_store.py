@@ -314,3 +314,46 @@ def test_health_signal_summary_export_surfaces(tmp_path):
     assert "markdown" in packet
     assert "csv" in packet
     assert packet["telegram"]["chunks_with_index"][0].startswith("[1/")
+
+
+def test_watchlist_and_alerts_case_normalized(tmp_path):
+    db = str(tmp_path / "test.db")
+    result1 = upsert_watchlist("User@Example.com", "Chick-Fil-A", db_path=db)
+    result2 = upsert_watchlist(" user@example.COM ", " chick-fil-a ", db_path=db)
+
+    assert result1["created"] is True
+    assert result2["created"] is False
+    assert result2["id"] == result1["id"]
+    assert result2["email"] == "user@example.com"
+    assert result2["franchise_slug"] == "chick-fil-a"
+
+    seed_change_summary("CHICK-FIL-A", ["fees"], db_path=db)
+    alerts = get_alert_feed(" USER@EXAMPLE.com ", franchise_slug=" CHICK-FIL-A ", db_path=db)
+    assert len(alerts) == 1
+
+    generated_at = alerts[0]["generated_at"]
+    created = mark_alert_read("USER@example.com", "CHICK-FIL-A", generated_at, db_path=db)
+    assert created == 1
+    assert get_unread_alert_count(" user@EXAMPLE.com ", db_path=db) == 0
+
+
+def test_filings_and_changes_case_normalized(tmp_path):
+    db = str(tmp_path / "test.db")
+    upsert_filing(
+        Filing(
+            franchise_slug=" Chick-Fil-A ",
+            source="ftc",
+            filed_on=date(2026, 2, 1),
+            document_url="https://example.com/case.pdf",
+        ),
+        db_path=db,
+    )
+
+    filings = get_latest_filings("CHICK-FIL-A", db_path=db)
+    assert len(filings) == 1
+    assert filings[0]["franchise_slug"] == "chick-fil-a"
+
+    seed_change_summary(" CHICK-FIL-A ", ["fees"], db_path=db)
+    changes = get_recent_changes("chick-fil-a", db_path=db)
+    assert len(changes) == 1
+    assert changes[0]["franchise_slug"] == "chick-fil-a"
