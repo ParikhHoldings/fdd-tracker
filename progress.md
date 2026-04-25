@@ -131,3 +131,18 @@ Keep the FDD Tracker staging deployment healthy and verify the app boots cleanly
   - `/dashboard` → 200 and renders sign-in for signed-out users
 - Known deployment note: current Railway service serves the Next.js staging app; FastAPI service routes like `/health` are not exposed on this frontend service yet.
 - Next step: create/wire a separate Railway API service or route strategy before marking the full MVP staging deployment ready for Nathan review.
+
+## 2026-04-25 00:27 UTC
+- Attempted required Claude Code path (`cd /project && claude --permission-mode bypassPermissions --print ...`); still blocked by root security restriction on bypass permissions.
+- Created and deployed a separate Railway FastAPI staging service: `fdd-tracker-api-staging`.
+- Added `Dockerfile.api` and `railway.api.toml` so the API service can run `uvicorn app.main:app` separately from the Next.js frontend service.
+- First API deploy `3e8563d6-de68-4a3f-8bdd-ac14df02b012` failed because Railway treated `${PORT:-8000}` literally in `startCommand`; fixed by letting Docker CMD expand the shell env and redeployed.
+- Railway API deploy `d0facf52-ba41-489e-835e-a3f8fe7ecb8f` reached `SUCCESS`.
+- Created API service domain: `https://fdd-tracker-api-staging-staging.up.railway.app`.
+- Verified live API smoke checks:
+  - `/health` → 200 `{"status":"ok"}`
+  - `/franchises` → 200
+  - `/alerts/providers` → 200
+  - `/buyer-reports/comparison-brief/options` → 200
+- Updated README with frontend/API staging URLs and API smoke-check commands.
+- Next step: mark FDD Tracker ready for Nathan review; both frontend and API staging are live.

@@ -345,3 +345,17 @@ curl -X POST http://localhost:8000/alerts/retention/prune \
   -d '{"outbox_keep_last":1000,"sent_keep_last":2000,"failed_keep_last":1000,"history_keep_last":2000}'
 curl "http://localhost:8000/alerts/retention/prune/options"
 ```
+
+## Railway staging
+
+- Frontend staging: https://fdd-tracker-staging-staging.up.railway.app
+- FastAPI staging: https://fdd-tracker-api-staging-staging.up.railway.app
+
+The frontend service uses `railway.toml`. The API service uses `Dockerfile.api` plus `railway.api.toml`; deploy it by temporarily applying the API config or setting the Railway service build config to `Dockerfile.api`. API smoke checks:
+
+```bash
+curl https://fdd-tracker-api-staging-staging.up.railway.app/health
+curl https://fdd-tracker-api-staging-staging.up.railway.app/franchises
+curl https://fdd-tracker-api-staging-staging.up.railway.app/alerts/providers
+curl https://fdd-tracker-api-staging-staging.up.railway.app/buyer-reports/comparison-brief/options
+```
